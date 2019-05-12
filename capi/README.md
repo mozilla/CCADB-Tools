@@ -1,12 +1,12 @@
 # CAPI
-Certificate Authority Publication of Information - A tool for validating CA Browser Forum Section 2.2
+## Certificate Authority Publication of Information - A tool for validating CA Browser Forum Section 2.2
 
 This software enforces rules outlined in [CAB Forum Baseline Requirements §2.2](https://cabforum.org/wp-content/uploads/CA-Browser-Forum-BR-1.5.9.pdf), wherein:
 
 > The CA SHALL host test Web pages that allow Application Software Suppliers to test their software with Subscriber Certificates that chain up to each publicly trusted Root Certificate.  At a minimum, the CA SHALL host separate Web pages using Subscriber Certificates that are (i) valid, (ii) revoked, and (iii) expired.
 
 #### Precondition
-Give the input of a candidate root certificate and three test websites, the following tests are executed.
+Given the input of a candidate root certificate and three test websites, the following tests are executed.
 
 #### Execution
 ##### 1. Certificate Chain Download
