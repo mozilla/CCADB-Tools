@@ -3,12 +3,10 @@ Certificate Authority Publication of Information - A tool for validating CA Brow
 
 This software enforces rules outlined in [CAB Forum Baseline Requirements §2.2](https://cabforum.org/wp-content/uploads/CA-Browser-Forum-BR-1.5.9.pdf), wherein:
 
-> The CA SHALL host test Web pages that allow Application Software Suppliers to test their software with Subscriber Certificates that chain up to each publicly trusted Root Certificate.  At a minimum, the CA SHALL host separate Web pages using Subscriber Certificates that are (i) valid, (ii) revoked, and (iii) expired. 
-
-> Given a candidate root certificate, and three URLs
+> The CA SHALL host test Web pages that allow Application Software Suppliers to test their software with Subscriber Certificates that chain up to each publicly trusted Root Certificate.  At a minimum, the CA SHALL host separate Web pages using Subscriber Certificates that are (i) valid, (ii) revoked, and (iii) expired.
 
 #### Precondition
-A candidate root certificate and three test websites are submitted to the program.
+Give the input of a candidate root certificate and three test websites, the following tests are executed.
 
 #### Execution
 ##### 1. Certificate Chain Download
@@ -48,14 +46,14 @@ A candidate root certificate and three test websites are submitted to the progra
     - 4.e: If `certutil` outputs `certutil: certificate is invalid: Peer's Certificate issuer is not recognized`, then that certificate is marked as having a broken certificate chain. This will result in a `FAIL` for all test suites.
 ##### 5. CRL
 - For a given certificate, all CRL endpoints are checked as follows.
-    - 5.a: LDAP endpoints _ignored_ by this program.
+    - 5.a: LDAP endpoints are _ignored_ by this program.
     - 5.b: A timeout of 10 seconds is enforced. If this 10 second timeout is triggered, then the test is marked as a `FAIL`
     - 5.c: HTTP requests from this client may be accurately identified from the following header: `"X-Automated-Tool": "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool"`
     - 5.d: CRL endpoints are extracted from the given certificate's `CRLDistributionPoints` as defined in [RFC 5280 4.2.1.13. CRL Distribution Points](https://tools.ietf.org/html/rfc5280#section-4.2.1.13).
-    - 5.e: Every CRL downloaded is deserialized using the [Golang X509 ParseCRL function](https://golang.org/pkg/crypto/x509/#ParseCRL)
-    - 5.f: For each entry within the `revokedCertificates` sequence ([RFC 5280 5.1. CRL Fields](https://tools.ietf.org/html/rfc5280#section-5.1)) the `userCertificate` is compared with the given certificate's `serialNumber` ([RFC 5280 4.1. Basic Certificate Fields](https://tools.ietf.org/html/rfc5280#section-4.1)). If the serial number matches, then this certificate is considered `revoked`.
+    - 5.e: Every CRL downloaded is deserialized using the [Golang X509 ParseCRL](https://golang.org/pkg/crypto/x509/#ParseCRL) function.
+    - 5.f: For each entry within the `revokedCertificates` sequence ([RFC 5280 5.1. CRL Fields](https://tools.ietf.org/html/rfc5280#section-5.1)) the `userCertificate` is compared with the given certificate's `serialNumber` ([RFC 5280 4.1. Basic Certificate Fields](https://tools.ietf.org/html/rfc5280#section-4.1)). If the serial number matches, then this certificate is considered `revoked` by this CRL.
     - 5.g: If no CRL distribution endpoints are listed within the certificate, or all endpoints serve an empty CRL, then this certificate is considered `good`.
-    - 5.h: If there is a disagreement between CRLs on status of a particular certificate, then this certificate will be marked as a `FAIL`.
+    - 5.h: If there is a disagreement between CRLs on the status of a particular certificate, then this certificate will be marked as a `FAIL`.
 ##### 6. OCSP
 - For a given certificate, all OCSP responders are checked as follows.
     - 6.a: OCSP responders are extracted from the given certificate's authority access information extension ([RFC 4.2.2.1. Authority Information Access](https://tools.ietf.org/html/rfc5280#section-4.2.2.1))
@@ -75,8 +73,9 @@ A certificate chain, in the context of the `expired` test suite, is considered t
 1. `certutil` outputs `certutil: certificate is invalid: Peer's Certificate has expired` for the leaf certificate of the candidate chain.
 2. The intermediate certificates within the candidate chain _may_ either be considered `valid` or `expired` by `certutil`
 3. The root certificate _may not_ be considered `expired` by `certutil`.
-4. The leaf certificate _must not_ be revoked in any CRL.
-5. No intermediate or root certificate within the chain may be listed as being revoked by any CRL listed within its `CRLDistributionPoints`.
+4. The leaf certificate _must not_ be revoked by any CRL.
+5. The leaf certificate _may be_ considered either `good` or `unauthorized` by OCSP responders.
+5. No intermediate or root certificate within the chain may be revoked by any CRL.
 6. No intermediate or root certificate within the chain is considered _not_ `good` by any OCSP responder listed within its authority information access.
 ## Revoked
 A certificate chain, in the context of the `revoked` test suite, is considered to pass [iff](https://en.wikipedia.org/wiki/If_and_only_if):
