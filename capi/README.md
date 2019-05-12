@@ -1,5 +1,5 @@
 # CAPI
-## Certificate Authority Publication of Information - A tool for validating CA Browser Forum Section 2.2
+## Certificate Authority Publication of Information <br /> A tool for validating CA Browser Forum §2.2
 
 This software enforces rules outlined in [CAB Forum Baseline Requirements §2.2](https://cabforum.org/wp-content/uploads/CA-Browser-Forum-BR-1.5.9.pdf), wherein:
 
