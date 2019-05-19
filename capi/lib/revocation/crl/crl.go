@@ -78,6 +78,7 @@ func newCRL(serialNumber *big.Int, distributionPoint string) (crl CRL) {
 		return
 	}
 	req, err := http.NewRequest("GET", distributionPoint, nil)
+	req.Header.Add("X-Automated-Tool", "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool")
 	client := http.Client{}
 	client.Timeout = time.Duration(10 * time.Second)
 	raw, err := client.Do(req)

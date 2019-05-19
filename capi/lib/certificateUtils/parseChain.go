@@ -63,7 +63,7 @@ func GatherCertificateChain(subjectURL string) ([]*x509.Certificate, error) {
 	if err != nil {
 		return []*x509.Certificate{}, err
 	}
-	req.Header.Add("X-Automated-Tool", `https://github.com/christopher-henderson/capi CCADB test website verification tool"`)
+	req.Header.Add("X-Automated-Tool", "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool")
 	resp, err := client.Do(req)
 	if err != nil {
 		return []*x509.Certificate{}, err

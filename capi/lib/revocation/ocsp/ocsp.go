@@ -187,6 +187,7 @@ func newOCSPResponse(certificate, issuer *x509.Certificate, responder string) (r
 		response.Error = errors.Wrap(err, "failed to create HTTP POST for OCSP request").Error()
 		return
 	}
+	r.Header.Add("X-Automated-Tool", "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool")
 	r.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:64.0) Gecko/20100101 Firefox/64.0")
 	r.Header.Set("Content-Type", OCSPContentType)
 	client := http.Client{}
