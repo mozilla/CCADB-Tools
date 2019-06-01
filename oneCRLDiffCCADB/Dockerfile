@@ -16,6 +16,7 @@ RUN go build main.go
 
 FROM alpine:latest
 
+RUN apk add ca-certificates
 COPY --from=buildStage /opt/ /opt/
 
-CMD ["/opt/oneCRLDiffCCADB"]
+CMD ["/opt/main"]
