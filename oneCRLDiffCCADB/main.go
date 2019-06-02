@@ -58,17 +58,28 @@ func inspect(norm []*normalized.Normalized) (Return, error) {
 }
 
 type Return struct {
-	AddedAndPresentInOneCRL           []*normalized.Normalized
-	ExpiredAndPresentInOneCRL         []*normalized.Normalized
-	ReadyToAddAndPresentInOneCRL      []*normalized.Normalized
+	// "Added to OneCRL" and present in OneCRL
+	AddedAndPresentInOneCRL []*normalized.Normalized
+	// "Cert Expired" and present in OneCRL
+	ExpiredAndPresentInOneCRL []*normalized.Normalized
+	// "Ready to Add" and present in OneCRL
+	ReadyToAddAndPresentInOneCRL []*normalized.Normalized
+	// No such record in the CCADB, however exists in OneCRL
 	AbsentFromCCADBAndPresentInOneCRL []*normalized.Normalized
 
-	AddedAndAbsentFromOneCRL      []*normalized.Normalized
-	ExpiredAndAbsentFromOneCRL    []*normalized.Normalized
+	// "Added to OneCRL" and not present in OneCRL
+	AddedAndAbsentFromOneCRL []*normalized.Normalized
+	// "Cert Expired" and not present in OneCRL
+	ExpiredAndAbsentFromOneCRL []*normalized.Normalized
+	// "Ready to Add" and not present in OneCRL
 	ReadyToAddAndAbsentFromOneCRL []*normalized.Normalized
 
+	// Not present in either. This is not really possible
+	// for this tool to know, however it is worth having
+	// for the sake of being explicit, I suppose.
 	AbsentFromCCADBAndAbsentFromOneCRL []*normalized.Normalized
-
+	// A record in the CCADB was found whose "OneCRL Status"
+	// is the empty string.
 	NoRevocationStatus []*normalized.Normalized
 }
 
