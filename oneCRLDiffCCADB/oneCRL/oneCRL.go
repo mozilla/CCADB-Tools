@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 package oneCRL
 
 import (
@@ -12,66 +16,6 @@ import (
 )
 
 const OneCRLEndpoint = "https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records"
-
-var (
-	oidCountry            = []int{2, 5, 4, 6}
-	oidOrganization       = []int{2, 5, 4, 10}
-	oidOrganizationalUnit = []int{2, 5, 4, 11}
-	oidCommonName         = []int{2, 5, 4, 3}
-	oidSerialNumber       = []int{2, 5, 4, 5}
-	oidLocality           = []int{2, 5, 4, 7}
-	oidProvince           = []int{2, 5, 4, 8}
-	oidStreetAddress      = []int{2, 5, 4, 9}
-	oidPostalCode         = []int{2, 5, 4, 17}
-)
-
-var attributeTypeNames = map[string]string{
-	"2.5.4.6":  "C",
-	"2.5.4.10": "O",
-	"2.5.4.11": "OU",
-	"2.5.4.3":  "CN",
-	"2.5.4.5":  "SERIALNUMBER",
-	"2.5.4.7":  "L",
-	"2.5.4.8":  "ST",
-	"2.5.4.9":  "STREET",
-	"2.5.4.17": "POSTALCODE",
-}
-
-type Name struct {
-	// https://tools.ietf.org/html/rfc5280#section-4.1.2.4
-	pkix.RDNSequence
-}
-
-func (n *Name) Key() (string, string) {
-	cn := ""
-	o := ""
-	for _, i := range n.RDNSequence {
-		for _, j := range i {
-			switch j.Type.String() {
-			case "2.5.4.3":
-				//fmt.Println("asdasd", j.Value)
-				cn = fmt.Sprint(j.Value)
-			case "2.5.4.10":
-				o = fmt.Sprint(j.Value)
-			}
-		}
-	}
-	return cn, o
-}
-
-func (n *Name) UnmarshalJSON(raw []byte) error {
-	raw = bytes.Trim(raw, `"`)
-	dst := bytes.Trim(raw, `"`)
-	_, err := base64.StdEncoding.Decode(dst, raw)
-	if err != nil {
-		return err
-	}
-	_, err = asn1.Unmarshal(dst, &n.RDNSequence)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 type OneCRLIntermediates struct {
 	Data []*OneCRLIntermediate `json:"data"`
@@ -93,19 +37,20 @@ type OneCRLIntermediate struct {
 	LastModified int    `json:"last_modified"`
 }
 
+// Key constructs a string that is the concatenation of the certificate serial (decoded from base64 to an decimal value)
+// the issuer common name, and the issuer organization name. This key is used to join the results of OneCRL with the
+// CCADB.
 func (o *OneCRLIntermediate) Key() string {
 	cn, org := o.IssuerName.Key()
-	return fmt.Sprintf("%s%s%s", o.DecodeSerial(), cn, org)
+	return fmt.Sprintf("%s%s%s", o.decodeSerial(), cn, org)
 }
 
-func (o *OneCRLIntermediate) DecodeSerial() string {
-	s, err := base64.StdEncoding.DecodeString(o.SerialNumber)
-	if err != nil {
-		panic(err)
-	}
-	return big.NewInt(0).SetBytes(s).String()
-}
-
+// Retrieve downloads the OneCRL report located at
+// https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records
+// and returns a mapping "key"s to entries.
+//
+// The "key" in this case is the string concatenation of the decimal value of the certificate serial number,
+// the issuer common name, and the issuer organization name.
 func Retrieve() (map[string]*OneCRLIntermediate, error) {
 	result := make(map[string]*OneCRLIntermediate)
 	var intermediates OneCRLIntermediates
@@ -124,13 +69,51 @@ func Retrieve() (map[string]*OneCRLIntermediate, error) {
 	return result, nil
 }
 
-//func Retrieve() (OneCRLIntermediates, error) {
-//	var intermediates OneCRLIntermediates
-//	resp, err := http.DefaultClient.Get(OneCRLEndpoint)
-//	if err != nil {
-//		return intermediates, err
-//	}
-//	defer resp.Body.Close()
-//	err = json.NewDecoder(resp.Body).Decode(&intermediates)
-//	return intermediates, err
-//}
+func (o *OneCRLIntermediate) decodeSerial() string {
+	s, err := base64.StdEncoding.DecodeString(o.SerialNumber)
+	if err != nil {
+		panic(err)
+	}
+	return big.NewInt(0).SetBytes(s).String()
+}
+
+// Name wraps a a vanilla RDN so that we can attach further methods for deserialization from JSON and extraction
+// of the issuer Common Name and Organization Name.
+type Name struct {
+	// https://tools.ietf.org/html/rfc5280#section-4.1.2.4
+	pkix.RDNSequence
+}
+
+func (n *Name) Key() (string, string) {
+	cn := ""
+	on := ""
+	for _, i := range n.RDNSequence {
+		for _, j := range i {
+			switch j.Type.String() {
+			// CN http://oidref.com/2.5.4.3
+			case "2.5.4.3":
+				cn = fmt.Sprint(j.Value)
+			// ON http://oidref.com/2.5.4.10
+			case "2.5.4.10":
+				on = fmt.Sprint(j.Value)
+			}
+		}
+	}
+	return cn, on
+}
+
+func (n *Name) UnmarshalJSON(raw []byte) error {
+	// As it comes in, this buffer is just a JSON string, which
+	// includes double quotes that we do not want or need.
+	raw = bytes.Trim(raw, `"`)
+	dst := make([]byte, len(raw))
+	_, err := base64.StdEncoding.Decode(dst, raw)
+	if err != nil {
+		return err
+	}
+	_, err = asn1.Unmarshal(dst, &n.RDNSequence)
+	if err != nil {
+		return err
+	}
+	return nil
+}

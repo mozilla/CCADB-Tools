@@ -1,7 +1,10 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 package ccadb
 
 import (
-	"encoding/csv"
 	"encoding/hex"
 	"fmt"
 	"github.com/gocarina/gocsv"
@@ -25,18 +28,19 @@ type Entry struct {
 	Fingerprint            string `csv:"SHA-256 Fingerprint" json:"fingerprint"`
 }
 
+// Key constructs a string that is the concatenation of the certificate serial (decoded from hex to an decimal value)
+// the issuer common name, and the issuer organization name. This key is used to join the results of the CCADB
+// with OneCRL.
 func (e *Entry) Key() string {
-	return fmt.Sprintf("%s%s%s", e.DecodeSerial(), e.IssuerCommonName, e.IssuerOrganizationName)
+	return fmt.Sprintf("%s%s%s", e.decodeSerial(), e.IssuerCommonName, e.IssuerOrganizationName)
 }
 
-func (e *Entry) DecodeSerial() string {
-	s, err := hex.DecodeString(e.Serial)
-	if err != nil {
-		panic(err)
-	}
-	return big.NewInt(0).SetBytes(s).String()
-}
-
+// Retrieve downloads the CCADB report located at
+// https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV
+// and returns a mapping "key"s to entries.
+//
+// The "key" in this case is the string concatenation of the decimal value of the certificate serial number,
+// the issuer common name, and the issuer organization name.
 func Retrieve() (map[string]*Entry, error) {
 	result := make(map[string]*Entry, 0)
 	resp, err := http.DefaultClient.Get(report)
@@ -54,52 +58,10 @@ func Retrieve() (map[string]*Entry, error) {
 	return result, err
 }
 
-//func Retrieve() []*Entry {
-//	resp, err := http.DefaultClient.Get(report)
-//	if err != nil {
-//		panic(err)
-//	}
-//	defer resp.Body.Close()
-//	var e []*Entry
-//	if err := gocsv.Unmarshal(resp.Body, &e); err != nil {
-//		panic(err)
-//	}
-//	return e
-//}
-
-var schema = map[string]int{"CA Owner": 0,
-	"Revocation Status":                1,
-	"RFC 5280 Revocation Reason Code":  2,
-	"Date of Revocation":               3,
-	"OneCRL Status":                    4,
-	"Certificate Serial Number":        5,
-	"CA Owner/Certificate Name":        6,
-	"Certificate Issuer Common Name":   7,
-	"Certificate Issuer Organization":  8,
-	"Certificate Subject Common Name":  9,
-	"Certificate Subject Organization": 10,
-	"SHA-256 Fingerprint":              11,
-	"Subject + SPKI SHA256":            12,
-	"Valid From [GMT]":                 13,
-	"Valid To [GMT]":                   14,
-	"Public Key Algorithm":             15,
-	"Signature Hash Algorithm":         16,
-	"CRL URL(s)":                       17,
-	"Alternate CRL":                    18,
-	"OCSP URL(s)":                      19,
-	"Comments":                         20,
-	"PEM Info":                         21}
-
-func retrieve() [][]string {
-	resp, err := http.DefaultClient.Get(report)
+func (e *Entry) decodeSerial() string {
+	s, err := hex.DecodeString(e.Serial)
 	if err != nil {
 		panic(err)
 	}
-	defer resp.Body.Close()
-	r := csv.NewReader(resp.Body)
-	rows, err := r.ReadAll()
-	if err != nil {
-		panic(err)
-	}
-	return rows[1:]
+	return big.NewInt(0).SetBytes(s).String()
 }
