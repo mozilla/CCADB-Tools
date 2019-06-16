@@ -139,8 +139,8 @@ pub struct Revocation {
 impl std::convert::From<KintoEntry> for Revocation {
     fn from(ke: KintoEntry) -> Self {
         Revocation {
-            issuer_name: ke.issuerName,
-            serials: vec![ke.serialNumber],
+            issuer_name: ke.issuer_name,
+            serials: vec![ke.serial_number],
         }
     }
 }
@@ -174,14 +174,18 @@ impl Revocation {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
 
     use super::*;
-    use crate::tests::*;
     use std::convert::TryInto;
 
+    pub const REVOCATIONS_TXT: &str =
+        "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502";
+
     #[test]
-    fn should_exactly_match() -> Result<()> {
+    /// Parses and then reconstructs revocations.txt, asserting that the reconstructed
+    /// value is exactly the same as
+    fn smoke_revocations_txt() -> Result<()> {
         let got: Revocations = REVOCATIONS_TXT.parse::<Url>().unwrap().try_into()?;
         let want = reqwest::Client::new()
             .get(REVOCATIONS_TXT)

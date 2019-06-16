@@ -2,8 +2,8 @@
 
 #[macro_use]
 extern crate error_chain;
-extern crate structopt;
 extern crate reqwest;
+extern crate structopt;
 
 mod errors {
     error_chain! {}
@@ -11,9 +11,9 @@ mod errors {
 
 use errors::*;
 use reqwest::Url;
-use structopt::StructOpt;
 use std::collections::HashSet;
 use std::convert::TryInto;
+use structopt::StructOpt;
 
 mod intermediary;
 mod kinto;
@@ -28,11 +28,19 @@ const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kinto_cmp";
 
 #[derive(StructOpt)]
 struct KintoDiffRevocations {
-    #[structopt(short = "r", long = "revocations", default_value = "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502")]
+    #[structopt(
+        short = "r",
+        long = "revocations",
+        default_value = "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502"
+    )]
     revocations: Url,
 
-    #[structopt(short = "k", long = "kinto", default_value =  "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records")]
-    kinto: Url
+    #[structopt(
+        short = "k",
+        long = "kinto",
+        default_value = "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
+    )]
+    kinto: Url,
 }
 
 fn main() -> Result<()> {
@@ -43,13 +51,9 @@ fn main() -> Result<()> {
     let kinto: HashSet<Intermediary> = kinto.into();
     println!("revocations.len() = {:#?}", revocations.len());
     println!("kinto.len() = {:#?}", kinto.len());
-    println!("revocations.symmetric_difference(&kinto) = {:#?}", revocations.symmetric_difference(&kinto));
+    println!(
+        "revocations.symmetric_difference(&kinto) = {:#?}",
+        revocations.symmetric_difference(&kinto)
+    );
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    pub const REVOCATIONS_TXT: &str = "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502";
-pub const KINTO: &str =
-    "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records";
 }
