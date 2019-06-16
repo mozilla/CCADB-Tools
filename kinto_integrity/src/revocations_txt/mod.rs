@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 use std::collections::HashMap;
 use std::convert::{From, TryFrom};
 use std::hash::{Hash, Hasher};
@@ -154,7 +158,7 @@ impl Hash for Revocation {
 impl Revocation {
     pub fn new(issuer_name: String) -> Revocation {
         return Revocation {
-            issuer_name: issuer_name,
+            issuer_name,
             serials: vec![],
         };
     }
