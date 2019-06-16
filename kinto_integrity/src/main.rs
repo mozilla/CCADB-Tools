@@ -67,8 +67,6 @@ fn main() -> Result<()> {
 mod tests {
     use super::*;
 
-    use super::revocations_txt::tests::*;
-
     #[test]
     /// Asserts that the observations in https://bugzilla.mozilla.org/show_bug.cgi?id=1548159#c2
     /// Are in https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records
