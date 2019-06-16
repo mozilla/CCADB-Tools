@@ -71,9 +71,9 @@ mod tests {
 
     #[test]
     /// Asserts that the observations in https://bugzilla.mozilla.org/show_bug.cgi?id=1548159#c2
-    /// Are in https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502
+    /// Are in https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records
     fn test_kathleens_observation() -> Result<()> {
-        let revocations: Revocations = REVOCATIONS_TXT.parse::<Url>().chain_err(|| "bad URL")?.try_into()?;
+        let revocations: Kinto = "https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records".parse::<Url>().chain_err(|| "bad URL")?.try_into()?;
         let revocations: HashSet<Intermediary> = revocations.into();
         let mut kathleens: HashSet<Intermediary> = HashSet::new();
         kathleens.insert(Intermediary{
