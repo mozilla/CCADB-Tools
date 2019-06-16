@@ -2,26 +2,23 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::collections::HashMap;
-use std::convert::{From, TryFrom};
-use std::hash::{Hash, Hasher};
+use std::convert::TryFrom;
 
 use crate::errors::*;
-use crate::{Kinto, KintoEntry};
 use reqwest::Url;
 use std::fs::File;
 use std::io::{BufRead, Read};
 
-#[derive(Debug, Eq, PartialEq)]
 pub struct Revocations {
     pub data: Vec<Revocation>,
 }
 
 impl Revocations {
+
     /// Rules for this parser were plucked from
     /// https://searchfox.org/mozilla-central/source/security/manager/ssl/tests/unit/test_onecrl/sample_revocations.txt
     ///
-    /// If a key has is found an error is returned, as we do not have key hashes in Kinto
+    /// If a key hash is found an error is returned, as we do not have key hashes in Kinto,
     /// thus finding one in revocations.txt would make life hard on us.
     pub fn parse(reader: Box<dyn Read>) -> Result<Revocations> {
         let mut revocations = Revocations { data: vec![] };
@@ -62,7 +59,7 @@ impl Revocations {
     /// issuer
     ///
     /// Which is to say, we're assuming that an issuer comes before any given serial,
-    /// and that serial should be associated with the nearest issuer.
+    /// and that that serial should be associated with the nearest issuer.
     ///
     /// If a serial is found without a nearest issuer, then an error is returned.
     fn push_serial(&mut self, serial: String) -> Result<()> {
@@ -112,47 +109,9 @@ impl TryFrom<File> for Revocations {
     }
 }
 
-impl From<Kinto> for Revocations {
-    fn from(mut kinto: Kinto) -> Self {
-        let mut revocations: HashMap<String, Revocation> = HashMap::new();
-        for mut rev in kinto
-            .data
-            .drain(..)
-            .map(|f| f.into())
-            .collect::<Vec<Revocation>>()
-        {
-            if let Some(r) = revocations.get_mut(&rev.issuer_name) {
-                r.serials.append(&mut rev.serials);
-            } else {
-                revocations.insert(rev.issuer_name.clone(), rev);
-            }
-        }
-        Revocations {
-            data: revocations.drain().map(|(_, v)| v).collect(),
-        }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-#[allow(non_snake_case)]
 pub struct Revocation {
     pub issuer_name: String,
     pub serials: Vec<String>,
-}
-
-impl std::convert::From<KintoEntry> for Revocation {
-    fn from(ke: KintoEntry) -> Self {
-        Revocation {
-            issuer_name: ke.issuer_name,
-            serials: vec![ke.serial_number],
-        }
-    }
-}
-
-impl Hash for Revocation {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.issuer_name.hash(state);
-    }
 }
 
 impl Revocation {

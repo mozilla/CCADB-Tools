@@ -41,7 +41,7 @@ impl From<Kinto> for HashSet<Intermediary> {
     /// many duplicate issuer/serial pairs for which I am not keen
     /// as to the purpose. They have different "id"s, which I reckon
     /// are Kinto specific IDs, however I am implicitly deduplicating
-    /// Kinto in this regard by shoving everything is a set.
+    /// Kinto in this regard by shoving everything into a set.
     ///
     /// Please see kinto:tests::find_duplicates
     fn from(kinto: Kinto) -> Self {
