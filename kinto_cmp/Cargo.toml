@@ -11,4 +11,4 @@ reqwest = "0.9.18"
 error-chain = "0.12.1"
 serde_json = "1.0"
 serde =  { version = "1.0.92", features = ["derive"] }
-itertools = "0.8.0"
+structopt = "0.2.16"
