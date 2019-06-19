@@ -6,10 +6,10 @@
 
 #[macro_use]
 extern crate error_chain;
-extern crate reqwest;
-extern crate structopt;
 extern crate lmdb;
+extern crate reqwest;
 extern crate rkv;
+extern crate structopt;
 
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -23,7 +23,14 @@ mod kinto;
 mod revocations_txt;
 
 mod errors {
+    use rkv::StoreError;
     error_chain! {}
+
+    impl std::convert::From<rkv::StoreError> for Error {
+        fn from(err: StoreError) -> Self {
+            format!("{:?}", err).into()
+        }
+    }
 }
 
 use cert_storage::*;
@@ -52,30 +59,43 @@ struct KintoDiffRevocations {
     )]
     kinto: Url,
 
-    #[structopt(
-        short = "p",
-        long = "profile",
-        default_value = r#"C:\Users\Christopher Henderso\AppData\Roaming\Mozilla\Firefox\Profiles\b1e6quep.default-nightly"#
-    )]
-    profile: PathBuf,
+    #[structopt(short = "p", long = "profile")]
+    /// Optional path to a local Firefox profile.
+    profile: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
     let opts: KintoDiffRevocations = KintoDiffRevocations::from_args();
     let revocations: Revocations = opts.revocations.try_into()?;
-    let certstorage: CertStorage = opts.profile.try_into()?;
     let kinto: Kinto = opts.kinto.try_into()?;
     let revocations: HashSet<Intermediary> = revocations.into();
     let kinto: HashSet<Intermediary> = kinto.into();
-    let cert_storage: HashSet<Intermediary> = certstorage.into();
-    println!("revocations.len() = {:#?}", revocations.len());
-    println!("kinto.len() = {:#?}", kinto.len());
-    println!("cert_storage.len() = {:#?}", cert_storage.len());
-    println!(
-        "revocations.symmetric_difference(&kinto) = {:#?}",
-        revocations.symmetric_difference(&kinto)
-    );
-    println!("revocations.symmetric_difference(&cert_storage) = {:#?}", revocations.symmetric_difference(&cert_storage));;
+
+    match opts.profile {
+        Some(path) => {
+            let certstorage: CertStorage = path.try_into()?;
+            let certstorage: HashSet<Intermediary> = certstorage.into();
+            println!("revocations.len() = {:#?}", revocations.len());
+            println!("kinto.len() = {:#?}", kinto.len());
+            println!("cert_storage.len() = {:#?}", certstorage.len());
+            println!(
+                "revocations.symmetric_difference(&kinto) = {:#?}",
+                revocations.symmetric_difference(&kinto)
+            );
+            println!(
+                "revocations.symmetric_difference(&certstorage) = {:#?}",
+                revocations.symmetric_difference(&certstorage)
+            );
+        }
+        None => {
+            println!("revocations.len() = {:#?}", revocations.len());
+            println!("kinto.len() = {:#?}", kinto.len());
+            println!(
+                "revocations.symmetric_difference(&kinto) = {:#?}",
+                revocations.symmetric_difference(&kinto)
+            );
+        }
+    };
     Ok(())
 }
 

@@ -5,9 +5,9 @@
 use std::collections::HashSet;
 use std::convert::From;
 
+use crate::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
-use crate::cert_storage::CertStorage;
 
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct Intermediary {
@@ -59,7 +59,13 @@ impl From<Kinto> for HashSet<Intermediary> {
 
 impl From<CertStorage> for HashSet<Intermediary> {
     fn from(cs: CertStorage) -> Self {
-        cs.data.into_iter().map(|is| Intermediary{issuer_name: is.issuer_name, serial: is.serial}).collect()
+        cs.data
+            .into_iter()
+            .map(|is| Intermediary {
+                issuer_name: is.issuer_name,
+                serial: is.serial,
+            })
+            .collect()
     }
 }
 
