@@ -8,25 +8,30 @@
 extern crate error_chain;
 extern crate reqwest;
 extern crate structopt;
+extern crate lmdb;
+extern crate rkv;
 
 use std::collections::HashSet;
 use std::convert::TryInto;
 
-use structopt::StructOpt;
 use reqwest::Url;
+use structopt::StructOpt;
 
+mod cert_storage;
+mod intermediary;
 mod kinto;
 mod revocations_txt;
-mod intermediary;
 
 mod errors {
     error_chain! {}
 }
 
+use cert_storage::*;
 use errors::*;
 use intermediary::*;
 use kinto::*;
 use revocations_txt::*;
+use std::path::PathBuf;
 
 const USER_AGENT: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity chris@chenderson.org";
 const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity";
@@ -46,20 +51,31 @@ struct KintoDiffRevocations {
         default_value = "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
     )]
     kinto: Url,
+
+    #[structopt(
+        short = "p",
+        long = "profile",
+        default_value = r#"C:\Users\Christopher Henderso\AppData\Roaming\Mozilla\Firefox\Profiles\b1e6quep.default-nightly"#
+    )]
+    profile: PathBuf,
 }
 
 fn main() -> Result<()> {
     let opts: KintoDiffRevocations = KintoDiffRevocations::from_args();
     let revocations: Revocations = opts.revocations.try_into()?;
+    let certstorage: CertStorage = opts.profile.try_into()?;
     let kinto: Kinto = opts.kinto.try_into()?;
     let revocations: HashSet<Intermediary> = revocations.into();
     let kinto: HashSet<Intermediary> = kinto.into();
+    let cert_storage: HashSet<Intermediary> = certstorage.into();
     println!("revocations.len() = {:#?}", revocations.len());
     println!("kinto.len() = {:#?}", kinto.len());
+    println!("cert_storage.len() = {:#?}", cert_storage.len());
     println!(
         "revocations.symmetric_difference(&kinto) = {:#?}",
         revocations.symmetric_difference(&kinto)
     );
+    println!("revocations.symmetric_difference(&cert_storage) = {:#?}", revocations.symmetric_difference(&cert_storage));;
     Ok(())
 }
 

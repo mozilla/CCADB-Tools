@@ -14,7 +14,6 @@ pub struct Revocations {
 }
 
 impl Revocations {
-
     /// Rules for this parser were plucked from
     /// https://searchfox.org/mozilla-central/source/security/manager/ssl/tests/unit/test_onecrl/sample_revocations.txt
     ///
