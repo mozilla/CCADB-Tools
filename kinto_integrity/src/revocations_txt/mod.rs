@@ -100,14 +100,6 @@ impl TryFrom<Url> for Revocations {
     }
 }
 
-impl TryFrom<File> for Revocations {
-    type Error = Error;
-
-    fn try_from(file: File) -> Result<Self> {
-        Revocations::parse(file)
-    }
-}
-
 pub struct Revocation {
     pub issuer_name: String,
     pub serials: Vec<String>,
