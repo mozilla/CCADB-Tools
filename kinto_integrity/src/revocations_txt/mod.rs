@@ -19,7 +19,7 @@ impl Revocations {
     ///
     /// If a key hash is found an error is returned, as we do not have key hashes in Kinto,
     /// thus finding one in revocations.txt would make life hard on us.
-    pub fn parse(reader: Box<dyn Read>) -> Result<Revocations> {
+    pub fn parse<R: Read>(reader: R) -> Result<Revocations> {
         let mut revocations = Revocations { data: vec![] };
         let mut buf = std::io::BufReader::new(reader);
         let mut lineno = 0;
@@ -96,7 +96,7 @@ impl TryFrom<Url> for Revocations {
             .header("X-Automated-Tool", crate::X_AUTOMATED_TOOL)
             .send()
             .chain_err(|| format!("failed to download {}", url_str))?;
-        Revocations::parse(Box::new(resp))
+        Revocations::parse(resp)
     }
 }
 
@@ -104,7 +104,7 @@ impl TryFrom<File> for Revocations {
     type Error = Error;
 
     fn try_from(file: File) -> Result<Self> {
-        Revocations::parse(Box::new(file))
+        Revocations::parse(file)
     }
 }
 
