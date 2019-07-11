@@ -86,8 +86,10 @@ func InterpretResult(result *model.TestWebsiteResult, expectation Expectation) {
 		// Root must not be expired
 		result.Opinion.Append(assertNotExpired(result.Chain.Root, Root))
 		/////// Revocation checks
-		// Leaf MUST be revoked.
-		result.Opinion.Append(assertRevoked(result.Chain.Leaf, Leaf))
+		//
+		// By policy, we do not care whether or not the leaf certificate
+		// is revoked by any CRL or OCSP responder.
+		//
 		// Intermediates MAY be revoked
 		for _, intermediate := range result.Chain.Intermediates {
 			result.Opinion.Append(assertMayBeRevoked(intermediate, Intermediate))
