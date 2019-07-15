@@ -93,7 +93,7 @@ func InterpretResult(result *model.TestWebsiteResult, expectation Expectation) {
 		// Intermediates MAY be revoked
 		for _, intermediate := range result.Chain.Intermediates {
 			result.Opinion.Append(assertMayBeRevoked(intermediate, Intermediate))
-}
+		}
 		// Root must NOT be revoked
 		result.Opinion.Append(assertNotRevoked(result.Chain.Root, Root))
 	}
