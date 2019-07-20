@@ -111,7 +111,7 @@ impl TryFrom<Url> for Firefox {
 
     fn try_from(value: Url) -> Result<Self> {
         let home = TempDir::new("")?;
-        let executable = home.path().join("firefox");
+        let executable = home.path().join("firefox").join("firefox");
         let resp = Client::new().get(value).header("X-AUTOMATED-TOOL", "ccadb").send()?;
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
         return Ok(Firefox{ home, executable});
