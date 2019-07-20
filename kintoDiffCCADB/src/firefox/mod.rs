@@ -90,7 +90,9 @@ impl Firefox {
         // Child does not implement drop in a meaningful way, so
         // we must be careful to not return early without first
         // cleaning it up.
+        println!("asdasd");
         cmd.kill();
+        println!("gggggg");
         match error {
             None => Ok(profile),
             Some(err) => err
