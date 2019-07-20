@@ -24,3 +24,6 @@ tar = "0.4"
 
 
 error-chain = "0.12.1"
+
+
+fs_extra = "1.1.0"

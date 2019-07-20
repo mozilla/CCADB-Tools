@@ -131,6 +131,7 @@ impl TryFrom<&str> for Firefox {
 mod tests {
     use super::*;
     use std::convert::TryInto;
+    use fs_extra;
 
 //    #[test]
 //    fn asdfgsd() {
@@ -145,6 +146,7 @@ mod tests {
     #[test]
     fn please() {
         let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
+        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
         ff.create_profile().unwrap();
     }
 }
