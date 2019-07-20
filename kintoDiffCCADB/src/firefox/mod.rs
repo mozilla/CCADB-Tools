@@ -50,6 +50,7 @@ impl Firefox {
         let create_profile_cmd  = format!(
             r#"{} -CreateProfile "{} {}""#,
             self.executable.to_string_lossy(), profile.name, profile.home.path().to_string_lossy());
+        println!("{}", create_profile_cmd);
         Command::new(create_profile_cmd).env("DISPLAY", ":99").output().unwrap();
         let profile_init_command = format!(r#"{} -profile {}"#, self.executable.to_string_lossy(), profile.home.path().to_string_lossy());
         let mut cmd = Command::new(profile_init_command).spawn().unwrap();
