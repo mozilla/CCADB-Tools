@@ -80,7 +80,7 @@ impl Firefox {
                             counter = 0;
                         }
                     };
-                    if counter >= 6 {
+                    if counter >= 100 {
                         break;
                     }
                     std::thread::sleep(Duration::from_millis(500));
