@@ -15,6 +15,7 @@ use std::sync::Mutex;
 use std::process::{Command, Child};
 use crate::firefox::profile::Profile;
 use std::time::Duration;
+use std::ffi::OsString;
 
 mod profile;
 
@@ -25,7 +26,7 @@ lazy_static!(
 
 pub struct Firefox {
     home: TempDir,
-    executable: PathBuf
+    executable: OsString
 }
 
 impl Firefox {
@@ -47,13 +48,11 @@ impl Firefox {
 
     pub fn create_profile(&self) -> Result<Profile> {
         let profile = Profile::new()?;
-        let create_profile_cmd  = format!(
-            r#"{} -CreateProfile "{} {}""#,
-            self.executable.to_string_lossy(), profile.name, profile.home.path().to_string_lossy());
-        println!("{}", create_profile_cmd);
-        Command::new(create_profile_cmd).env("DISPLAY", ":99").output().unwrap();
-        let profile_init_command = format!(r#"{} -profile {}"#, self.executable.to_string_lossy(), profile.home.path().to_string_lossy());
-        let mut cmd = Command::new(profile_init_command).spawn().unwrap();
+        let args = vec!["-CreateProfile".to_string(), format!(r#"{} {}"#, profile.name, profile.home.path().to_string_lossy())];
+        Command::new(&self.executable).env("DISPLAY", ":99").args(args).output().unwrap();
+        let args = vec!["-profile", profile.home.path().to_str().unwrap()];
+//        let profile_init_command = format!(r#"{} -profile {}"#, self.executable.to_string_lossy(), profile.home.path().to_string_lossy());
+        let mut cmd = Command::new(&self.executable).args(args).spawn().unwrap();
         let database = || {
              std::fs::metadata(profile.home.path().join("security_state").join("data.mdb"))
         };
@@ -112,7 +111,7 @@ impl TryFrom<Url> for Firefox {
 
     fn try_from(value: Url) -> Result<Self> {
         let home = TempDir::new("")?;
-        let executable = home.path().join("firefox").join("firefox");
+        let executable = home.path().join("firefox").join("firefox").into_os_string();
         let resp = Client::new().get(value).header("X-AUTOMATED-TOOL", "ccadb").send()?;
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
         return Ok(Firefox{ home, executable});
@@ -146,9 +145,10 @@ mod tests {
     #[test]
     fn please() {
         let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
-        println!("{}", ff.home.path().to_string_lossy());
-        std::thread::sleep(Duration::from_secs(60*5));
+//        println!("{}", ff.home.path().to_string_lossy());
+//        std::thread::sleep(Duration::from_secs(60*5));
 //        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
-        ff.create_profile().unwrap();
+        let profile = ff.create_profile().unwrap();
+        fs_extra::dir::copy(profile.home.path(), "/home/chris/pwease", &fs_extra::dir::CopyOptions::new());
     }
 }
