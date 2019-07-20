@@ -146,7 +146,9 @@ mod tests {
     #[test]
     fn please() {
         let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
-        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
+        println!("{}", ff.home.path().to_string_lossy());
+        std::thread::sleep(Duration::from_secs(60*5));
+//        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
         ff.create_profile().unwrap();
     }
 }
