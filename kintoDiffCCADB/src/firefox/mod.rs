@@ -52,7 +52,7 @@ impl Firefox {
         Command::new(&self.executable).env("DISPLAY", ":99").args(args).output().unwrap();
         let args = vec!["-profile", profile.home.path().to_str().unwrap()];
 //        let profile_init_command = format!(r#"{} -profile {}"#, self.executable.to_string_lossy(), profile.home.path().to_string_lossy());
-        let mut cmd = Command::new(&self.executable).args(args).spawn().unwrap();
+        let mut cmd = Command::new(&self.executable).args(args).env("DISPLAY", ":99").spawn().unwrap();
         let database = || {
              std::fs::metadata(profile.home.path().join("security_state").join("data.mdb"))
         };
