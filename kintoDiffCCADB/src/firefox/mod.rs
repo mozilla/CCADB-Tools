@@ -149,6 +149,7 @@ mod tests {
 //        std::thread::sleep(Duration::from_secs(60*5));
 //        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
         let profile = ff.create_profile().unwrap();
+        println!("GETTING OUT! {}", profile.home.path().to_string_lossy());
         fs_extra::dir::copy(profile.home.path(), "/home/chris/pwease", &fs_extra::dir::CopyOptions::new());
     }
 }
