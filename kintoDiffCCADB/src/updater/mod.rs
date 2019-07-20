@@ -6,7 +6,7 @@ use std::time::Duration;
 use std::convert::TryInto;
 
 fn main() -> JoinHandle<()> {
-            println!("Updating! {}", "asdas");
+    println!("Updating! {}", "asdas");
     let mut previous = get_latest((*firefox::NIGHTLY).clone()).unwrap();
      println!("Updating! {}", "asdas");
     update(&previous);
