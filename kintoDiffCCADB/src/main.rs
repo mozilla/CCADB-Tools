@@ -60,8 +60,8 @@ mod errors {
     }
 }
 
-fn index(info: web::Path<(u32, String)>) -> impl Responder {
-    let revocations: Revocations = "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502".parse::<Url>().unwrap().try_into().unwrap();
+fn doit() -> String {
+        let revocations: Revocations = "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502".parse::<Url>().unwrap().try_into().unwrap();
     let kinto: Kinto = "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records".parse::<Url>().unwrap().try_into().unwrap();
     let revocations: HashSet<Intermediary> = revocations.into();
     let kinto: HashSet<Intermediary> = kinto.into();
@@ -83,10 +83,24 @@ revocations.symmetric_difference(&certstorage) = {:#?}
     )
 }
 
+fn index(info: web::Path<(u32, String)>) -> impl Responder {
+    doit()
+}
+
 fn main() -> Result<()> {
 
     HttpServer::new(|| App::new().service(web::resource("/{id}/{name}/index.html").to(index)))
         .bind("127.0.0.1:8080")?
         .run().unwrap();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn smoke() {
+        println!("{}", doit());
+    }
 }
