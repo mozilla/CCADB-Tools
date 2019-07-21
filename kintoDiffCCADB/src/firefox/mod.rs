@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
-use std::convert::{TryFrom, TryInto};
-use reqwest::Url;
 use reqwest::Client;
+use reqwest::Url;
+use std::convert::{TryFrom, TryInto};
+use std::path::{Path, PathBuf};
 
 use tempdir::TempDir;
 
@@ -10,19 +10,22 @@ use rand;
 use lazy_static;
 
 use crate::errors::*;
-use std::io::BufReader;
-use std::sync::Mutex;
-use std::process::{Command, Child};
 use crate::firefox::profile::Profile;
-use std::time::Duration;
 use std::ffi::OsString;
+use std::io::BufReader;
+use std::process::{Child, Command};
+use std::sync::Mutex;
+use std::time::Duration;
 
-mod profile;
+pub mod profile;
 
-lazy_static!(
-    pub static ref NIGHTLY: Url = "https://download.mozilla.org/?product=firefox-nightly-latest-ssl&os=linux64&lang=en-US".parse().unwrap();
+lazy_static! {
+    pub static ref NIGHTLY: Url =
+        "https://download.mozilla.org/?product=firefox-nightly-latest-ssl&os=linux64&lang=en-US"
+            .parse()
+            .unwrap();
     pub static ref FIREFOX: Mutex<Firefox> = Mutex::new((*NIGHTLY).clone().try_into().unwrap());
-);
+}
 
 const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
@@ -30,26 +33,27 @@ const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
 
 pub struct Firefox {
     home: TempDir,
-    executable: OsString
+    executable: OsString,
 }
 
 impl Firefox {
-
-
     pub fn create_profile(&self) -> Result<Profile> {
         // Creates a name and system tmp directory for our profile.
         let profile = Profile::new()?;
         // Register the profile with Firefox.
-        self.cmd().args(Firefox::create_profile_args(&profile)).output()?;
+        self.cmd()
+            .args(Firefox::create_profile_args(&profile))
+            .output()?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
-        let mut cmd = self.cmd().args(Firefox::init_profile_args(&profile)).spawn()?;
+        let mut cmd = self
+            .cmd()
+            .args(Firefox::init_profile_args(&profile))
+            .spawn()?;
         // Unfortunately, it's not like Firefox is giving us update progress over stdout,
         // so in order to be notified if cert storage is done being populate we gotta
         // listen in on the file and check up on its size.
-        let database = || {
-             std::fs::metadata(profile.cert_storage())
-        };
+        let database = || std::fs::metadata(profile.cert_storage());
         // Spin until it's created.
         while let Err(_) = database() {
             std::thread::sleep(Duration::from_millis(500));
@@ -84,12 +88,10 @@ impl Firefox {
         // Child does not implement drop in a meaningful way, so
         // we must be careful to not return early without first
         // cleaning it up.
-        println!("asdasd");
-        cmd.kill();
-        println!("gggggg");
+        let _ = cmd.kill();
         match error {
             None => Ok(profile),
-            Some(err) => err
+            Some(err) => err,
         }
     }
 
@@ -98,7 +100,10 @@ impl Firefox {
     }
 
     fn create_profile_args(profile: &Profile) -> Vec<String> {
-        vec![CREATE_PROFILE.to_string(), format!(r#"{} {}"#, profile.name, profile.home)]
+        vec![
+            CREATE_PROFILE.to_string(),
+            format!(r#"{} {}"#, profile.name, profile.home),
+        ]
     }
 
     fn init_profile_args(profile: &Profile) -> Vec<String> {
@@ -118,9 +123,12 @@ impl TryFrom<Url> for Firefox {
     fn try_from(value: Url) -> Result<Self> {
         let home = TempDir::new("")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
-        let resp = Client::new().get(value).header("X-AUTOMATED-TOOL", "ccadb").send()?;
+        let resp = Client::new()
+            .get(value)
+            .header("X-AUTOMATED-TOOL", "ccadb")
+            .send()?;
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
-        return Ok(Firefox{ home, executable});
+        return Ok(Firefox { home, executable });
     }
 }
 
@@ -131,7 +139,7 @@ impl TryFrom<&str> for Firefox {
         match value.parse::<Url>() {
             Ok(url) => url.try_into(),
             // ParseError is a leaked private? Ugh.
-            Err(err) => Err(Error::from(err.to_string()))
+            Err(err) => Err(Error::from(err.to_string())),
         }
     }
 }
@@ -140,27 +148,26 @@ impl TryFrom<&str> for Firefox {
 mod tests {
     use super::*;
     use std::convert::TryInto;
-    use fs_extra;
 
-//    #[test]
-//    fn asdfgsd() {
-//        Firefox{ executable: PathBuf::from(r#"/usr/lol/tmp/"#)}.init_profile();
-//    }
+    //    #[test]
+    //    fn asdfgsd() {
+    //        Firefox{ executable: PathBuf::from(r#"/usr/lol/tmp/"#)}.init_profile();
+    //    }
 
     #[test]
     fn smoke() {
         let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
     }
-    
+
     #[test]
     fn please() {
-//        let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
-////        println!("{}", ff.home.path().to_string_lossy());
-////        std::thread::sleep(Duration::from_secs(60*5));
-////        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
-//        let profile = ff.create_profile().unwrap();
-//        println!("GETTING OUT! {}", profile.home.path().to_string_lossy());
-//        std::thread::sleep(Duration::from_secs(60*5));
-//        fs_extra::dir::copy(profile.home.path(), "/home/chris/pwease", &fs_extra::dir::CopyOptions::new());
+        //        let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
+        ////        println!("{}", ff.home.path().to_string_lossy());
+        ////        std::thread::sleep(Duration::from_secs(60*5));
+        ////        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
+        //        let profile = ff.create_profile().unwrap();
+        //        println!("GETTING OUT! {}", profile.home.path().to_string_lossy());
+        //        std::thread::sleep(Duration::from_secs(60*5));
+        //        fs_extra::dir::copy(profile.home.path(), "/home/chris/pwease", &fs_extra::dir::CopyOptions::new());
     }
 }
