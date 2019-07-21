@@ -2,6 +2,7 @@
 extern crate error_chain;
 #[macro_use]
 extern crate lazy_static;
+
 use actix_web::{web, App, HttpServer, Responder, HttpResponse};
 use futures::future::{ok, Future};
 
@@ -11,26 +12,26 @@ mod updater;
 
 mod errors {
     use actix_web::http;
+    use std::convert::From;
     error_chain! {}
 
-    impl std::convert::From<reqwest::Error> for Error {
+    impl From<reqwest::Error> for Error {
         fn from(err: reqwest::Error) -> Self {
             format!("{:?}", err).into()
         }
     }
 
-    impl std::convert::From<std::io::Error> for Error {
+    impl From<std::io::Error> for Error {
         fn from(err: std::io::Error) -> Self {
             format!("{:?}", err).into()
         }
     }
 
-    impl std::convert::From<std::convert::Infallible> for Error {
+    impl From<std::convert::Infallible> for Error {
         fn from(err: std::convert::Infallible) -> Self {
             format!("{:?}", err).into()
         }
     }
-
 }
 
 

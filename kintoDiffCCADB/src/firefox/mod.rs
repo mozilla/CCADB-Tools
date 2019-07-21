@@ -24,6 +24,10 @@ lazy_static!(
     pub static ref FIREFOX: Mutex<Firefox> = Mutex::new((*NIGHTLY).clone().try_into().unwrap());
 );
 
+const CREATE_PROFILE: &str = "-CreateProfile";
+const WITH_PROFILE: &str = "-profile";
+const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
+
 pub struct Firefox {
     home: TempDir,
     executable: OsString
@@ -31,30 +35,20 @@ pub struct Firefox {
 
 impl Firefox {
 
-//    pub fn init_profile(&self) -> TempDir {
-//        let profile  = tempdir::TempDir::new("kinto_diff_ccadb").unwrap();
-//        let executable = self.executable.join("firefox").to_string_lossy();
-//        let profile_name = format!("{:x}", rand::random:<u32>:());
-//        let profile_location = profile.path().to_string_lossy();
-//        let cmd  = format!(
-//            r#"{} -CreateProfile "{:x} {}""#,
-//            executable, profile_name, profile_location);
-//        println!("{}", cmd);
-//        Command::new(cmd).env("DISPLAY", ":99").spawn().unwrap();
-//        let cmd = format!("{} -P {}", executable, profile_name);
-//        Command::new(cmd).env("DISPLAY", ":99").spawn().
-//        profile
-//    }
 
     pub fn create_profile(&self) -> Result<Profile> {
+        // Creates a name and system tmp directory for our profile.
         let profile = Profile::new()?;
-        let args = vec!["-CreateProfile".to_string(), format!(r#"{} {}"#, profile.name, profile.home.path().to_string_lossy())];
-        Command::new(&self.executable).env("DISPLAY", ":99").args(args).output().unwrap();
-        let args = vec!["-profile", profile.home.path().to_str().unwrap()];
-//        let profile_init_command = format!(r#"{} -profile {}"#, self.executable.to_string_lossy(), profile.home.path().to_string_lossy());
-        let mut cmd = Command::new(&self.executable).args(args).env("DISPLAY", ":99").spawn().unwrap();
+        // Register the profile with Firefox.
+        self.cmd().args(Firefox::create_profile_args(&profile)).output()?;
+        // Startup Firefox with the given profile. Doing so will initialize the entire
+        // profile to a fresh state and begin populating the cert_storage database.
+        let mut cmd = self.cmd().args(Firefox::init_profile_args(&profile)).spawn()?;
+        // Unfortunately, it's not like Firefox is giving us update progress over stdout,
+        // so in order to be notified if cert storage is done being populate we gotta
+        // listen in on the file and check up on its size.
         let database = || {
-             std::fs::metadata(profile.home.path().join("security_state").join("data.mdb"))
+             std::fs::metadata(profile.cert_storage())
         };
         // Spin until it's created.
         while let Err(_) = database() {
@@ -99,12 +93,22 @@ impl Firefox {
         }
     }
 
-//    pub fn run(cmd: &str) -> Result<Child> {
-//        Command::new(cmd).env("DISPLAY", ":99").spawn()
-//    }
-
     pub fn from_nightly() -> Result<Firefox> {
         (*NIGHTLY).clone().try_into()
+    }
+
+    fn create_profile_args(profile: &Profile) -> Vec<String> {
+        vec![CREATE_PROFILE.to_string(), format!(r#"{} {}"#, profile.name, profile.home)]
+    }
+
+    fn init_profile_args(profile: &Profile) -> Vec<String> {
+        vec![WITH_PROFILE.to_string(), profile.home.clone()]
+    }
+
+    fn cmd(&self) -> Command {
+        let mut cmd = Command::new(&self.executable);
+        cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
+        cmd
     }
 }
 
@@ -124,7 +128,11 @@ impl TryFrom<&str> for Firefox {
     type Error = Error;
 
     fn try_from(value: &str) -> Result<Self> {
-        value.parse::<Url>().unwrap().try_into()
+        match value.parse::<Url>() {
+            Ok(url) => url.try_into(),
+            // ParseError is a leaked private? Ugh.
+            Err(err) => Err(Error::from(err.to_string()))
+        }
     }
 }
 
@@ -146,13 +154,13 @@ mod tests {
     
     #[test]
     fn please() {
-        let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
-//        println!("{}", ff.home.path().to_string_lossy());
+//        let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
+////        println!("{}", ff.home.path().to_string_lossy());
+////        std::thread::sleep(Duration::from_secs(60*5));
+////        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
+//        let profile = ff.create_profile().unwrap();
+//        println!("GETTING OUT! {}", profile.home.path().to_string_lossy());
 //        std::thread::sleep(Duration::from_secs(60*5));
-//        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
-        let profile = ff.create_profile().unwrap();
-        println!("GETTING OUT! {}", profile.home.path().to_string_lossy());
-        std::thread::sleep(Duration::from_secs(60*5));
-        fs_extra::dir::copy(profile.home.path(), "/home/chris/pwease", &fs_extra::dir::CopyOptions::new());
+//        fs_extra::dir::copy(profile.home.path(), "/home/chris/pwease", &fs_extra::dir::CopyOptions::new());
     }
 }
