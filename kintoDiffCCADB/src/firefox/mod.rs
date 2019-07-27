@@ -72,7 +72,7 @@ impl Firefox {
             std::thread::sleep(Duration::from_millis(500));
             match database() {
                 Err(_) => (),
-                Oks(db) => {
+                Ok(db) => {
                     initial_size = db.len();
                     break;
                 }
