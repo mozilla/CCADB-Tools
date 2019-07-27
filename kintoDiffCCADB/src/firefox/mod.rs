@@ -12,10 +12,11 @@ use lazy_static;
 use crate::errors::*;
 use crate::firefox::profile::Profile;
 use std::ffi::OsString;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
+use crate::{X_AUTOMATED_TOOL, USER_AGENT};
 
 pub mod profile;
 
@@ -180,17 +181,52 @@ impl TryFrom<Url> for Firefox {
     type Error = Error;
 
     fn try_from(value: Url) -> Result<Self> {
+        println!("Downloading {}", value);
         let home = TempDir::new("")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let resp = Client::new()
             .get(value)
-            .header("X-AUTOMATED-TOOL", "ccadb")
+            .header(reqwest::header::USER_AGENT, USER_AGENT)
+            .header("X-AUTOMATED-TOOL", X_AUTOMATED_TOOL)
             .send()?;
         let etag = resp.headers().get("etag").unwrap().to_str().unwrap().to_string();
-        tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
+        println!("Expanding to {}", home.as_ref().to_string_lossy());
+        let content_length = resp.content_length().unwrap();
+        let bar = indicatif::ProgressBar::new(content_length);
+//        let mut bar = thing::ProgressBar::new(resp, content_length);
+        tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(bar.wrap_read(resp)))).unpack(&home)?;
         return Ok(Firefox { home, executable, etag});
     }
 }
+//mod thing {
+//
+//    use std::io::{Read, Error};
+//    use indicatif;
+//
+//    pub struct ProgressBar<R> {
+//        inner: R,
+//        bar: indicatif::ProgressBar
+//    }
+//
+//    impl <R: Read> ProgressBar<R> {
+//        pub fn new(inner: R, size: u64) -> ProgressBar<R> {
+//            let bar = indicatif::ProgressBar::new(size);
+//            ProgressBar{inner, bar}
+//        }
+//    }
+//
+//    impl <R: Read> Read for ProgressBar<R> {
+//        fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+//            let result = self.inner.read(buf);
+//            match result {
+//                Ok(inc) => self.bar.inc(inc as u64),
+//                Err(_) => ()
+//            }
+//            result
+//        }
+//    }
+//}
+
 
 /// Attempts to parse the given str into a Url and then defers to TryFrom<Url> for Firefox
 impl TryFrom<&str> for Firefox {

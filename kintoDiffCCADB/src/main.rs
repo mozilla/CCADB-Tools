@@ -107,7 +107,7 @@ fn main() {
     // Referring to the lazy_static! triggers an initial download of Firefox Nightly.
     {
         println!("Initializing Firefox Nightly.");
-        firefox::FIREFOX.lock();
+        let _ = firefox::FIREFOX.lock();
     }
     // Simple procedure for checking up every hour for an update to Nightly.
     println!("Starting scheduled updater thread for Firefox Nightly.");
