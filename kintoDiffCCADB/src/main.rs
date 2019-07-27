@@ -109,11 +109,15 @@ fn integrity() -> String {
 
 fn main() {
     // Referring to the lazy_static! triggers an initial download of Firefox Nightly.
-    firefox::FIREFOX.lock();
+    {
+        info!("Initializing Firefox Nightly.");
+        firefox::FIREFOX.lock();
+    }
     // Simple procedure for checking up every hour for an update to Nightly.
+    info!("Starting scheduled updater thread for Firefox Nightly.");
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(60 * 60));
-        info!("Scheduled Firefox update triggered");
+        info!("Scheduled Firefox update triggered.");
         match firefox::FIREFOX.lock() {
             Ok(mut ff) => {
                 match ff.update() {
