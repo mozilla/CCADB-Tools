@@ -1,18 +1,16 @@
 #![feature(slice_patterns)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
 extern crate lazy_static;
 
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use futures::future::{ok, Future};
-
-mod revocations_txt;
-mod intermediary;
 mod cert_storage;
-mod kinto;
 mod firefox;
+mod intermediary;
+mod kinto;
+mod revocations_txt;
 mod updater;
 
 use cert_storage::*;
@@ -21,17 +19,16 @@ use intermediary::*;
 use kinto::*;
 use revocations_txt::*;
 
-use std::collections::HashSet;
-use std::convert::TryInto;
 use crate::firefox::Firefox;
 use reqwest::Url;
+use std::collections::HashSet;
+use std::convert::TryInto;
 use std::path::Path;
 
 const USER_AGENT: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity chris@chenderson.org";
 const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity";
 
 mod errors {
-    use actix_web::http;
     use std::convert::From;
     error_chain! {}
 
@@ -61,20 +58,34 @@ mod errors {
 }
 
 fn doit() -> String {
-        let revocations: Revocations = "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502".parse::<Url>().unwrap().try_into().unwrap();
-    let kinto: Kinto = "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records".parse::<Url>().unwrap().try_into().unwrap();
+    let revocations: Revocations =
+        "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502"
+            .parse::<Url>()
+            .unwrap()
+            .try_into()
+            .unwrap();
+    let kinto: Kinto =
+        "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
+            .parse::<Url>()
+            .unwrap()
+            .try_into()
+            .unwrap();
     let revocations: HashSet<Intermediary> = revocations.into();
     let kinto: HashSet<Intermediary> = kinto.into();
-    let profile: firefox::profile::Profile = (*firefox::FIREFOX).lock().unwrap().create_profile().unwrap();
+    let profile: firefox::profile::Profile = (*firefox::FIREFOX)
+        .lock()
+        .unwrap()
+        .create_profile()
+        .unwrap();
     let cert_storage: CertStorage = Path::new(&profile.home).to_path_buf().try_into().unwrap();
     let cert_storage: HashSet<Intermediary> = cert_storage.into();
-    format!(r#"
+    format!(
+        r#"
 revocations.len() = {:#?}
 kinto.len() = {:#?}
 cert_storage.len() = {:#?}
 revocations.symmetric_difference(&kinto) = {:#?}
-revocations.symmetric_difference(&certstorage) = {:#?}
-    "#,
+revocations.symmetric_difference(&certstorage) = {:#?}"#,
         revocations.len(),
         kinto.len(),
         cert_storage.len(),
@@ -83,22 +94,21 @@ revocations.symmetric_difference(&certstorage) = {:#?}
     )
 }
 
-fn index(info: web::Path<(u32, String)>) -> impl Responder {
+#[macro_use] extern crate rocket;
+
+#[get("/")]
+fn integrity() -> String {
     doit()
 }
 
-fn main() -> Result<()> {
-
-    HttpServer::new(|| App::new().service(web::resource("/{id}/{name}/index.html").to(index)))
-        .bind("127.0.0.1:8080")?
-        .run().unwrap();
-    Ok(())
+fn main() {
+    rocket::ignite().mount("/", routes![integrity]).launch();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn smoke() {
         println!("{}", doit());

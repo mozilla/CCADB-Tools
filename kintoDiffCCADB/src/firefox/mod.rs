@@ -34,9 +34,16 @@ const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
 pub struct Firefox {
     home: TempDir,
     executable: OsString,
+    pub etag: String
 }
 
 impl Firefox {
+
+    /// Creates and initializes a new profile managed by this instance of Firefox.
+    ///
+    /// Note that profile creation entails the spinning of a file watcher for cert_storage.
+    /// We receive no explicit declaration of cert_storage initalization from Firefox, so
+    /// we have to simply watch the file and wait for it to stop growing in size.
     pub fn create_profile(&self) -> Result<Profile> {
         // Creates a name and system tmp directory for our profile.
         let profile = Profile::new()?;
@@ -95,10 +102,35 @@ impl Firefox {
         }
     }
 
-    pub fn from_nightly() -> Result<Firefox> {
-        (*NIGHTLY).clone().try_into()
+    /// Attempts to consume this instance of Firefox and replace it with a possible update.
+    ///
+    /// Under the condition that no change has been made on the remote, then this method
+    /// returns self.
+    pub fn update(self) -> Result<Firefox> {
+        let resp = Client::new()
+            .get(NIGHTLY.clone())
+            .header("X-AUTOMATED-TOOL", "ccadb")
+            .header("If-None-Match", self.etag.clone())
+            .send()?;
+        if resp.status() == 304 {
+            return Ok(self);
+        }
+        let home = TempDir::new("kinto_integrity_firefox_nightly")?;
+        let executable = home.path().join("firefox").join("firefox").into_os_string();
+        let etag = match resp.headers().get("etag") {
+            Some(etag) => match etag.to_str() {
+                Ok(string) => string.to_string(),
+                Err(err) => return Err(Error::from(err.to_string()))
+            },
+            None => return Err(Error::from(format!("no etag header was present in a request to {}", *NIGHTLY)))
+        };
+        tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
+        return Ok(Firefox { home, executable, etag});
     }
 
+    /// Generates the arguments to fulfill:
+    ///     ./firefox -CreateProfile "profile_name profile_dir"
+    /// See https://developer.mozilla.org/en-US/docs/Mozilla/Command_Line_Options#-CreateProfile_.22profile_name_profile_dir.22
     fn create_profile_args(profile: &Profile) -> Vec<String> {
         vec![
             CREATE_PROFILE.to_string(),
@@ -106,10 +138,20 @@ impl Firefox {
         ]
     }
 
+    /// Generates the arguments to start Firefox with a particular profile.
+    /// Doing so additionally initializes the profile if it has not already been
+    /// initialized.
+    ///
+    /// Note that initialization of cert_storage takes MUCH longer as it is reaching out
+    /// to Kinto. The result being that you can startup, and initialize, the profile but
+    /// you have to wait around and watch the profile for changes to see if cert_storage
+    /// is finished populating.
     fn init_profile_args(profile: &Profile) -> Vec<String> {
         vec![WITH_PROFILE.to_string(), profile.home.clone()]
     }
 
+    /// Returns a Command which is partially pre-built with the more fiddly bits of
+    /// starting a headlesss Firefox. E.G. predeclaring the DISPLAY environment variable.
     fn cmd(&self) -> Command {
         let mut cmd = Command::new(&self.executable);
         cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
@@ -127,18 +169,20 @@ impl TryFrom<Url> for Firefox {
             .get(value)
             .header("X-AUTOMATED-TOOL", "ccadb")
             .send()?;
+        let etag = resp.headers().get("etag").unwrap().to_str().unwrap().to_string();
+        println!("{:?}", resp.headers());
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
-        return Ok(Firefox { home, executable });
+        return Ok(Firefox { home, executable, etag});
     }
 }
 
+/// Attempts to parse the given str into a Url and then defers to TryFrom<Url> for Firefox
 impl TryFrom<&str> for Firefox {
     type Error = Error;
 
     fn try_from(value: &str) -> Result<Self> {
         match value.parse::<Url>() {
             Ok(url) => url.try_into(),
-            // ParseError is a leaked private? Ugh.
             Err(err) => Err(Error::from(err.to_string())),
         }
     }
@@ -155,8 +199,24 @@ mod tests {
     //    }
 
     #[test]
+    fn asgfdfa() {
+        let resp = Client::new()
+            .get(NIGHTLY.clone())
+            .header("X-AUTOMATED-TOOL", "ccadb")
+            .header("If-None-Match", r#""835285c5ea08d3381874b58e4cc54b02""#)
+            .send().unwrap();
+        println!("{}", resp.status());
+        println!("{:?}", resp.headers());
+    }
+    
+    #[test]
     fn smoke() {
         let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
+    }
+
+    #[test]
+    fn asdfdgsdfsdf() {
+        println!("{}", *NIGHTLY);
     }
 
     #[test]
