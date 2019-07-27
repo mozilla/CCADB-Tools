@@ -13,7 +13,7 @@ use crate::errors::*;
 use crate::firefox::profile::Profile;
 use std::ffi::OsString;
 use std::io::BufReader;
-use std::process::{Child, Command};
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -48,11 +48,13 @@ impl Firefox {
         // Creates a name and system tmp directory for our profile.
         let profile = Profile::new()?;
         // Register the profile with Firefox.
+        trace!("Creating profile {} at {}", profile.name, profile.home);
         self.cmd()
             .args(Firefox::create_profile_args(&profile))
             .output()?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
+        trace!("Initializing profile {} at {}", profile.name, profile.home);
         let mut cmd = self
             .cmd()
             .args(Firefox::init_profile_args(&profile))
@@ -62,25 +64,34 @@ impl Firefox {
         // listen in on the file and check up on its size.
         let database = || std::fs::metadata(profile.cert_storage());
         // Spin until it's created.
+        let cert_storage_name = profile.cert_storage().to_string_lossy().into_owned();
+        trace!("Waiting for {} to be created.", cert_storage_name);
         while let Err(_) = database() {
             std::thread::sleep(Duration::from_millis(500));
         }
+        trace!("{} created", cert_storage_name);
         // Spin until we are reasonably sure that it is populated.
         // This is only a heuristic and is not necessarily correct.
+        trace!("Watching {} to be populated", cert_storage_name);
         let mut size = 0;
         let mut counter = 0;
         let mut error = None;
         loop {
             match database() {
                 Err(err) => {
+                    error!("Received an error while stating {}, {}", cert_storage_name, err);
                     error = Some(Err(Error::from(err)));
                     break;
                 }
                 Ok(db) => {
                     let current = db.len();
                     match current {
-                        size => counter += 1,
+                        size => {
+                            trace!("counter is {}", counter);
+                            counter += 1;
+                        },
                         _ => {
+                            trace!("{} increased in size by {}", cert_storage_name, current - size);
                             size = current;
                             counter = 0;
                         }
@@ -113,9 +124,10 @@ impl Firefox {
             .header("If-None-Match", self.etag.clone())
             .send()?;
         if resp.status() == 304 {
-            println!("No changes");
+            info!("{} reported no changes to Firefox", NIGHTLY.clone());
             return Ok(self);
         }
+        info!("{} claims an update to Firefox", NIGHTLY.clone());
         let home = TempDir::new("kinto_integrity_firefox_nightly")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let etag = match resp.headers().get("etag") {
@@ -159,6 +171,7 @@ impl Firefox {
     fn cmd(&self) -> Command {
         let mut cmd = Command::new(&self.executable);
         cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
+        cmd.stdout(Stdio::null());
         cmd
     }
 }
@@ -167,7 +180,6 @@ impl TryFrom<Url> for Firefox {
     type Error = Error;
 
     fn try_from(value: Url) -> Result<Self> {
-        println!("getting us some Firefox!");
         let home = TempDir::new("")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let resp = Client::new()
@@ -175,7 +187,6 @@ impl TryFrom<Url> for Firefox {
             .header("X-AUTOMATED-TOOL", "ccadb")
             .send()?;
         let etag = resp.headers().get("etag").unwrap().to_str().unwrap().to_string();
-        println!("{:?}", resp.headers());
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
         return Ok(Firefox { home, executable, etag});
     }
@@ -198,11 +209,6 @@ mod tests {
     use super::*;
     use std::convert::TryInto;
 
-    //    #[test]
-    //    fn asdfgsd() {
-    //        Firefox{ executable: PathBuf::from(r#"/usr/lol/tmp/"#)}.init_profile();
-    //    }
-
     #[test]
     fn asgfdfa() {
         let resp = Client::new()
@@ -224,15 +230,4 @@ mod tests {
         println!("{}", *NIGHTLY);
     }
 
-    #[test]
-    fn please() {
-        //        let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
-        ////        println!("{}", ff.home.path().to_string_lossy());
-        ////        std::thread::sleep(Duration::from_secs(60*5));
-        ////        fs_extra::dir::copy(ff.home.path(), "/home/chris/ff",  &fs_extra::dir::CopyOptions::new());
-        //        let profile = ff.create_profile().unwrap();
-        //        println!("GETTING OUT! {}", profile.home.path().to_string_lossy());
-        //        std::thread::sleep(Duration::from_secs(60*5));
-        //        fs_extra::dir::copy(profile.home.path(), "/home/chris/pwease", &fs_extra::dir::CopyOptions::new());
-    }
 }

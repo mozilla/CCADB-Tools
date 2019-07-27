@@ -2,6 +2,10 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 #[macro_use]
+extern crate log;
+extern crate env_logger;
+
+#[macro_use]
 extern crate error_chain;
 #[macro_use]
 extern crate lazy_static;
@@ -11,7 +15,6 @@ mod firefox;
 mod intermediary;
 mod kinto;
 mod revocations_txt;
-mod updater;
 
 use cert_storage::*;
 use errors::*;
@@ -105,16 +108,20 @@ fn integrity() -> String {
 }
 
 fn main() {
+    // Referring to the lazy_static! triggers an initial download of Firefox Nightly.
+    firefox::FIREFOX.lock();
+    // Simple procedure for checking up every hour for an update to Nightly.
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(60 * 60));
+        info!("Scheduled Firefox update triggered");
         match firefox::FIREFOX.lock() {
             Ok(mut ff) => {
                 match ff.update() {
                     Ok(_) => (),
-                    Err(err) => println!("{:?}", err)
+                    Err(err) => error!("{:?}", err)
                 }
             }
-            Err(err) => println!("{:?}", err)
+            Err(err) => error!("{:?}", err)
         }
     });
     rocket::ignite().mount("/", routes![integrity]).launch();
