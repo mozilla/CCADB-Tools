@@ -67,14 +67,34 @@ impl Firefox {
         // Spin until it's created.
         let cert_storage_name = profile.cert_storage().to_string_lossy().into_owned();
         println!("Waiting for {} to be created.", cert_storage_name);
-        while let Err(_) = database() {
+        let mut initial_size = 0;
+        loop {
             std::thread::sleep(Duration::from_millis(500));
+            match database() {
+                Err(_) => (),
+                Oks(db) => {
+                    initial_size = db.len();
+                    break;
+                }
+            }
+        }
+        loop {
+            std::thread::sleep(Duration::from_millis(500));
+            match database() {
+                Err(_) => panic!("asdasd"),
+                Ok(db) => {
+                    if db.len() != initial_size {
+                        initial_size = db.len();
+                        break;
+                    }
+                }
+            }
         }
         println!("{} created", cert_storage_name);
         // Spin until we are reasonably sure that it is populated.
         // This is only a heuristic and is not necessarily correct.
         println!("Watching {} to be populated", cert_storage_name);
-        let mut size = 0;
+        let mut size = initial_size;
         let mut counter = 0;
         let mut error = None;
         loop {
@@ -86,18 +106,25 @@ impl Firefox {
                 }
                 Ok(db) => {
                     let current = db.len();
-                    match current {
-                        size => {
-                            println!("counter is {}", counter);
-                            println!("size is {}", current);
-                            counter += 1;
-                        },
-                        _ => {
-                            println!("{} increased in size by {}", cert_storage_name, current - size);
-                            size = current;
-                            counter = 0;
-                        }
-                    };
+                    if current == size {
+                        println!("counter is {}", counter);
+                        println!("size is {}", current);
+                        counter += 1;
+                    } else {
+                        size = current;
+                        counter = 0;
+                    }
+//                    match current {
+//                        size => {
+//                            println!("counter is {}", counter);
+//                            counter += 1;
+//                        },
+//                        _ => {
+//                            println!("{} increased in size by {}", cert_storage_name, current - size);
+//                            size = current;
+//                            counter = 0;
+//                        }
+//                    };
                     if counter >= 100 {
                         break;
                     }
