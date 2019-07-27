@@ -48,13 +48,13 @@ impl Firefox {
         // Creates a name and system tmp directory for our profile.
         let profile = Profile::new()?;
         // Register the profile with Firefox.
-        trace!("Creating profile {} at {}", profile.name, profile.home);
+        println!("Creating profile {} at {}", profile.name, profile.home);
         self.cmd()
             .args(Firefox::create_profile_args(&profile))
             .output()?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
-        trace!("Initializing profile {} at {}", profile.name, profile.home);
+        println!("Initializing profile {} at {}", profile.name, profile.home);
         let mut cmd = self
             .cmd()
             .args(Firefox::init_profile_args(&profile))
@@ -65,21 +65,21 @@ impl Firefox {
         let database = || std::fs::metadata(profile.cert_storage());
         // Spin until it's created.
         let cert_storage_name = profile.cert_storage().to_string_lossy().into_owned();
-        trace!("Waiting for {} to be created.", cert_storage_name);
+        println!("Waiting for {} to be created.", cert_storage_name);
         while let Err(_) = database() {
             std::thread::sleep(Duration::from_millis(500));
         }
-        trace!("{} created", cert_storage_name);
+        println!("{} created", cert_storage_name);
         // Spin until we are reasonably sure that it is populated.
         // This is only a heuristic and is not necessarily correct.
-        trace!("Watching {} to be populated", cert_storage_name);
+        println!("Watching {} to be populated", cert_storage_name);
         let mut size = 0;
         let mut counter = 0;
         let mut error = None;
         loop {
             match database() {
                 Err(err) => {
-                    error!("Received an error while stating {}, {}", cert_storage_name, err);
+                    eprintln!("Received an error while stating {}, {}", cert_storage_name, err);
                     error = Some(Err(Error::from(err)));
                     break;
                 }
@@ -87,11 +87,11 @@ impl Firefox {
                     let current = db.len();
                     match current {
                         size => {
-                            trace!("counter is {}", counter);
+                            println!("counter is {}", counter);
                             counter += 1;
                         },
                         _ => {
-                            trace!("{} increased in size by {}", cert_storage_name, current - size);
+                            println!("{} increased in size by {}", cert_storage_name, current - size);
                             size = current;
                             counter = 0;
                         }
@@ -124,10 +124,10 @@ impl Firefox {
             .header("If-None-Match", self.etag.clone())
             .send()?;
         if resp.status() == 304 {
-            info!("{} reported no changes to Firefox", NIGHTLY.clone());
+            println!("{} reported no changes to Firefox", NIGHTLY.clone());
             return Ok(self);
         }
-        info!("{} claims an update to Firefox", NIGHTLY.clone());
+        println!("{} claims an update to Firefox", NIGHTLY.clone());
         let home = TempDir::new("kinto_integrity_firefox_nightly")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let etag = match resp.headers().get("etag") {
