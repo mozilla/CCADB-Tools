@@ -106,13 +106,14 @@ impl Firefox {
     ///
     /// Under the condition that no change has been made on the remote, then this method
     /// returns self.
-    pub fn update(self) -> Result<Firefox> {
+    pub fn update(&mut self) -> Result<&mut Firefox> {
         let resp = Client::new()
             .get(NIGHTLY.clone())
             .header("X-AUTOMATED-TOOL", "ccadb")
             .header("If-None-Match", self.etag.clone())
             .send()?;
         if resp.status() == 304 {
+            println!("No changes");
             return Ok(self);
         }
         let home = TempDir::new("kinto_integrity_firefox_nightly")?;
@@ -125,7 +126,10 @@ impl Firefox {
             None => return Err(Error::from(format!("no etag header was present in a request to {}", *NIGHTLY)))
         };
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
-        return Ok(Firefox { home, executable, etag});
+        self.home = home;
+        self.executable = executable;
+        self.etag = etag;
+        Ok(self)
     }
 
     /// Generates the arguments to fulfill:
@@ -163,6 +167,7 @@ impl TryFrom<Url> for Firefox {
     type Error = Error;
 
     fn try_from(value: Url) -> Result<Self> {
+        println!("getting us some Firefox!");
         let home = TempDir::new("")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let resp = Client::new()

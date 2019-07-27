@@ -5,26 +5,38 @@ use std::convert::TryInto;
 use std::thread::{JoinHandle, Thread};
 use std::time::Duration;
 
-fn main() -> JoinHandle<()> {
-    println!("Updating! {}", "asdas");
-    let mut previous = get_latest((*firefox::NIGHTLY).clone()).unwrap();
-    println!("Updating! {}", "asdas");
-    update(&previous);
+pub(crate) fn main() -> JoinHandle<()> {
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(60 * 60));
-        let latest = get_latest((*firefox::NIGHTLY).clone());
-        match latest {
-            Ok(location) => {
-                if !location.eq(&previous) {
-                    previous = location;
-                    update(&previous);
-                } else {
-                    println!("Not updating")
+        match firefox::FIREFOX.lock() {
+            Ok(mut ff) => {
+                match ff.update() {
+                    Ok(_) => (),
+                    Err(err) => println!("{:?}", err)
                 }
             }
-            Err(err) => println!("{}", err),
-        };
+            Err(err) => println!("{:?}", err)
+        }
     })
+//    println!("Updating! {}", "asdas");
+//    let mut previous = get_latest((*firefox::NIGHTLY).clone()).unwrap();
+//    println!("Updating! {}", "asdas");
+//    update(&previous);
+//    std::thread::spawn(move || loop {
+//        std::thread::sleep(Duration::from_secs(60 * 60));
+//        let latest = get_latest((*firefox::NIGHTLY).clone());
+//        match latest {
+//            Ok(location) => {
+//                if !location.eq(&previous) {
+//                    previous = location;
+//                    update(&previous);
+//                } else {
+//                    println!("Not updating")
+//                }
+//            }
+//            Err(err) => println!("{}", err),
+//        };
+//    })
 }
 
 fn get_latest(latest: Url) -> Result<Url> {

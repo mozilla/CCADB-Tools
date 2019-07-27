@@ -24,9 +24,10 @@ use reqwest::Url;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::path::Path;
+use std::time::Duration;
 
-const USER_AGENT: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity chris@chenderson.org";
-const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity";
+const USER_AGENT: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB chris@chenderson.org";
+const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB";
 
 mod errors {
     use std::convert::From;
@@ -75,6 +76,8 @@ fn doit() -> String {
     let profile: firefox::profile::Profile = (*firefox::FIREFOX)
         .lock()
         .unwrap()
+        .update()
+        .unwrap()
         .create_profile()
         .unwrap();
     let cert_storage: CertStorage = Path::new(&profile.home).to_path_buf().try_into().unwrap();
@@ -102,6 +105,18 @@ fn integrity() -> String {
 }
 
 fn main() {
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_secs(60 * 60));
+        match firefox::FIREFOX.lock() {
+            Ok(mut ff) => {
+                match ff.update() {
+                    Ok(_) => (),
+                    Err(err) => println!("{:?}", err)
+                }
+            }
+            Err(err) => println!("{:?}", err)
+        }
+    });
     rocket::ignite().mount("/", routes![integrity]).launch();
 }
 
