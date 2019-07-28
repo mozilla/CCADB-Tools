@@ -14,4 +14,5 @@ RUN yum clean all
 
 COPY --from=buildStage /opt/target/release/kintoDiffCCADB /opt/
 
-CMD ["xvfb", ":99", "&", "/opt/kintoDiffCCADB"]
+CMD ["Xvfb", ":99"]
+ENTRYPOINT ["/opt/kintoDiffCCADB"]
