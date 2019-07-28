@@ -13,12 +13,10 @@ mod kinto;
 mod revocations_txt;
 
 use cert_storage::*;
-use errors::*;
 use intermediary::*;
 use kinto::*;
 use revocations_txt::*;
 
-use crate::firefox::Firefox;
 use reqwest::Url;
 use std::collections::HashSet;
 use std::convert::TryInto;

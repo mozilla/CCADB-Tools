@@ -1,6 +1,4 @@
 use crate::errors::*;
-use crate::firefox::Firefox;
-use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use tempdir::TempDir;
 
@@ -11,20 +9,20 @@ const CERT_STORAGE_DB: &str = "data.mdb";
 pub struct Profile {
     pub name: String,
     pub home: String,
-    tmp: TempDir,
+    _tmp: TempDir,
 }
 
 impl Profile {
     pub fn new() -> Result<Profile> {
         let name = format!("{:x}", rand::random::<u64>());
-        let tmp = TempDir::new(TMP_PREFIX)?;
-        let home = match tmp.as_ref().to_str() {
+        let _tmp = TempDir::new(TMP_PREFIX)?;
+        let home = match _tmp.as_ref().to_str() {
             Some(string) => string.to_string(),
             None => Err(Error::from(
                 "failed get the &str representation of a temp directory created for a profile",
             ))?,
         };
-        Ok(Profile { name, home, tmp })
+        Ok(Profile { name, home, _tmp })
     }
 
     pub fn cert_storage(&self) -> PathBuf {

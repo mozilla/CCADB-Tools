@@ -1,19 +1,16 @@
 use reqwest::Client;
 use reqwest::Url;
 use std::convert::{TryFrom, TryInto};
-use std::path::{Path, PathBuf};
 
 use tempdir::TempDir;
-
-use rand;
 
 use lazy_static;
 
 use crate::errors::*;
 use crate::firefox::profile::Profile;
 use std::ffi::OsString;
-use std::io::{BufReader, Read};
-use std::process::{Child, Command, Stdio};
+use std::io::BufReader;
+use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 use crate::{X_AUTOMATED_TOOL, USER_AGENT};
@@ -67,7 +64,7 @@ impl Firefox {
         // Spin until it's created.
         let cert_storage_name = profile.cert_storage().to_string_lossy().into_owned();
         println!("Waiting for {} to be created.", cert_storage_name);
-        let mut initial_size = 0;
+        let mut initial_size;
         loop {
             std::thread::sleep(Duration::from_millis(500));
             match database() {
@@ -256,7 +253,7 @@ mod tests {
     
     #[test]
     fn smoke() {
-        let ff: Firefox = (*NIGHTLY).clone().try_into().unwrap();
+        let _: Firefox = (*NIGHTLY).clone().try_into().unwrap();
     }
 
     #[test]

@@ -6,7 +6,6 @@ use std::convert::TryFrom;
 
 use crate::errors::*;
 use reqwest::Url;
-use std::fs::File;
 use std::io::{BufRead, Read};
 
 pub struct Revocations {
