@@ -107,6 +107,7 @@ fn main() {
         println!("Initializing Firefox Nightly.");
         let _ = firefox::FIREFOX.lock();
     }
+    let mut xvfb = std::process::Command::new("Xvfb").arg(":99").spawn().unwrap();
     // Simple procedure for checking up every hour for an update to Nightly.
     println!("Starting scheduled updater thread for Firefox Nightly.");
     std::thread::spawn(move || loop {
@@ -123,6 +124,7 @@ fn main() {
         }
     });
     rocket::ignite().mount("/", routes![integrity]).launch();
+    xvfb.kill();
 }
 
 #[cfg(test)]

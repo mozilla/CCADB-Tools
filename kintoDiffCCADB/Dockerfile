@@ -8,11 +8,11 @@ WORKDIR /opt
 COPY . .
 RUN cargo build --release
 
-FROM centos:latest
-RUN yum install -y bzip2 gtk3 libXt Xvfb
-RUN yum clean all
+FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install xvfb libssl-dev ca-certificates libgtk-3-0 libdbus-glib-1-2 -y
+RUN apt-get clean
 
 COPY --from=buildStage /opt/target/release/kintoDiffCCADB /opt/
 
-CMD ["Xvfb", ":99"]
 ENTRYPOINT ["/opt/kintoDiffCCADB"]
