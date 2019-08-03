@@ -38,15 +38,18 @@ pub fn init() {
     let _ = *FIREFOX;
     println!("{}", format!("Starting the X Virtual Frame Buffer on DISPLAY={}", xvfb::DISPLAY_PORT));
     let _ = *XVFB;
-    std::thread::sleep(Duration::from_secs(60 * 60));
-    println!("Scheduled Firefox update triggered.");
-    match FIREFOX.lock() {
-        Ok(mut ff) => match ff.update() {
-            Ok(_) => (),
+    println!("Starting the Firefox Nightly updater thread");
+    std::thread::spawn(|| {
+        std::thread::sleep(Duration::from_secs(60 * 60));
+        println!("Scheduled Firefox update triggered.");
+        match FIREFOX.lock() {
+            Ok(mut ff) => match ff.update() {
+                Ok(_) => (),
+                Err(err) => eprintln!("{:?}", err),
+            },
             Err(err) => eprintln!("{:?}", err),
-        },
-        Err(err) => eprintln!("{:?}", err),
-    }
+        }
+    });
 }
 
 pub struct Firefox {
