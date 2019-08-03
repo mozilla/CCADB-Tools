@@ -5,6 +5,8 @@
 extern crate error_chain;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate rocket;
 
 use errors::*;
 
@@ -30,28 +32,13 @@ const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB";
 
 mod errors {
     use std::convert::From;
+
     error_chain! {
         foreign_links {
             Fmt(::std::fmt::Error);
             Io(::std::io::Error);
-        }
-    }
-
-    impl From<reqwest::Error> for Error {
-        fn from(err: reqwest::Error) -> Self {
-            format!("{:?}", err).into()
-        }
-    }
-
-    //    impl From<std::io::Error> for Error {
-    //        fn from(err: std::io::Error) -> Self {
-    //            format!("{:?}", err).into()
-    //        }
-    //    }
-
-    impl From<std::convert::Infallible> for Error {
-        fn from(err: std::convert::Infallible) -> Self {
-            format!("{:?}", err).into()
+            Reqwest(reqwest::Error);
+            Infallible(std::convert::Infallible);
         }
     }
 
@@ -66,29 +53,29 @@ fn doit() -> Result<String> {
     let revocations: Revocations =
         "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502"
             .parse::<Url>()
-            .chain_err(|| "dang")?
+            .chain_err(|| "failed to download revocations.txt")?
             .try_into()
-            .chain_err(|| "shoot")?;
+            .chain_err(|| "failed to parse revocations.txt")?;
     let kinto: Kinto =
         "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
             .parse::<Url>()
-            .chain_err(|| "dang")?
+            .chain_err(|| "failed to download OneCRL")?
             .try_into()
-            .chain_err(|| "shoot")?;
+            .chain_err(|| "failed to parse OneCRL")?;
     let revocations: HashSet<Intermediary> = revocations.into();
     let kinto: HashSet<Intermediary> = kinto.into();
     let profile = match (*firefox::FIREFOX).lock() {
         Err(err) => Err(format!("{:?}", err))?,
         Ok(mut ff) => ff
-        .update()
-        .chain_err(|| "balls")?
-        .create_profile()
-        .chain_err(|| "balls")?
+            .update()
+            .chain_err(|| "failed to update Firefox Nightly")?
+            .create_profile()
+            .chain_err(|| "failed to create a profile for Firefox Nightly")?,
     };
     let cert_storage: CertStorage = Path::new(&profile.home)
         .to_path_buf()
         .try_into()
-        .chain_err(|| "balls")?;
+        .chain_err(|| "failed to parse cert_storage")?;
     let cert_storage: HashSet<Intermediary> = cert_storage.into();
     Ok(format!(
         r#"
@@ -105,8 +92,7 @@ revocations.symmetric_difference(&certstorage) = {:#?}"#,
     ))
 }
 
-#[macro_use]
-extern crate rocket;
+
 
 #[get("/")]
 fn integrity() -> Result<String> {
@@ -114,38 +100,7 @@ fn integrity() -> Result<String> {
 }
 
 fn main() -> Result<()> {
-    // Referring to the lazy_static! triggers an initial download of Firefox Nightly.
-    {
-        println!("Initializing Firefox Nightly.");
-        let _ = firefox::FIREFOX.lock();
-    }
-    let mut xvfb = std::process::Command::new("Xvfb")
-        .arg(":99")
-        .spawn()
-        .chain_err(|| "dang")?;
-    // Simple procedure for checking up every hour for an update to Nightly.
-    println!("Starting scheduled updater thread for Firefox Nightly.");
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_secs(60 * 60));
-        println!("Scheduled Firefox update triggered.");
-        match firefox::FIREFOX.lock() {
-            Ok(mut ff) => match ff.update() {
-                Ok(_) => (),
-                Err(err) => eprintln!("{:?}", err),
-            },
-            Err(err) => eprintln!("{:?}", err),
-        }
-    });
+    firefox::init();
     rocket::ignite().mount("/", routes![integrity]).launch();
-    xvfb.kill().chain_err(|| "dang")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn smoke() {
-        println!("{:?}", doit());
-    }
+    Ok(())
 }

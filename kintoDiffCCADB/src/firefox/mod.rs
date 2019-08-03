@@ -15,7 +15,10 @@ use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 
+use xvfb::Xvfb;
+
 pub mod profile;
+mod xvfb;
 
 lazy_static! {
     pub static ref NIGHTLY: Url =
@@ -23,11 +26,28 @@ lazy_static! {
             .parse()
             .unwrap();
     pub static ref FIREFOX: Mutex<Firefox> = Mutex::new((*NIGHTLY).clone().try_into().unwrap());
+    static ref XVFB: Xvfb = Xvfb::new().unwrap();
 }
 
 const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
 const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
+
+pub fn init() {
+    println!("Initializing Firefox Nightly");
+    let _ = *FIREFOX;
+    println!("{}", format!("Starting the X Virtual Frame Buffer on DISPLAY={}", xvfb::DISPLAY_PORT));
+    let _ = *XVFB;
+    std::thread::sleep(Duration::from_secs(60 * 60));
+    println!("Scheduled Firefox update triggered.");
+    match FIREFOX.lock() {
+        Ok(mut ff) => match ff.update() {
+            Ok(_) => (),
+            Err(err) => eprintln!("{:?}", err),
+        },
+        Err(err) => eprintln!("{:?}", err),
+    }
+}
 
 pub struct Firefox {
     home: TempDir,
@@ -214,8 +234,10 @@ impl TryFrom<Url> for Firefox {
             .send()?;
         let etag = resp
             .headers()
-            .get("etag").chain_err(|| "dang")?
-            .to_str().chain_err(|| "dang")?
+            .get("etag")
+            .chain_err(|| "dang")?
+            .to_str()
+            .chain_err(|| "dang")?
             .to_string();
         println!("Expanding to {}", home.as_ref().to_string_lossy());
         let content_length = resp.content_length().chain_err(|| "dang")?;
