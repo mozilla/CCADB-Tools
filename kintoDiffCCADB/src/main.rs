@@ -6,6 +6,8 @@ extern crate error_chain;
 #[macro_use]
 extern crate lazy_static;
 
+use errors::*;
+
 mod cert_storage;
 mod firefox;
 mod intermediary;
@@ -28,7 +30,12 @@ const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB";
 
 mod errors {
     use std::convert::From;
-    error_chain! {}
+    error_chain! {
+        foreign_links {
+            Fmt(::std::fmt::Error);
+            Io(::std::io::Error);
+        }
+    }
 
     impl From<reqwest::Error> for Error {
         fn from(err: reqwest::Error) -> Self {
@@ -36,11 +43,11 @@ mod errors {
         }
     }
 
-    impl From<std::io::Error> for Error {
-        fn from(err: std::io::Error) -> Self {
-            format!("{:?}", err).into()
-        }
-    }
+    //    impl From<std::io::Error> for Error {
+    //        fn from(err: std::io::Error) -> Self {
+    //            format!("{:?}", err).into()
+    //        }
+    //    }
 
     impl From<std::convert::Infallible> for Error {
         fn from(err: std::convert::Infallible) -> Self {
@@ -55,31 +62,35 @@ mod errors {
     }
 }
 
-fn doit() -> String {
+fn doit() -> Result<String> {
     let revocations: Revocations =
         "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502"
             .parse::<Url>()
-            .unwrap()
+            .chain_err(|| "dang")?
             .try_into()
-            .unwrap();
+            .chain_err(|| "shoot")?;
     let kinto: Kinto =
         "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
             .parse::<Url>()
-            .unwrap()
+            .chain_err(|| "dang")?
             .try_into()
-            .unwrap();
+            .chain_err(|| "shoot")?;
     let revocations: HashSet<Intermediary> = revocations.into();
     let kinto: HashSet<Intermediary> = kinto.into();
-    let profile: firefox::profile::Profile = (*firefox::FIREFOX)
-        .lock()
-        .unwrap()
+    let profile = match (*firefox::FIREFOX).lock() {
+        Err(err) => Err(format!("{:?}", err))?,
+        Ok(mut ff) => ff
         .update()
-        .unwrap()
+        .chain_err(|| "balls")?
         .create_profile()
-        .unwrap();
-    let cert_storage: CertStorage = Path::new(&profile.home).to_path_buf().try_into().unwrap();
+        .chain_err(|| "balls")?
+    };
+    let cert_storage: CertStorage = Path::new(&profile.home)
+        .to_path_buf()
+        .try_into()
+        .chain_err(|| "balls")?;
     let cert_storage: HashSet<Intermediary> = cert_storage.into();
-    format!(
+    Ok(format!(
         r#"
 revocations.len() = {:#?}
 kinto.len() = {:#?}
@@ -91,40 +102,42 @@ revocations.symmetric_difference(&certstorage) = {:#?}"#,
         cert_storage.len(),
         revocations.symmetric_difference(&kinto),
         revocations.symmetric_difference(&cert_storage)
-    )
+    ))
 }
 
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
 #[get("/")]
-fn integrity() -> String {
+fn integrity() -> Result<String> {
     doit()
 }
 
-fn main() {
+fn main() -> Result<()> {
     // Referring to the lazy_static! triggers an initial download of Firefox Nightly.
     {
         println!("Initializing Firefox Nightly.");
         let _ = firefox::FIREFOX.lock();
     }
-    let mut xvfb = std::process::Command::new("Xvfb").arg(":99").spawn().unwrap();
+    let mut xvfb = std::process::Command::new("Xvfb")
+        .arg(":99")
+        .spawn()
+        .chain_err(|| "dang")?;
     // Simple procedure for checking up every hour for an update to Nightly.
     println!("Starting scheduled updater thread for Firefox Nightly.");
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(60 * 60));
         println!("Scheduled Firefox update triggered.");
         match firefox::FIREFOX.lock() {
-            Ok(mut ff) => {
-                match ff.update() {
-                    Ok(_) => (),
-                    Err(err) => eprintln!("{:?}", err)
-                }
-            }
-            Err(err) => eprintln!("{:?}", err)
+            Ok(mut ff) => match ff.update() {
+                Ok(_) => (),
+                Err(err) => eprintln!("{:?}", err),
+            },
+            Err(err) => eprintln!("{:?}", err),
         }
     });
     rocket::ignite().mount("/", routes![integrity]).launch();
-    xvfb.kill();
+    xvfb.kill().chain_err(|| "dang")
 }
 
 #[cfg(test)]
@@ -133,6 +146,6 @@ mod tests {
 
     #[test]
     fn smoke() {
-        println!("{}", doit());
+        println!("{:?}", doit());
     }
 }

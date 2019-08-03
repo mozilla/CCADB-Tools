@@ -8,12 +8,12 @@ use lazy_static;
 
 use crate::errors::*;
 use crate::firefox::profile::Profile;
+use crate::{USER_AGENT, X_AUTOMATED_TOOL};
 use std::ffi::OsString;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
-use crate::{X_AUTOMATED_TOOL, USER_AGENT};
 
 pub mod profile;
 
@@ -32,11 +32,10 @@ const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
 pub struct Firefox {
     home: TempDir,
     executable: OsString,
-    pub etag: String
+    pub etag: String,
 }
 
 impl Firefox {
-
     /// Creates and initializes a new profile managed by this instance of Firefox.
     ///
     /// Note that profile creation entails the spinning of a file watcher for cert_storage.
@@ -49,14 +48,16 @@ impl Firefox {
         println!("Creating profile {} at {}", profile.name, profile.home);
         self.cmd()
             .args(Firefox::create_profile_args(&profile))
-            .output()?;
+            .output()
+            .chain_err(|| "balls")?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
         println!("Initializing profile {} at {}", profile.name, profile.home);
         let mut cmd = self
             .cmd()
             .args(Firefox::init_profile_args(&profile))
-            .spawn()?;
+            .spawn()
+            .chain_err(|| "dang")?;
         // Unfortunately, it's not like Firefox is giving us update progress over stdout,
         // so in order to be notified if cert storage is done being populate we gotta
         // listen in on the file and check up on its size.
@@ -97,7 +98,10 @@ impl Firefox {
         loop {
             match database() {
                 Err(err) => {
-                    eprintln!("Received an error while stating {}, {}", cert_storage_name, err);
+                    eprintln!(
+                        "Received an error while stating {}, {}",
+                        cert_storage_name, err
+                    );
                     error = Some(Err(Error::from(err)));
                     break;
                 }
@@ -111,17 +115,6 @@ impl Firefox {
                         size = current;
                         counter = 0;
                     }
-//                    match current {
-//                        size => {
-//                            println!("counter is {}", counter);
-//                            counter += 1;
-//                        },
-//                        _ => {
-//                            println!("{} increased in size by {}", cert_storage_name, current - size);
-//                            size = current;
-//                            counter = 0;
-//                        }
-//                    };
                     if counter >= 10 {
                         break;
                     }
@@ -159,9 +152,14 @@ impl Firefox {
         let etag = match resp.headers().get("etag") {
             Some(etag) => match etag.to_str() {
                 Ok(string) => string.to_string(),
-                Err(err) => return Err(Error::from(err.to_string()))
+                Err(err) => return Err(Error::from(err.to_string())),
             },
-            None => return Err(Error::from(format!("no etag header was present in a request to {}", *NIGHTLY)))
+            None => {
+                return Err(Error::from(format!(
+                    "no etag header was present in a request to {}",
+                    *NIGHTLY
+                )))
+            }
         };
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(resp))).unpack(&home)?;
         self.home = home;
@@ -214,12 +212,23 @@ impl TryFrom<Url> for Firefox {
             .header(reqwest::header::USER_AGENT, USER_AGENT)
             .header("X-AUTOMATED-TOOL", X_AUTOMATED_TOOL)
             .send()?;
-        let etag = resp.headers().get("etag").unwrap().to_str().unwrap().to_string();
+        let etag = resp
+            .headers()
+            .get("etag").chain_err(|| "dang")?
+            .to_str().chain_err(|| "dang")?
+            .to_string();
         println!("Expanding to {}", home.as_ref().to_string_lossy());
-        let content_length = resp.content_length().unwrap();
+        let content_length = resp.content_length().chain_err(|| "dang")?;
         let bar = indicatif::ProgressBar::new(content_length);
-        tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(bar.wrap_read(resp)))).unpack(&home)?;
-        return Ok(Firefox { home, executable, etag});
+        tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(
+            bar.wrap_read(resp),
+        )))
+        .unpack(&home)?;
+        return Ok(Firefox {
+            home,
+            executable,
+            etag,
+        });
     }
 }
 
@@ -246,11 +255,12 @@ mod tests {
             .get(NIGHTLY.clone())
             .header("X-AUTOMATED-TOOL", "ccadb")
             .header("If-None-Match", r#""835285c5ea08d3381874b58e4cc54b02""#)
-            .send().unwrap();
+            .send()
+            .unwrap();
         println!("{}", resp.status());
         println!("{:?}", resp.headers());
     }
-    
+
     #[test]
     fn smoke() {
         let _: Firefox = (*NIGHTLY).clone().try_into().unwrap();
