@@ -3,14 +3,14 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 clean:
-	-docker stop kintodiffccadb
-	-docker rm kintodiffccadb
-	-docker rmi kintodiffccadb
+	-docker stop kintointegrity
+	-docker rm kintointegrity
+	-docker rmi kintointegrity
 	-docker image prune -f
 	-docker image prune -f --filter label=stage=intermediate
 
 build:
-	docker build --rm -t kintodiffccadb:latest .
+	docker build --rm -t kintointegrity:latest .
 	docker image prune -f
 	docker image prune -f --filter label=stage=intermediate
 

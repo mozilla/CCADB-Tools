@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 use std::convert::From;
 
-use crate::cert_storage::CertStorage;
+use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
 

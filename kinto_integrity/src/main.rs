@@ -1,138 +1,104 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-
 #![feature(slice_patterns)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 #[macro_use]
 extern crate error_chain;
-extern crate lmdb;
-extern crate reqwest;
-extern crate rkv;
-extern crate structopt;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate rocket;
 
+use errors::*;
+
+mod firefox;
+mod kinto;
+mod model;
+mod revocations_txt;
+
+use kinto::*;
+use model::*;
+use revocations_txt::*;
+
+use crate::firefox::Firefox;
+use reqwest::Url;
 use std::collections::HashSet;
 use std::convert::TryInto;
 
-use reqwest::Url;
-use structopt::StructOpt;
-
-mod cert_storage;
-mod intermediary;
-mod kinto;
-mod revocations_txt;
+const USER_AGENT: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB chris@chenderson.org";
+const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB";
 
 mod errors {
-    use rkv::StoreError;
-    error_chain! {}
+    use std::convert::From;
+
+    error_chain! {
+        foreign_links {
+            Fmt(::std::fmt::Error);
+            Io(::std::io::Error);
+            Reqwest(reqwest::Error);
+            Infallible(std::convert::Infallible);
+        }
+    }
 
     impl std::convert::From<rkv::StoreError> for Error {
-        fn from(err: StoreError) -> Self {
+        fn from(err: rkv::StoreError) -> Self {
             format!("{:?}", err).into()
         }
     }
 }
 
-use cert_storage::*;
-use errors::*;
-use intermediary::*;
-use kinto::*;
-use revocations_txt::*;
-use std::path::PathBuf;
+#[get("/")]
+fn default() -> Result<String> {
+    let revocations: Revocations = Revocations::default()?;
+    let revocations: HashSet<Intermediary> = revocations.into();
+    let kinto: Kinto = Kinto::default()?;
+    let kinto: HashSet<Intermediary> = kinto.into();
+    let cert_storage = Firefox::default()?;
+    let cert_storage: HashSet<Intermediary> = cert_storage.into();
+    Ok(format!(
+        r#"
+revocations.len() = {:#?}
+kinto.len() = {:#?}
+cert_storage.len() = {:#?}
+revocations.symmetric_difference(&kinto) = {:#?}
+revocations.symmetric_difference(&certstorage) = {:#?}"#,
+        revocations.len(),
+        kinto.len(),
+        cert_storage.len(),
+        revocations.symmetric_difference(&kinto),
+        revocations.symmetric_difference(&cert_storage)
+    ))
+}
 
-const USER_AGENT: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity chris@chenderson.org";
-const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity";
-
-#[derive(StructOpt)]
-struct KintoDiffRevocations {
-    #[structopt(
-        short = "r",
-        long = "revocations",
-        default_value = "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502"
-    )]
-    revocations: Url,
-
-    #[structopt(
-        short = "k",
-        long = "kinto",
-        default_value = "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
-    )]
-    kinto: Url,
-
-    #[structopt(short = "p", long = "profile")]
-    /// Optional path to a local Firefox profile.
-    profile: Option<PathBuf>,
+#[get("/?<revocations>")]
+fn revocations_provided(revocations: String) -> Result<String> {
+    let revocations: Revocations = match revocations.parse::<Url>() {
+        Ok(url) => url.try_into()?,
+        Err(err) => Err(format!("{:?}", err))?,
+    };
+    let revocations: HashSet<Intermediary> = revocations.into();
+    let kinto: Kinto = Kinto::default()?;
+    let kinto: HashSet<Intermediary> = kinto.into();
+    let cert_storage = Firefox::default()?;
+    let cert_storage: HashSet<Intermediary> = cert_storage.into();
+    Ok(format!(
+        r#"
+revocations.len() = {:#?}
+kinto.len() = {:#?}
+cert_storage.len() = {:#?}
+revocations.symmetric_difference(&kinto) = {:#?}
+revocations.symmetric_difference(&certstorage) = {:#?}"#,
+        revocations.len(),
+        kinto.len(),
+        cert_storage.len(),
+        revocations.symmetric_difference(&kinto),
+        revocations.symmetric_difference(&cert_storage)
+    ))
 }
 
 fn main() -> Result<()> {
-    let opts: KintoDiffRevocations = KintoDiffRevocations::from_args();
-    let revocations: Revocations = opts.revocations.try_into()?;
-    let kinto: Kinto = opts.kinto.try_into()?;
-    let revocations: HashSet<Intermediary> = revocations.into();
-    let kinto: HashSet<Intermediary> = kinto.into();
-
-    match opts.profile {
-        Some(path) => {
-            let certstorage: CertStorage = path.try_into()?;
-            let certstorage: HashSet<Intermediary> = certstorage.into();
-            println!("revocations.len() = {:#?}", revocations.len());
-            println!("kinto.len() = {:#?}", kinto.len());
-            println!("cert_storage.len() = {:#?}", certstorage.len());
-            println!(
-                "revocations.symmetric_difference(&kinto) = {:#?}",
-                revocations.symmetric_difference(&kinto)
-            );
-            println!(
-                "revocations.symmetric_difference(&certstorage) = {:#?}",
-                revocations.symmetric_difference(&certstorage)
-            );
-        }
-        None => {
-            println!("revocations.len() = {:#?}", revocations.len());
-            println!("kinto.len() = {:#?}", kinto.len());
-            println!(
-                "revocations.symmetric_difference(&kinto) = {:#?}",
-                revocations.symmetric_difference(&kinto)
-            );
-        }
-    };
+    firefox::init();
+    rocket::ignite()
+        .mount("/", routes![default, revocations_provided])
+        .launch();
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    /// Asserts that the observations in https://bugzilla.mozilla.org/show_bug.cgi?id=1548159#c2
-    /// Are in https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records
-    fn test_kathleens_observation() -> Result<()> {
-        let revocations: Kinto = "https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records".parse::<Url>().chain_err(|| "bad URL")?.try_into()?;
-        let revocations: HashSet<Intermediary> = revocations.into();
-        let mut kathleens: HashSet<Intermediary> = HashSet::new();
-        kathleens.insert(Intermediary{
-            issuer_name: "MDsxCzAJBgNVBAYTAkVTMREwDwYDVQQKDAhGTk1ULVJDTTEZMBcGA1UECwwQQUMgUkFJWiBGTk1ULVJDTQ==".to_string(),
-            serial: "RV864VwhzbpUT4KqR1Hr2w==".to_string()
-        });
-        kathleens.insert(Intermediary{
-            issuer_name: "MIGxMQswCQYDVQQGEwJUUjEPMA0GA1UEBwwGQW5rYXJhMU0wSwYDVQQKDERUw5xSS1RSVVNUIEJpbGdpIMSwbGV0acWfaW0gdmUgQmlsacWfaW0gR8O8dmVubGnEn2kgSGl6bWV0bGVyaSBBLsWeLjFCMEAGA1UEAww5VMOcUktUUlVTVCBFbGVrdHJvbmlrIFNlcnRpZmlrYSBIaXptZXQgU2HEn2xhecSxY8Sxc8SxIEg1".to_string(),
-            serial: "AZkNBFXrl1Zg".to_string()
-        });
-        kathleens.insert(Intermediary{
-            issuer_name: "MIGxMQswCQYDVQQGEwJUUjEPMA0GA1UEBwwGQW5rYXJhMU0wSwYDVQQKDERUw5xSS1RSVVNUIEJpbGdpIMSwbGV0acWfaW0gdmUgQmlsacWfaW0gR8O8dmVubGnEn2kgSGl6bWV0bGVyaSBBLsWeLjFCMEAGA1UEAww5VMOcUktUUlVTVCBFbGVrdHJvbmlrIFNlcnRpZmlrYSBIaXptZXQgU2HEn2xhecSxY8Sxc8SxIEg1".to_string(),
-            serial: "Aay2vr4aoUeZ".to_string()
-        });
-        kathleens.insert(Intermediary{
-            issuer_name: "MIGxMQswCQYDVQQGEwJUUjEPMA0GA1UEBwwGQW5rYXJhMU0wSwYDVQQKDERUw5xSS1RSVVNUIEJpbGdpIMSwbGV0acWfaW0gdmUgQmlsacWfaW0gR8O8dmVubGnEn2kgSGl6bWV0bGVyaSBBLsWeLjFCMEAGA1UEAww5VMOcUktUUlVTVCBFbGVrdHJvbmlrIFNlcnRpZmlrYSBIaXptZXQgU2HEn2xhecSxY8Sxc8SxIEg1".to_string(),
-            serial: "AUMyuCiycPJJ".to_string()
-        });
-        kathleens.insert(Intermediary{
-            issuer_name: "MFoxCzAJBgNVBAYTAklFMRIwEAYDVQQKEwlCYWx0aW1vcmUxEzARBgNVBAsTCkN5YmVyVHJ1c3QxIjAgBgNVBAMTGUJhbHRpbW9yZSBDeWJlclRydXN0IFJvb3Q=".to_string(),
-            serial: "ByeLBg==".to_string()
-        });
-        for observation in kathleens.iter() {
-            assert!(revocations.contains(observation));
-        }
-        Ok(())
-    }
 }

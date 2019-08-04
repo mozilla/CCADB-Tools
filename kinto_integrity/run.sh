@@ -9,7 +9,7 @@ HOST_PORT=8080
 CONTAINER_PORT=8000
 
 docker run \
-    --name kintodiffccadb \
+    --name kintointegrity \
     -d \
     -e "PORT=$CONTAINER_PORT" \
         -p ${HOST_PORT}:${CONTAINER_PORT} \

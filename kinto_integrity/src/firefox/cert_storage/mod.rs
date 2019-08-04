@@ -59,11 +59,11 @@ impl TryFrom<PathBuf> for CertStorage {
 }
 
 fn decode_revocation(key: &[u8], value: &Option<Value>) -> Option<Result<IssuerSerial>> {
-    match value {
-        &Some(Value::I64(i)) if i == 1 => {}
-        &Some(Value::I64(i)) if i == 0 => return None,
-        &None => return None,
-        &Some(_) => return None,
+    match *value {
+        Some(Value::I64(i)) if i == 1 => {}
+        Some(Value::I64(i)) if i == 0 => return None,
+        None => return None,
+        Some(_) => return None,
     }
     Some(match split_der_key(key) {
         Ok((part1, part2)) => Ok(IssuerSerial {
@@ -114,5 +114,5 @@ fn split_der_key(key: &[u8]) -> Result<(&[u8], &[u8])> {
         }
         return Ok(key.split_at(len + 4));
     }
-    return Err("key too long".into());
+    Err("key too long".into())
 }

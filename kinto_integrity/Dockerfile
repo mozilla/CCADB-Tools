@@ -13,6 +13,6 @@ RUN apt-get update
 RUN apt-get install xvfb libssl-dev ca-certificates libgtk-3-0 libdbus-glib-1-2 -y
 RUN apt-get clean
 
-COPY --from=buildStage /opt/target/release/kintoDiffCCADB /opt/
+COPY --from=buildStage /opt/target/release/kinto_integrity /opt/
 
 ENTRYPOINT ["/opt/kintoDiffCCADB"]

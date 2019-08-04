@@ -5,6 +5,7 @@
 use reqwest::Url;
 use serde::Deserialize;
 use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use crate::errors::*;
 
@@ -35,6 +36,16 @@ pub struct KintoDetails {
     pub created: String,
 }
 
+impl Kinto {
+    pub fn default() -> Result<Kinto> {
+        "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
+            .parse::<Url>()
+            .chain_err(|| "failed to download OneCRL")?
+            .try_into()
+            .chain_err(|| "failed to parse OneCRL")
+    }
+}
+
 impl TryFrom<Url> for Kinto {
     type Error = Error;
 
@@ -54,7 +65,7 @@ impl TryFrom<Url> for Kinto {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::intermediary::Intermediary;
+    use crate::model::Intermediary;
     use reqwest::Url;
     use std::collections::HashSet;
     use std::convert::TryInto;

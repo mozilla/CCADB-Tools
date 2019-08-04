@@ -6,14 +6,19 @@ use std::convert::TryFrom;
 
 use crate::errors::*;
 use reqwest::Url;
-use std::fs::File;
-use std::io::{BufRead, Read};
+use std::io::{BufRead, Cursor, Read};
+
+const REVOCATIONS_TXT: &str = include_str!("revocations.txt");
 
 pub struct Revocations {
     pub data: Vec<Revocation>,
 }
 
 impl Revocations {
+    pub fn default() -> Result<Revocations> {
+        Revocations::parse(Cursor::new(REVOCATIONS_TXT))
+    }
+
     /// Rules for this parser were plucked from
     /// https://searchfox.org/mozilla-central/source/security/manager/ssl/tests/unit/test_onecrl/sample_revocations.txt
     ///
@@ -107,10 +112,10 @@ pub struct Revocation {
 
 impl Revocation {
     pub fn new(issuer_name: String) -> Revocation {
-        return Revocation {
+        Revocation {
             issuer_name,
             serials: vec![],
-        };
+        }
     }
 
     #[allow(dead_code)]

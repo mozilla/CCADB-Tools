@@ -11,13 +11,17 @@ use crate::firefox::profile::Profile;
 use crate::{USER_AGENT, X_AUTOMATED_TOOL};
 use std::ffi::OsString;
 use std::io::BufReader;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 
+use crate::firefox::cert_storage::CertStorage;
+use std::path::Path;
 use xvfb::Xvfb;
 
+pub mod cert_storage;
 pub mod profile;
+
 mod xvfb;
 
 lazy_static! {
@@ -33,10 +37,28 @@ const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
 const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
 
+const PROFILE_CREATION_TIMEOUT: u64 = 10; // seconds
+const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
+                                                 // Once cert_storage is created we make note of its original size.
+                                                 // The moment we notice that the size of the file has increased we
+                                                 // assume that population of the database has begun. This heuristic
+                                                 // is the idea that if we have seen that file has STOPPED increasing in
+                                                 // size for ten ticks of the algorithm, then it is likely completely populated.
+                                                 //
+                                                 // Note that, of course, this is only a heuristic. Meaning that if we improperly move on
+                                                 // without getting the full database, that firefox::cert_storage parsing is likely to fail.
+const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
+
 pub fn init() {
     println!("Initializing Firefox Nightly");
     let _ = *FIREFOX;
-    println!("{}", format!("Starting the X Virtual Frame Buffer on DISPLAY={}", xvfb::DISPLAY_PORT));
+    println!(
+        "{}",
+        format!(
+            "Starting the X Virtual Frame Buffer on DISPLAY={}",
+            xvfb::DISPLAY_PORT
+        )
+    );
     let _ = *XVFB;
     println!("Starting the Firefox Nightly updater thread");
     std::thread::spawn(|| {
@@ -52,6 +74,18 @@ pub fn init() {
     });
 }
 
+/// std::process::Child does not implement drop in a meaningful way.
+/// In our use case we just want to kill the process.
+struct DroppableChild {
+    child: Child,
+}
+
+impl Drop for DroppableChild {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+    }
+}
+
 pub struct Firefox {
     home: TempDir,
     executable: OsString,
@@ -59,6 +93,21 @@ pub struct Firefox {
 }
 
 impl Firefox {
+    pub fn default() -> Result<CertStorage> {
+        let profile = match FIREFOX.lock() {
+            Err(err) => Err(format!("{:?}", err))?,
+            Ok(mut ff) => ff
+                .update()
+                .chain_err(|| "failed to update Firefox Nightly")?
+                .create_profile()
+                .chain_err(|| "failed to create a profile for Firefox Nightly")?,
+        };
+        Path::new(&profile.home)
+            .to_path_buf()
+            .try_into()
+            .chain_err(|| "failed to parse cert_storage")
+    }
+
     /// Creates and initializes a new profile managed by this instance of Firefox.
     ///
     /// Note that profile creation entails the spinning of a file watcher for cert_storage.
@@ -72,15 +121,22 @@ impl Firefox {
         self.cmd()
             .args(Firefox::create_profile_args(&profile))
             .output()
-            .chain_err(|| "balls")?;
+            .chain_err(|| "failed to create a profile for Firefox Nightly")?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
         println!("Initializing profile {} at {}", profile.name, profile.home);
-        let mut cmd = self
-            .cmd()
-            .args(Firefox::init_profile_args(&profile))
-            .spawn()
-            .chain_err(|| "dang")?;
+        let _cmd = DroppableChild {
+            child: self
+                .cmd()
+                .args(Firefox::init_profile_args(&profile))
+                .spawn()
+                .chain_err(|| {
+                    format!(
+                        "failed to start Firefox Nightly in the context of the profile at {}",
+                        profile.home
+                    )
+                })?,
+        };
         // Unfortunately, it's not like Firefox is giving us update progress over stdout,
         // so in order to be notified if cert storage is done being populate we gotta
         // listen in on the file and check up on its size.
@@ -89,8 +145,12 @@ impl Firefox {
         let cert_storage_name = profile.cert_storage().to_string_lossy().into_owned();
         println!("Waiting for {} to be created.", cert_storage_name);
         let mut initial_size;
+        let start = std::time::Instant::now();
         loop {
-            std::thread::sleep(Duration::from_millis(500));
+            std::thread::sleep(Duration::from_millis(100));
+            if start.elapsed() == Duration::from_secs(PROFILE_CREATION_TIMEOUT) {
+                return Err(format!("Firefox Nightly timed out by taking more than ten seconds to initialize the profile at {}", profile.home).into());
+            }
             match database() {
                 Err(_) => (),
                 Ok(db) => {
@@ -99,16 +159,16 @@ impl Firefox {
                 }
             }
         }
+        let start = std::time::Instant::now();
         loop {
-            std::thread::sleep(Duration::from_millis(500));
-            match database() {
-                Err(_) => panic!("asdasd"),
-                Ok(db) => {
-                    if db.len() != initial_size {
-                        initial_size = db.len();
-                        break;
-                    }
-                }
+            std::thread::sleep(Duration::from_millis(100));
+            if start.elapsed() == Duration::from_secs(CERT_STORAGE_POPULATION_TIMEOUT) {
+                return Err(format!("Firefox Nightly timed out by taking more than ten seconds to begin population cert_storage at {}", cert_storage_name).into());
+            }
+            let size = database()?.len();
+            if size != initial_size {
+                initial_size = size;
+                break;
             }
         }
         println!("{} created", cert_storage_name);
@@ -117,42 +177,20 @@ impl Firefox {
         println!("Watching {} to be populated", cert_storage_name);
         let mut size = initial_size;
         let mut counter = 0;
-        let mut error = None;
         loop {
-            match database() {
-                Err(err) => {
-                    eprintln!(
-                        "Received an error while stating {}, {}",
-                        cert_storage_name, err
-                    );
-                    error = Some(Err(Error::from(err)));
-                    break;
-                }
-                Ok(db) => {
-                    let current = db.len();
-                    if current == size {
-                        println!("counter is {}", counter);
-                        println!("size is {}", current);
-                        counter += 1;
-                    } else {
-                        size = current;
-                        counter = 0;
-                    }
-                    if counter >= 10 {
-                        break;
-                    }
-                    std::thread::sleep(Duration::from_millis(500));
-                }
+            let current_size = database()?.len();
+            if current_size == size {
+                counter += 1;
+            } else {
+                size = current_size;
+                counter = 0;
             }
+            if counter >= CERT_STORAGE_POPULATION_HEURISTIC {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(500));
         }
-        // Child does not implement drop in a meaningful way, so
-        // we must be careful to not return early without first
-        // cleaning it up.
-        let _ = cmd.kill();
-        match error {
-            None => Ok(profile),
-            Some(err) => err,
-        }
+        Ok(profile)
     }
 
     /// Attempts to consume this instance of Firefox and replace it with a possible update.
@@ -249,11 +287,11 @@ impl TryFrom<Url> for Firefox {
             bar.wrap_read(resp),
         )))
         .unpack(&home)?;
-        return Ok(Firefox {
+        Ok(Firefox {
             home,
             executable,
             etag,
-        });
+        })
     }
 }
 
