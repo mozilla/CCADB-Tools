@@ -20,12 +20,16 @@ use crate::revocations_txt::*;
 
 #[derive(Serialize)]
 pub struct Return {
-    pub one: Vec<Intermediary>,
-    pub two: Vec<Intermediary>,
-    pub three: Option<Vec<Intermediary>>,
-    pub four: Option<Vec<Intermediary>>,
-    pub five: Option<Vec<Intermediary>>,
-    pub six: Option<Vec<Intermediary>>
+    pub in_kinto_not_in_cert_storage: Vec<Intermediary>,
+    pub in_cert_storage_not_in_kinto: Vec<Intermediary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_cert_storage_not_in_revocations: Option<Vec<Intermediary>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_revocations_not_in_cert_storage: Option<Vec<Intermediary>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_revocations_not_in_kinto: Option<Vec<Intermediary>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_kinto_not_in_revocations: Option<Vec<Intermediary>>,
 }
 
 type WithRevocations = (CertStorage, Kinto, Revocations);
@@ -36,13 +40,34 @@ impl From<WithRevocations> for Return {
         let cert_storage: HashSet<Intermediary> = values.0.into();
         let kinto: HashSet<Intermediary> = values.1.into();
         let revocations: HashSet<Intermediary> = values.2.into();
-        Return{
-            one: kinto.difference(&cert_storage).cloned().collect::<Vec<Intermediary>>(),
-            two: cert_storage.difference(&kinto).cloned().collect::<Vec<Intermediary>>(),
-            three: Some(cert_storage.difference(&revocations).cloned().collect::<Vec<Intermediary>>()),
-            four: Some(revocations.difference(&cert_storage).cloned().collect::<Vec<Intermediary>>()),
-            five: Some(revocations.difference(&kinto).cloned().collect::<Vec<Intermediary>>()),
-            six: Some(kinto.difference(&revocations).cloned().collect::<Vec<Intermediary>>())
+        Return {
+            in_kinto_not_in_cert_storage: kinto
+                .difference(&cert_storage)
+                .cloned()
+                .collect::<Vec<Intermediary>>(),
+            in_cert_storage_not_in_kinto: cert_storage
+                .difference(&kinto)
+                .cloned()
+                .collect::<Vec<Intermediary>>(),
+            in_cert_storage_not_in_revocations: Some(
+                cert_storage
+                    .difference(&revocations)
+                    .cloned()
+                    .collect::<Vec<Intermediary>>(),
+            ),
+            in_revocations_not_in_cert_storage: Some(
+                revocations
+                    .difference(&cert_storage)
+                    .cloned()
+                    .collect::<Vec<Intermediary>>(),
+            ),
+            in_revocations_not_in_kinto: Some(
+                revocations
+                    .difference(&kinto)
+                    .cloned()
+                    .collect::<Vec<Intermediary>>(),
+            ),
+            in_kinto_not_in_revocations: None,
         }
     }
 }
@@ -51,13 +76,19 @@ impl From<WithoutRevocations> for Return {
     fn from(values: WithoutRevocations) -> Self {
         let cert_storage: HashSet<Intermediary> = values.0.into();
         let kinto: HashSet<Intermediary> = values.1.into();
-        Return{
-            one: kinto.difference(&cert_storage).cloned().collect::<Vec<Intermediary>>(),
-            two: cert_storage.difference(&kinto).cloned().collect::<Vec<Intermediary>>(),
-            three: None,
-            four: None,
-            five: None,
-            six: None
+        Return {
+            in_kinto_not_in_cert_storage: kinto
+                .difference(&cert_storage)
+                .cloned()
+                .collect::<Vec<Intermediary>>(),
+            in_cert_storage_not_in_kinto: cert_storage
+                .difference(&kinto)
+                .cloned()
+                .collect::<Vec<Intermediary>>(),
+            in_cert_storage_not_in_revocations: None,
+            in_revocations_not_in_cert_storage: None,
+            in_revocations_not_in_kinto: None,
+            in_kinto_not_in_revocations: None
         }
     }
 }

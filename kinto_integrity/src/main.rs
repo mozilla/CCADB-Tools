@@ -21,8 +21,8 @@ use revocations_txt::*;
 
 use crate::firefox::Firefox;
 use reqwest::Url;
-use std::convert::TryInto;
 use rocket::http::RawStr;
+use std::convert::TryInto;
 
 const USER_AGENT: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB chris@chenderson.org";
 const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB";
