@@ -23,6 +23,7 @@ use crate::firefox::Firefox;
 use reqwest::Url;
 use std::collections::HashSet;
 use std::convert::TryInto;
+use rocket::http::RawStr;
 
 const USER_AGENT: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB chris@chenderson.org";
 const X_AUTOMATED_TOOL: &str = "github.com/mozilla/CCADB-Tools/kintoDiffCCADB";
@@ -69,9 +70,9 @@ revocations.symmetric_difference(&certstorage) = {:#?}"#,
     ))
 }
 
-#[get("/?<revocations>")]
-fn revocations_provided(revocations: String) -> Result<String> {
-    let revocations: Revocations = match revocations.parse::<Url>() {
+#[get("/with_revocations?<url>")]
+fn with_revocations(url: &RawStr) -> Result<String> {
+    let revocations: Revocations = match url.as_str().parse::<Url>() {
         Ok(url) => url.try_into()?,
         Err(err) => Err(format!("{:?}", err))?,
     };
@@ -95,10 +96,27 @@ revocations.symmetric_difference(&certstorage) = {:#?}"#,
     ))
 }
 
+#[get("/without_revocations")]
+fn without_revocations() -> Result<String> {
+    let kinto: Kinto = Kinto::default()?;
+    let kinto: HashSet<Intermediary> = kinto.into();
+    let cert_storage = Firefox::default()?;
+    let cert_storage: HashSet<Intermediary> = cert_storage.into();
+    Ok(format!(
+        r#"
+kinto.len() = {:#?}
+cert_storage.len() = {:#?}
+kinto.symmetric_difference(&certstorage) = {:#?}"#,
+        kinto.len(),
+        cert_storage.len(),
+        kinto.symmetric_difference(&cert_storage)
+    ))
+}
+
 fn main() -> Result<()> {
     firefox::init();
     rocket::ignite()
-        .mount("/", routes![default, revocations_provided])
+        .mount("/", routes![default, with_revocations])
         .launch();
     Ok(())
 }
