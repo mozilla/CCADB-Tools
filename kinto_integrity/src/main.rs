@@ -21,7 +21,6 @@ use revocations_txt::*;
 
 use crate::firefox::Firefox;
 use reqwest::Url;
-use std::collections::HashSet;
 use std::convert::TryInto;
 use rocket::http::RawStr;
 
@@ -37,6 +36,7 @@ mod errors {
             Io(::std::io::Error);
             Reqwest(reqwest::Error);
             Infallible(std::convert::Infallible);
+            Json(serde_json::error::Error);
         }
     }
 
@@ -50,24 +50,10 @@ mod errors {
 #[get("/")]
 fn default() -> Result<String> {
     let revocations: Revocations = Revocations::default()?;
-    let revocations: HashSet<Intermediary> = revocations.into();
     let kinto: Kinto = Kinto::default()?;
-    let kinto: HashSet<Intermediary> = kinto.into();
     let cert_storage = Firefox::default()?;
-    let cert_storage: HashSet<Intermediary> = cert_storage.into();
-    Ok(format!(
-        r#"
-revocations.len() = {:#?}
-kinto.len() = {:#?}
-cert_storage.len() = {:#?}
-revocations.symmetric_difference(&kinto) = {:#?}
-revocations.symmetric_difference(&certstorage) = {:#?}"#,
-        revocations.len(),
-        kinto.len(),
-        cert_storage.len(),
-        revocations.symmetric_difference(&kinto),
-        revocations.symmetric_difference(&cert_storage)
-    ))
+    let result: Return = (cert_storage, kinto, revocations).into();
+    Ok(serde_json::to_string(&result)?)
 }
 
 #[get("/with_revocations?<url>")]
@@ -76,41 +62,18 @@ fn with_revocations(url: &RawStr) -> Result<String> {
         Ok(url) => url.try_into()?,
         Err(err) => Err(format!("{:?}", err))?,
     };
-    let revocations: HashSet<Intermediary> = revocations.into();
     let kinto: Kinto = Kinto::default()?;
-    let kinto: HashSet<Intermediary> = kinto.into();
     let cert_storage = Firefox::default()?;
-    let cert_storage: HashSet<Intermediary> = cert_storage.into();
-    Ok(format!(
-        r#"
-revocations.len() = {:#?}
-kinto.len() = {:#?}
-cert_storage.len() = {:#?}
-revocations.symmetric_difference(&kinto) = {:#?}
-revocations.symmetric_difference(&certstorage) = {:#?}"#,
-        revocations.len(),
-        kinto.len(),
-        cert_storage.len(),
-        revocations.symmetric_difference(&kinto),
-        revocations.symmetric_difference(&cert_storage)
-    ))
+    let result: Return = (cert_storage, kinto, revocations).into();
+    Ok(serde_json::to_string(&result)?)
 }
 
 #[get("/without_revocations")]
 fn without_revocations() -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
-    let kinto: HashSet<Intermediary> = kinto.into();
     let cert_storage = Firefox::default()?;
-    let cert_storage: HashSet<Intermediary> = cert_storage.into();
-    Ok(format!(
-        r#"
-kinto.len() = {:#?}
-cert_storage.len() = {:#?}
-kinto.symmetric_difference(&certstorage) = {:#?}"#,
-        kinto.len(),
-        cert_storage.len(),
-        kinto.symmetric_difference(&cert_storage)
-    ))
+    let result: Return = (cert_storage, kinto).into();
+    Ok(serde_json::to_string(&result)?)
 }
 
 fn main() -> Result<()> {

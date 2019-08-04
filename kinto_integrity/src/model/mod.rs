@@ -5,6 +5,8 @@
 use std::collections::HashSet;
 use std::convert::From;
 
+use serde::Serialize;
+
 use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
@@ -16,7 +18,51 @@ use crate::revocations_txt::*;
 //5. in revocations.txt but not in Kinto.
 //6. In Kinto but not in revocations.txt
 
-#[derive(Eq, PartialEq, Hash, Debug)]
+#[derive(Serialize)]
+pub struct Return {
+    pub one: Vec<Intermediary>,
+    pub two: Vec<Intermediary>,
+    pub three: Option<Vec<Intermediary>>,
+    pub four: Option<Vec<Intermediary>>,
+    pub five: Option<Vec<Intermediary>>,
+    pub six: Option<Vec<Intermediary>>
+}
+
+type WithRevocations = (CertStorage, Kinto, Revocations);
+type WithoutRevocations = (CertStorage, Kinto);
+
+impl From<WithRevocations> for Return {
+    fn from(values: WithRevocations) -> Self {
+        let cert_storage: HashSet<Intermediary> = values.0.into();
+        let kinto: HashSet<Intermediary> = values.1.into();
+        let revocations: HashSet<Intermediary> = values.2.into();
+        Return{
+            one: kinto.difference(&cert_storage).cloned().collect::<Vec<Intermediary>>(),
+            two: cert_storage.difference(&kinto).cloned().collect::<Vec<Intermediary>>(),
+            three: Some(cert_storage.difference(&revocations).cloned().collect::<Vec<Intermediary>>()),
+            four: Some(revocations.difference(&cert_storage).cloned().collect::<Vec<Intermediary>>()),
+            five: Some(revocations.difference(&kinto).cloned().collect::<Vec<Intermediary>>()),
+            six: Some(kinto.difference(&revocations).cloned().collect::<Vec<Intermediary>>())
+        }
+    }
+}
+
+impl From<WithoutRevocations> for Return {
+    fn from(values: WithoutRevocations) -> Self {
+        let cert_storage: HashSet<Intermediary> = values.0.into();
+        let kinto: HashSet<Intermediary> = values.1.into();
+        Return{
+            one: kinto.difference(&cert_storage).cloned().collect::<Vec<Intermediary>>(),
+            two: cert_storage.difference(&kinto).cloned().collect::<Vec<Intermediary>>(),
+            three: None,
+            four: None,
+            five: None,
+            six: None
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, Serialize, Clone)]
 pub struct Intermediary {
     pub issuer_name: String,
     pub serial: String,
