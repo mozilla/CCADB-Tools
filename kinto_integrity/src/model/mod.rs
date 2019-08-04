@@ -9,6 +9,13 @@ use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
 
+//1. In Kinto but not in cert_storage
+//2. In cert_storage but not in Kinto
+//3. In cert_storage but not in revocations.txt
+//4. In revocations.txt but not in cert_storage
+//5. in revocations.txt but not in Kinto.
+//6. In Kinto but not in revocations.txt
+
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct Intermediary {
     pub issuer_name: String,

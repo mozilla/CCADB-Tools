@@ -116,7 +116,7 @@ kinto.symmetric_difference(&certstorage) = {:#?}"#,
 fn main() -> Result<()> {
     firefox::init();
     rocket::ignite()
-        .mount("/", routes![default, with_revocations])
+        .mount("/", routes![default, with_revocations, without_revocations])
         .launch();
     Ok(())
 }
