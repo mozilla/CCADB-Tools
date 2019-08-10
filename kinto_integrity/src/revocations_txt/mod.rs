@@ -91,7 +91,6 @@ impl Revocations {
     }
 }
 
-
 impl TryFrom<Url> for Revocations {
     type Error = Error;
 

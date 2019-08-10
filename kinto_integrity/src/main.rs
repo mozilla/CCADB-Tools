@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #![feature(slice_patterns)]
 #![feature(proc_macro_hygiene, decl_macro)]
 
@@ -8,44 +12,27 @@ extern crate lazy_static;
 #[macro_use]
 extern crate rocket;
 
-use url::form_urlencoded::parse as url_decode;
-
-use errors::*;
-
-mod firefox;
-pub mod http;
-mod kinto;
-mod model;
-mod revocations_txt;
-
-use kinto::*;
-use model::*;
-use revocations_txt::*;
-
-use crate::firefox::Firefox;
 use reqwest::Url;
 use rocket::http::RawStr;
 use std::convert::TryInto;
 
-mod errors {
-    use std::convert::From;
+// A fairly hefty import for only one function. If you find something lighter weight
+// but just as well liked then please do replace this.
+use url::form_urlencoded::parse as url_decode;
 
-    error_chain! {
-        foreign_links {
-            Fmt(::std::fmt::Error);
-            Io(::std::io::Error);
-            Reqwest(reqwest::Error);
-            Infallible(std::convert::Infallible);
-            Json(serde_json::error::Error);
-        }
-    }
+mod errors;
+mod firefox;
+mod http;
+mod kinto;
+mod model;
+mod revocations_txt;
 
-    impl std::convert::From<rkv::StoreError> for Error {
-        fn from(err: rkv::StoreError) -> Self {
-            format!("{:?}", err).into()
-        }
-    }
-}
+use errors::*;
+use firefox::*;
+use kinto::*;
+use model::*;
+use revocations_txt::*;
+
 
 #[get("/")]
 fn default() -> Result<String> {
