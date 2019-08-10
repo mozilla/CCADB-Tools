@@ -14,6 +14,7 @@ extern crate rocket;
 
 use reqwest::Url;
 use rocket::http::RawStr;
+use rocket::Data;
 use std::convert::TryInto;
 
 // A fairly hefty import for only one function. If you find something lighter weight
@@ -67,8 +68,8 @@ fn with_revocations(url: &RawStr) -> Result<String> {
 }
 
 #[post("/with_revocations", format = "text/plain", data = "<revocations_txt>")]
-fn post_revocations(revocations_txt: String) -> Result<String> {
-    let revocations = revocations_txt.to_string().try_into()?;
+fn post_revocations(revocations_txt: Data) -> Result<String> {
+    let revocations = Revocations::parse(revocations_txt.open())?;
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto, revocations).into();
