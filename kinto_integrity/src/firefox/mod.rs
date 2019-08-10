@@ -201,7 +201,7 @@ impl Firefox {
     /// Under the condition that no change has been made on the remote, then this method
     /// returns self.
     pub fn update(&mut self) -> Result<&mut Firefox> {
-        let resp = http::new_get_request(NIGHTLY.clone()).send()?;
+        let resp = http::new_get_request(NIGHTLY.clone()).header("If-None-Match", self.etag.clone()).send()?;
         if resp.status() == 304 {
             println!("{} reported no changes to Firefox", NIGHTLY.clone());
             return Ok(self);
