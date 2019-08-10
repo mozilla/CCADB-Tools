@@ -88,7 +88,7 @@ impl From<WithoutRevocations> for Return {
             in_cert_storage_not_in_revocations: None,
             in_revocations_not_in_cert_storage: None,
             in_revocations_not_in_kinto: None,
-            in_kinto_not_in_revocations: None
+            in_kinto_not_in_revocations: None,
         }
     }
 }

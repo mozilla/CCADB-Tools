@@ -5,6 +5,7 @@
 use std::convert::TryFrom;
 
 use crate::errors::*;
+use crate::http;
 use reqwest::Url;
 use std::io::{BufRead, Cursor, Read};
 
@@ -90,18 +91,24 @@ impl Revocations {
     }
 }
 
+
 impl TryFrom<Url> for Revocations {
     type Error = Error;
 
     fn try_from(url: Url) -> Result<Self> {
         let url_str = url.to_string();
-        let resp = reqwest::Client::new()
-            .get(url)
-            .header("User-Agent", crate::USER_AGENT)
-            .header("X-Automated-Tool", crate::X_AUTOMATED_TOOL)
+        let resp = http::new_get_request(url)
             .send()
             .chain_err(|| format!("failed to download {}", url_str))?;
         Revocations::parse(resp)
+    }
+}
+
+impl TryFrom<String> for Revocations {
+    type Error = Error;
+
+    fn try_from(value: String) -> Result<Self> {
+        Revocations::parse(Cursor::new(value))
     }
 }
 
@@ -146,10 +153,7 @@ pub(crate) mod tests {
     /// value is exactly the same as
     fn smoke_revocations_txt() -> Result<()> {
         let got: Revocations = REVOCATIONS_TXT.parse::<Url>().unwrap().try_into()?;
-        let want = reqwest::Client::new()
-            .get(REVOCATIONS_TXT)
-            .header("User-Agent", crate::USER_AGENT)
-            .header("X-Automated-Tool", crate::X_AUTOMATED_TOOL)
+        let want = http::new_get_request(REVOCATIONS_TXT.parse::<Url>().unwrap())
             .send()
             .chain_err(|| format!("failed to download {}", REVOCATIONS_TXT))?
             .text()

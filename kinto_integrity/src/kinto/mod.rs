@@ -8,6 +8,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::errors::*;
+use crate::http;
 
 #[derive(Deserialize, Debug)]
 pub struct Kinto {
@@ -51,10 +52,7 @@ impl TryFrom<Url> for Kinto {
 
     fn try_from(url: Url) -> Result<Self> {
         let url_str = url.to_string();
-        reqwest::Client::new()
-            .get(url)
-            .header("User-Agent", crate::USER_AGENT)
-            .header("X-Automated-Tool", crate::X_AUTOMATED_TOOL)
+        http::new_get_request(url)
             .send()
             .chain_err(|| format!("failed to download {}", url_str))?
             .json()

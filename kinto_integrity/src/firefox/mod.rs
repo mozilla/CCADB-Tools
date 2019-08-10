@@ -1,4 +1,3 @@
-use reqwest::Client;
 use reqwest::Url;
 use std::convert::{TryFrom, TryInto};
 
@@ -8,7 +7,6 @@ use lazy_static;
 
 use crate::errors::*;
 use crate::firefox::profile::Profile;
-use crate::{USER_AGENT, X_AUTOMATED_TOOL};
 use std::ffi::OsString;
 use std::io::BufReader;
 use std::process::{Child, Command, Stdio};
@@ -16,6 +14,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use crate::firefox::cert_storage::CertStorage;
+use crate::http;
 use std::path::Path;
 use xvfb::Xvfb;
 
@@ -198,11 +197,7 @@ impl Firefox {
     /// Under the condition that no change has been made on the remote, then this method
     /// returns self.
     pub fn update(&mut self) -> Result<&mut Firefox> {
-        let resp = Client::new()
-            .get(NIGHTLY.clone())
-            .header("X-AUTOMATED-TOOL", "ccadb")
-            .header("If-None-Match", self.etag.clone())
-            .send()?;
+        let resp = http::new_get_request(NIGHTLY.clone()).send()?;
         if resp.status() == 304 {
             println!("{} reported no changes to Firefox", NIGHTLY.clone());
             return Ok(self);
@@ -268,11 +263,7 @@ impl TryFrom<Url> for Firefox {
         println!("Downloading {}", value);
         let home = TempDir::new("")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
-        let resp = Client::new()
-            .get(value)
-            .header(reqwest::header::USER_AGENT, USER_AGENT)
-            .header("X-AUTOMATED-TOOL", X_AUTOMATED_TOOL)
-            .send()?;
+        let resp = http::new_get_request(value).send()?;
         let etag = resp
             .headers()
             .get("etag")
@@ -313,25 +304,8 @@ mod tests {
     use std::convert::TryInto;
 
     #[test]
-    fn asgfdfa() {
-        let resp = Client::new()
-            .get(NIGHTLY.clone())
-            .header("X-AUTOMATED-TOOL", "ccadb")
-            .header("If-None-Match", r#""835285c5ea08d3381874b58e4cc54b02""#)
-            .send()
-            .unwrap();
-        println!("{}", resp.status());
-        println!("{:?}", resp.headers());
-    }
-
-    #[test]
     fn smoke() {
         let _: Firefox = (*NIGHTLY).clone().try_into().unwrap();
-    }
-
-    #[test]
-    fn asdfdgsdfsdf() {
-        println!("{}", *NIGHTLY);
     }
 
 }
