@@ -86,7 +86,7 @@ fn without_revocations() -> Result<String> {
 fn main() -> Result<()> {
     firefox::init();
     rocket::ignite()
-        .mount("/", routes![default, with_revocations, without_revocations])
+        .mount("/", routes![default, with_revocations, post_revocations, without_revocations])
         .launch();
     Ok(())
 }
