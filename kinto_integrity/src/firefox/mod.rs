@@ -264,19 +264,20 @@ impl TryFrom<Url> for Firefox {
     type Error = Error;
 
     fn try_from(value: Url) -> Result<Self> {
-        println!("Downloading {}", value);
+        let endpoint = value.to_string();
+        println!("Downloading {}", endpoint);
         let home = TempDir::new("")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let resp = http::new_get_request(value).send()?;
         let etag = resp
             .headers()
             .get("etag")
-            .chain_err(|| "dang")?
+            .chain_err(|| format!("No etag header was present in a request to {}", endpoint))?
             .to_str()
-            .chain_err(|| "dang")?
+            .chain_err(|| format!("The etag header from {} could not be parsed", endpoint))?
             .to_string();
         println!("Expanding to {}", home.as_ref().to_string_lossy());
-        let content_length = resp.content_length().chain_err(|| "dang")?;
+        let content_length = resp.content_length().chain_err(|| format!("Could not get a content length from {}", endpoint))?;
         let bar = indicatif::ProgressBar::new(content_length);
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(
             bar.wrap_read(resp),
