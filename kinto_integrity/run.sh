@@ -13,5 +13,5 @@ docker run \
     -d \
     -e "PORT=$CONTAINER_PORT" \
         -p ${HOST_PORT}:${CONTAINER_PORT} \
-    kintodiffccadb
+    kintointegrity
 
