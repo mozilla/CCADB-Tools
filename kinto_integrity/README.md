@@ -13,7 +13,7 @@ For all requests, the following datasets are always used:
 `https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records`
 
 ##### cert_storage
-cert_storage: A fresh, per request, Firefox Nightly profile is create and its cert_storage is populated.
+A fresh, per request, Firefox Nightly profile is create and its cert_storage is populated.
 
 ##### revocations.txt
 `revocations.txt` differs based on which endpoint is called.
@@ -81,6 +81,9 @@ For endpoints that do not include revocations.txt within their computation, the 
 In an ideal, "no problems", scenario all of the above arrays will be empty, as there is no difference between the various datasources.
 
 ### Firefox Nightly
+
+`https://download.mozilla.org/?product=firefox-nightly-latest-ssl&os=linux64&lang=en-US`
+
 This tool vendors a local copy of Firefox Nightly to service every request with diffs of `cert_storage`. In order to facilitate this, a thread awakes every hour to poll `download.mozilla.org` for a new a build of Firefox Nightly. If a new build has been published then this tool will replace the previous night's build with the current one.
 
 Additionally, `download.mozilla.org` is polled at the beginning of every diffing request. Most typically, an up-to-date copy will already be present, however it is entirely possible that a request is made inbetween ticks of the updater thread. If this occurs, then the given request will take slightly longer as it needs to download and unpack the update.
@@ -95,4 +98,4 @@ An individual request may take about 30 seconds to complete. This is due to the 
 2. Beginning polling for the filesize of `data.mdb`. Keep polling until the size of the file begins increasing, or a timeout is reached.
 3. Beginning polling for the filesize of `data.mdb`, keeping note of how long `data.mdb` stays at a particular size. Once `data.mdb` has stayed a certain size for 10 polling periods, it is assumed to be entirely populated.
 
-The above heuristic us just that, a heuristic. While the heuristic has been observed to work consistently, if there is any point of failure within this tool then, this is it.
+The above heuristic us just that - a heuristic. While the heuristic has been observed to work consistently, if there is any point of failure within this tool then, this is it.
