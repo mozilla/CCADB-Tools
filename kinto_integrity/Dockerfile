@@ -15,4 +15,4 @@ RUN apt-get clean
 
 COPY --from=buildStage /opt/target/release/kinto_integrity /opt/
 
-ENTRYPOINT ["/opt/kintoDiffCCADB"]
+ENTRYPOINT ["/opt/kinto_integrity"]
