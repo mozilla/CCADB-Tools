@@ -6,7 +6,7 @@
 
 # Mappings from the host port to the container port.
 HOST_PORT=8080
-CONTAINER_PORT=8000
+CONTAINER_PORT=8080
 
 docker run \
     --name kintointegrity \
