@@ -201,7 +201,9 @@ impl Firefox {
     /// Under the condition that no change has been made on the remote, then this method
     /// returns self.
     pub fn update(&mut self) -> Result<&mut Firefox> {
-        let resp = http::new_get_request(NIGHTLY.clone()).header("If-None-Match", self.etag.clone()).send()?;
+        let resp = http::new_get_request(NIGHTLY.clone())
+            .header("If-None-Match", self.etag.clone())
+            .send()?;
         if resp.status() == 304 {
             println!("{} reported no changes to Firefox", NIGHTLY.clone());
             return Ok(self);
@@ -277,7 +279,9 @@ impl TryFrom<Url> for Firefox {
             .chain_err(|| format!("The etag header from {} could not be parsed", endpoint))?
             .to_string();
         println!("Expanding to {}", home.as_ref().to_string_lossy());
-        let content_length = resp.content_length().chain_err(|| format!("Could not get a content length from {}", endpoint))?;
+        let content_length = resp
+            .content_length()
+            .chain_err(|| format!("Could not get a content length from {}", endpoint))?;
         let bar = indicatif::ProgressBar::new(content_length);
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(
             bar.wrap_read(resp),

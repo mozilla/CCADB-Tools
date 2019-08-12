@@ -34,7 +34,6 @@ use kinto::*;
 use model::*;
 use revocations_txt::*;
 
-
 #[get("/")]
 fn default() -> Result<String> {
     let revocations: Revocations = Revocations::default()?;
@@ -86,8 +85,23 @@ fn without_revocations() -> Result<String> {
 
 fn main() -> Result<()> {
     firefox::init();
-    rocket::ignite()
-        .mount("/", routes![default, with_revocations, post_revocations, without_revocations])
+    let port = match std::env::var("PORT") {
+        Ok(port) => port.parse().unwrap(),
+        Err(_) => 8080,
+    } as u16;
+    let config = rocket::Config::build(rocket::config::Environment::Production)
+        .port(port)
+        .finalize().unwrap();
+    rocket::custom(config)
+        .mount(
+            "/",
+            routes![
+                default,
+                with_revocations,
+                post_revocations,
+                without_revocations
+            ],
+        )
         .launch();
     Ok(())
 }
