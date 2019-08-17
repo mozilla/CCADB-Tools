@@ -85,8 +85,14 @@ fn without_revocations() -> Result<String> {
 
 #[post("/update_cert_storage")]
 fn update_cert_storage() {
-    FIREFOX.write().unwrap().udpate_cert_storage().unwrap();
+    FIREFOX.write().unwrap().update_cert_storage().unwrap();
 }
+
+#[post("/update_firefox_nightly")]
+fn update_firefox_nightly() {
+    FIREFOX.write().unwrap().update().unwrap();
+}
+
 #[macro_use]
 extern crate log;
 

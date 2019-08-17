@@ -217,7 +217,7 @@ impl Firefox {
         Ok(())
     }
 
-    pub fn udpate_cert_storage(&mut self) -> Result<()> {
+    pub fn update_cert_storage(&mut self) -> Result<()> {
         self.profile = Profile::new()?;
         self.create_profile()
     }

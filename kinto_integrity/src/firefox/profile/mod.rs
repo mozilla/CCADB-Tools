@@ -20,7 +20,7 @@ pub struct Profile {
 
 impl Drop for Profile {
     fn drop(&mut self) {
-        info!("Deleting Firefox located at {}", self._tmp.path().to_string_lossy());
+        info!("Deleting Firefox profile located at {}", self._tmp.path().to_string_lossy());
     }
 }
 
