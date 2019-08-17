@@ -67,7 +67,12 @@ impl From<WithRevocations> for Return {
                     .cloned()
                     .collect::<Vec<Intermediary>>(),
             ),
-            in_kinto_not_in_revocations: None,
+            in_kinto_not_in_revocations: Some(
+                kinto
+                    .difference(&revocations)
+                    .cloned()
+                    .collect::<Vec<Intermediary>>(),
+            ),
         }
     }
 }
