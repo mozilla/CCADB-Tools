@@ -5,6 +5,8 @@
 use crate::errors::*;
 use std::path::{Path, PathBuf};
 use tempdir::TempDir;
+use crate::firefox::cert_storage::CertStorage;
+use std::convert::TryInto;
 
 const TMP_PREFIX: &str = "kinto_integrity_profile";
 const CERT_STORAGE_DIR: &str = "security_state";
@@ -29,7 +31,11 @@ impl Profile {
         Ok(Profile { name, home, _tmp })
     }
 
-    pub fn cert_storage(&self) -> PathBuf {
+    pub fn cert_storage(&self) -> Result<CertStorage> {
+        self.cert_storage_path().try_into()
+    }
+
+    pub fn cert_storage_path(&self) -> PathBuf {
         Path::new(&self.home)
             .join(CERT_STORAGE_DIR)
             .join(CERT_STORAGE_DB)

@@ -38,9 +38,10 @@ impl TryFrom<PathBuf> for CertStorage {
         let reader = env.read()?;
         for item in store.iter_start(&reader)? {
             let (key, value) = item?;
-            let is = match key {
-                [b'i', b's', k..] => decode_revocation(k, &value),
-                [..] => None,
+            let is = if key.starts_with(&vec![b'i', b's']) && key.len() > 2 {
+                decode_revocation(&key[2..key.len()], &value)
+            } else {
+                None
             };
             match is {
                 Some(Ok(issuer_serial)) => {

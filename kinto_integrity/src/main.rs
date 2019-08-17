@@ -91,7 +91,8 @@ fn main() -> Result<()> {
     } as u16;
     let config = rocket::Config::build(rocket::config::Environment::Production)
         .port(port)
-        .finalize().unwrap();
+        .finalize()
+        .unwrap();
     rocket::custom(config)
         .mount(
             "/",
