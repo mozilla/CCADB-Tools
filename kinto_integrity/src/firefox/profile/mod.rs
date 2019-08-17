@@ -32,12 +32,14 @@ impl Profile {
     }
 
     pub fn cert_storage(&self) -> Result<CertStorage> {
-        self.cert_storage_path().try_into()
+        self.security_state().try_into()
+    }
+
+    pub fn security_state(&self) -> PathBuf {
+        Path::new(&self.home).join(CERT_STORAGE_DIR)
     }
 
     pub fn cert_storage_path(&self) -> PathBuf {
-        Path::new(&self.home)
-            .join(CERT_STORAGE_DIR)
-            .join(CERT_STORAGE_DB)
+        self.security_state().join(CERT_STORAGE_DB)
     }
 }
