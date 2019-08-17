@@ -2,7 +2,7 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use reqwest::{Url, Response};
+use reqwest::{Response, Url};
 use std::convert::{TryFrom, TryInto};
 
 use tempdir::TempDir;
@@ -52,8 +52,6 @@ const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
 const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
 
 pub fn init() {
-    println!("Initializing Firefox Nightly");
-    let _ = *FIREFOX;
     println!(
         "{}",
         format!(
@@ -62,6 +60,8 @@ pub fn init() {
         )
     );
     let _ = *XVFB;
+    println!("Initializing Firefox Nightly");
+    let _ = *FIREFOX;
     println!("Starting the Firefox Nightly updater thread");
     std::thread::spawn(|| {
         std::thread::sleep(Duration::from_secs(60 * 60));
@@ -99,7 +99,10 @@ impl Firefox {
     pub fn default() -> Result<CertStorage> {
         match FIREFOX.read() {
             Err(err) => Err(format!("{:?}", err))?,
-            Ok(ff) => ff.profile.cert_storage().chain_err(|| "failed to parse cert_storage")
+            Ok(ff) => ff
+                .profile
+                .cert_storage()
+                .chain_err(|| "failed to parse cert_storage"),
         }
     }
 
@@ -110,14 +113,20 @@ impl Firefox {
     /// we have to simply watch the file and wait for it to stop growing in size.
     fn create_profile(&self) -> Result<()> {
         // Register the profile with Firefox.
-        println!("Creating profile {} at {}", self.profile.name, self.profile.home);
+        println!(
+            "Creating profile {} at {}",
+            self.profile.name, self.profile.home
+        );
         self.cmd()
             .args(self.create_profile_args())
             .output()
             .chain_err(|| "failed to create a profile for Firefox Nightly")?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
-        println!("Initializing profile {} at {}", self.profile.name, self.profile.home);
+        println!(
+            "Initializing profile {} at {}",
+            self.profile.name, self.profile.home
+        );
         let _cmd = DroppableChild {
             child: self
                 .cmd()
@@ -135,7 +144,11 @@ impl Firefox {
         // listen in on the file and check up on its size.
         let database = || std::fs::metadata(self.profile.cert_storage_path());
         // Spin until it's created.
-        let cert_storage_name = self.profile.cert_storage_path().to_string_lossy().into_owned();
+        let cert_storage_name = self
+            .profile
+            .cert_storage_path()
+            .to_string_lossy()
+            .into_owned();
         println!("Waiting for {} to be created.", cert_storage_name);
         let mut initial_size;
         let start = std::time::Instant::now();
@@ -260,8 +273,12 @@ impl TryFrom<Response> for Firefox {
     type Error = Error;
 
     fn try_from(resp: Response) -> Result<Self> {
-        let _home = TempDir::new("")?;
-        let executable = _home.path().join("firefox").join("firefox").into_os_string();
+        let _home = TempDir::new("kinto_integrity_firefox_nightly")?;
+        let executable = _home
+            .path()
+            .join("firefox")
+            .join("firefox")
+            .into_os_string();
         let etag = resp
             .headers()
             .get("etag")

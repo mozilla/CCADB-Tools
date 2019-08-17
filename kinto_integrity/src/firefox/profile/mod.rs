@@ -3,10 +3,10 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use crate::errors::*;
-use std::path::{Path, PathBuf};
-use tempdir::TempDir;
 use crate::firefox::cert_storage::CertStorage;
 use std::convert::TryInto;
+use std::path::{Path, PathBuf};
+use tempdir::TempDir;
 
 const TMP_PREFIX: &str = "kinto_integrity_profile";
 const CERT_STORAGE_DIR: &str = "security_state";
