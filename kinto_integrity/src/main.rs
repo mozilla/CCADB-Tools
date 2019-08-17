@@ -83,7 +83,32 @@ fn without_revocations() -> Result<String> {
     Ok(serde_json::to_string(&result)?)
 }
 
+#[post("/update_cert_storage")]
+fn update_cert_storage() {
+    FIREFOX.write().unwrap().udpate_cert_storage().unwrap();
+}
+#[macro_use]
+extern crate log;
+
+fn init_logging() {
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Debug)
+        .chain(std::io::stdout())
+        .apply()
+        .unwrap();
+}
+
 fn main() -> Result<()> {
+    init_logging();
     firefox::init();
     let port = match std::env::var("PORT") {
         Ok(port) => port.parse().unwrap(),
@@ -100,7 +125,8 @@ fn main() -> Result<()> {
                 default,
                 with_revocations,
                 post_revocations,
-                without_revocations
+                without_revocations,
+                update_cert_storage
             ],
         )
         .launch();

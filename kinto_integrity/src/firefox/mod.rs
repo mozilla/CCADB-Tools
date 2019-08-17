@@ -52,26 +52,20 @@ const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
 const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
 
 pub fn init() {
-    println!(
-        "{}",
-        format!(
-            "Starting the X Virtual Frame Buffer on DISPLAY={}",
-            xvfb::DISPLAY_PORT
-        )
-    );
+    info!("Starting the X Virtual Frame Buffer on DISPLAY={}", xvfb::DISPLAY_PORT);
     let _ = *XVFB;
-    println!("Initializing Firefox Nightly");
+    info!("Initializing Firefox Nightly");
     let _ = *FIREFOX;
-    println!("Starting the Firefox Nightly updater thread");
+    info!("Starting the Firefox Nightly updater thread");
     std::thread::spawn(|| {
         std::thread::sleep(Duration::from_secs(60 * 60));
-        println!("Scheduled Firefox update triggered.");
+        info!("Scheduled Firefox update triggered.");
         match FIREFOX.write() {
             Ok(mut ff) => match ff.update() {
                 Ok(_) => (),
-                Err(err) => eprintln!("{:?}", err),
+                Err(err) => error!("{:?}", err),
             },
-            Err(err) => eprintln!("{:?}", err),
+            Err(err) => error!("{:?}", err),
         }
     });
 }
@@ -95,6 +89,12 @@ pub struct Firefox {
     etag: String,
 }
 
+impl Drop for Firefox {
+    fn drop(&mut self) {
+        info!("Deleting Firefox located at {}", self._home.path().to_string_lossy());
+    }
+}
+
 impl Firefox {
     pub fn default() -> Result<CertStorage> {
         match FIREFOX.read() {
@@ -113,7 +113,7 @@ impl Firefox {
     /// we have to simply watch the file and wait for it to stop growing in size.
     fn create_profile(&self) -> Result<()> {
         // Register the profile with Firefox.
-        println!(
+        info!(
             "Creating profile {} at {}",
             self.profile.name, self.profile.home
         );
@@ -123,7 +123,7 @@ impl Firefox {
             .chain_err(|| "failed to create a profile for Firefox Nightly")?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
-        println!(
+        info!(
             "Initializing profile {} at {}",
             self.profile.name, self.profile.home
         );
@@ -149,7 +149,7 @@ impl Firefox {
             .cert_storage_path()
             .to_string_lossy()
             .into_owned();
-        println!("Waiting for {} to be created.", cert_storage_name);
+        info!("Waiting for {} to be created.", cert_storage_name);
         let mut initial_size;
         let start = std::time::Instant::now();
         loop {
@@ -177,10 +177,10 @@ impl Firefox {
                 break;
             }
         }
-        println!("{} created", cert_storage_name);
+        info!("{} created", cert_storage_name);
         // Spin until we are reasonably sure that it is populated.
         // This is only a heuristic and is not necessarily correct.
-        println!("Watching {} to be populated", cert_storage_name);
+        info!("Watching {} to be populated", cert_storage_name);
         let mut size = initial_size;
         let mut counter = 0;
         loop {
@@ -208,13 +208,18 @@ impl Firefox {
             .header("If-None-Match", self.etag.clone())
             .send()?;
         if resp.status() == 304 {
-            println!("{} reported no changes to Firefox", NIGHTLY.clone());
+            info!("{} reported no changes to Firefox", NIGHTLY.clone());
             return Ok(());
         }
-        println!("{} claims an update to Firefox", NIGHTLY.clone());
+        info!("{} claims an update to Firefox", NIGHTLY.clone());
         let new_ff = resp.try_into()?;
         std::mem::replace(self, new_ff);
         Ok(())
+    }
+
+    pub fn udpate_cert_storage(&mut self) -> Result<()> {
+        self.profile = Profile::new()?;
+        self.create_profile()
     }
 
     /// Generates the arguments to fulfill:
@@ -245,6 +250,7 @@ impl Firefox {
         let mut cmd = Command::new(&self.executable);
         cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
         cmd.stdout(Stdio::null());
+        cmd.stderr(Stdio::null());
         cmd
     }
 }
@@ -286,7 +292,7 @@ impl TryFrom<Response> for Firefox {
             .to_str()
             .chain_err(|| format!("The etag header from {} could not be parsed", resp.url()))?
             .to_string();
-        println!("Expanding to {}", _home.as_ref().to_string_lossy());
+        info!("Expanding to {}", _home.as_ref().to_string_lossy());
         let content_length = resp
             .content_length()
             .chain_err(|| format!("Could not get a content length from {}", resp.url()))?;

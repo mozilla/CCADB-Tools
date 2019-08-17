@@ -25,9 +25,10 @@ impl Xvfb {
 
 impl Drop for Xvfb {
     fn drop(&mut self) {
+        info!("Stopping the Xvfb server");
         match self.process.kill() {
             Ok(_) => (),
-            Err(err) => eprintln!("{:?}", err),
+            Err(err) => error!("{:?}", err),
         };
     }
 }

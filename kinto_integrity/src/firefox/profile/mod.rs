@@ -18,6 +18,12 @@ pub struct Profile {
     _tmp: TempDir,
 }
 
+impl Drop for Profile {
+    fn drop(&mut self) {
+        info!("Deleting Firefox located at {}", self._tmp.path().to_string_lossy());
+    }
+}
+
 impl Profile {
     pub fn new() -> Result<Profile> {
         let name = format!("{:x}", rand::random::<u64>());
