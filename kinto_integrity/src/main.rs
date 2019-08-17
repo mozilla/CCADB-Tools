@@ -40,7 +40,7 @@ fn default() -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string(&result)?)
+    Ok(serde_json::to_string_pretty(&result)?)
 }
 
 #[get("/with_revocations?<url>")]
@@ -63,7 +63,7 @@ fn with_revocations(url: &RawStr) -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string(&result)?)
+    Ok(serde_json::to_string_pretty(&result)?)
 }
 
 #[post("/with_revocations", format = "text/plain", data = "<revocations_txt>")]
@@ -72,7 +72,7 @@ fn post_revocations(revocations_txt: Data) -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string(&result)?)
+    Ok(serde_json::to_string_pretty(&result)?)
 }
 
 #[get("/without_revocations")]
@@ -80,7 +80,7 @@ fn without_revocations() -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto).into();
-    Ok(serde_json::to_string(&result)?)
+    Ok(serde_json::to_string_pretty(&result)?)
 }
 
 #[post("/update_cert_storage")]

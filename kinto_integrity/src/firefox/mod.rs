@@ -52,7 +52,10 @@ const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
 const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
 
 pub fn init() {
-    info!("Starting the X Virtual Frame Buffer on DISPLAY={}", xvfb::DISPLAY_PORT);
+    info!(
+        "Starting the X Virtual Frame Buffer on DISPLAY={}",
+        xvfb::DISPLAY_PORT
+    );
     let _ = *XVFB;
     info!("Initializing Firefox Nightly");
     let _ = *FIREFOX;
@@ -91,7 +94,10 @@ pub struct Firefox {
 
 impl Drop for Firefox {
     fn drop(&mut self) {
-        info!("Deleting Firefox located at {}", self._home.path().to_string_lossy());
+        info!(
+            "Deleting Firefox located at {}",
+            self._home.path().to_string_lossy()
+        );
     }
 }
 
@@ -217,6 +223,7 @@ impl Firefox {
         Ok(())
     }
 
+    /// Completely ignores the etag header and forces and download of Firefox.
     pub fn force_update(&mut self) -> Result<()> {
         let resp = http::new_get_request(NIGHTLY.clone()).send()?;
         let new_ff = resp.try_into()?;
@@ -224,6 +231,7 @@ impl Firefox {
         Ok(())
     }
 
+    /// Creates a new profile with a freshly populated cert_storage.
     pub fn update_cert_storage(&mut self) -> Result<()> {
         self.profile = Profile::new()?;
         self.create_profile()
@@ -274,6 +282,7 @@ impl TryFrom<&str> for Firefox {
     }
 }
 
+/// Creates a Firefox instance from the given Url.
 impl TryFrom<Url> for Firefox {
     type Error = Error;
 
@@ -282,6 +291,7 @@ impl TryFrom<Url> for Firefox {
     }
 }
 
+/// Response is expected to be a stream of tar.bzip archive of Firefox.
 impl TryFrom<Response> for Firefox {
     type Error = Error;
 
