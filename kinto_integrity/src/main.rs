@@ -104,6 +104,7 @@ fn init_logging() {
         .level(log::LevelFilter::Off)
         .level_for("kinto_integrity", log::LevelFilter::Debug)
         .level_for("rocket", log::LevelFilter::Debug)
+        .level_for("_", log::LevelFilter::Debug)
         .level_for("hyper", log::LevelFilter::Error)
         .level_for("tokio", log::LevelFilter::Error)
         .level_for("tokio_reactor", log::LevelFilter::Error)
