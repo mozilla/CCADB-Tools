@@ -138,7 +138,8 @@ fn main() -> Result<()> {
                 with_revocations,
                 post_revocations,
                 without_revocations,
-                update_cert_storage
+                update_cert_storage,
+                update_firefox_nightly
             ],
         )
         .launch();
