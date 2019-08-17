@@ -217,6 +217,13 @@ impl Firefox {
         Ok(())
     }
 
+    pub fn force_update(&mut self) -> Result<()> {
+        let resp = http::new_get_request(NIGHTLY.clone()).send()?;
+        let new_ff = resp.try_into()?;
+        std::mem::replace(self, new_ff);
+        Ok(())
+    }
+
     pub fn update_cert_storage(&mut self) -> Result<()> {
         self.profile = Profile::new()?;
         self.create_profile()

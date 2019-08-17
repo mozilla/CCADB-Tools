@@ -90,7 +90,7 @@ fn update_cert_storage() {
 
 #[post("/update_firefox_nightly")]
 fn update_firefox_nightly() {
-    FIREFOX.write().unwrap().update().unwrap();
+    FIREFOX.write().unwrap().force_update().unwrap();
 }
 
 #[macro_use]
