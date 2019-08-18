@@ -41,6 +41,8 @@ curl -X POST -H "Content-Type: text/plain" --data-binary @revocations.txt http:/
 
 > NOTE: The header `"Content-Type: text/plain"` is mandatory. Failure to set this header will result in a 404.
 
+> NOTE: This endpoint only supports the POST HTTP method. Any other method will return a 404.
+
 ### Excluding revocations.txt
 The following endpoint excludes `revocations.txt` from the computation altogether.
 ```bash
@@ -53,7 +55,8 @@ While this application polls `download.mozilla.org` each hour, as well as pollin
 curl -X PATCH http://example.org/update_firefox_nightly
 ```
 Updating Firefox Nightly also triggers a refresh of `cert_storage`
-This method *_must_* be PATCH - all other HTTP methods will return a 404.
+
+> NOTE: This endpoint only supports the PATCH HTTP method. Any other method will return a 404.
 
 ### Force Updating cert_storage
 `cert_storage` is freshed each time Firefox Nightly is updated. However, if you believe that `cert_storage` warrants an immediate refresh, then you may do so.
@@ -61,7 +64,7 @@ This method *_must_* be PATCH - all other HTTP methods will return a 404.
 curl -X PATCH http://example.org/update_cert_storage
 ```
 
-This method *_must_* be PATCH - all other HTTP methods will return a 404.
+> NOTE: This endpoint only supports the PATCH HTTP method. Any other method will return a 404.
 
 ### Return Structures
 
