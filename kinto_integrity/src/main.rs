@@ -12,6 +12,9 @@ extern crate lazy_static;
 #[macro_use]
 extern crate rocket;
 
+#[macro_use]
+extern crate asn1_der_derive;
+
 use reqwest::Url;
 use rocket::http::RawStr;
 use rocket::Data;
@@ -21,6 +24,7 @@ use std::convert::TryInto;
 // but just as well liked then please do replace this.
 use url::form_urlencoded::parse as url_decode;
 
+mod ccadb;
 mod errors;
 mod firefox;
 mod http;
