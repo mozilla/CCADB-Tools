@@ -47,6 +47,22 @@ The following endpoint excludes `revocations.txt` from the computation altogethe
 curl -X GET http://example.org/without_revocations
 ```
 
+### Force Updating Firefox Nightly
+While this application polls `download.mozilla.org` each hour, as well as polling it on every request, you may have the desire to force an update to Firefox Nightly.
+```bash
+curl -X PATCH http://example.org/update_firefox_nightly
+```
+Updating Firefox Nightly also triggers a refresh of `cert_storage`
+This method *_must_* be PATCH - all other HTTP methods will return a 404.
+
+### Force Updating cert_storage
+`cert_storage` is freshed each time Firefox Nightly is updated. However, if you believe that `cert_storage` warrants an immediate refresh, then you may do so.
+```bash
+curl -X PATCH http://example.org/update_cert_storage
+```
+
+This method *_must_* be PATCH - all other HTTP methods will return a 404.
+
 ### Return Structures
 
 A certificate is defined at as the following struct.
@@ -67,7 +83,8 @@ For endpoints that compare against revocations.txt, the following JSON structure
   "in_cert_storage_not_in_kinto": [Certificate...],
   "in_cert_storage_not_in_revocations": [Certificate...],
   "in_revocations_not_in_cert_storage": [Certificate...],
-  "in_revocations_not_in_kinto": [Certificate...]}
+  "in_revocations_not_in_kinto": [Certificate...]},
+  "in_kinto_not_in_revocations": [Certificate...]}
 ```
 
 For endpoints that do not include revocations.txt within their computation, the following JSON structure is returned.
@@ -87,9 +104,6 @@ In an ideal, "no problems", scenario all of the above arrays will be empty, as t
 This tool vendors a local copy of Firefox Nightly to service every request with diffs of `cert_storage`. In order to facilitate this, a thread awakes every hour to poll `download.mozilla.org` for a new a build of Firefox Nightly. If a new build has been published then this tool will replace the previous night's build with the current one.
 
 Additionally, `download.mozilla.org` is polled at the beginning of every diffing request. Most typically, an up-to-date copy will already be present, however it is entirely possible that a request is made inbetween ticks of the updater thread. If this occurs, then the given request will take slightly longer as it needs to download and unpack the update.
-
-### Length of Requests
-An individual request may take about 30 seconds to complete. This is due to the population of a given profile's `cert_storage`.
 
 ### cert_storage Population Heuristic
 `cert_storage` is populated as a step within the general initialization of a fresh Firefox profile. The strategy of this tool is to simply execute Firefox in the context of a given profile, which begins the initialization of that profile. However, since Firefox is not expecting to be ran programmatically, Firefox does not explicitly inform us whether `cert_storage` initialization is complete. Therefor, the following heuristic is applied:

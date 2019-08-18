@@ -83,7 +83,7 @@ fn without_revocations() -> Result<String> {
     Ok(serde_json::to_string_pretty(&result)?)
 }
 
-#[post("/update_cert_storage")]
+#[patch("/update_cert_storage")]
 fn update_cert_storage() -> Result<()> {
     match FIREFOX.write() {
         Ok(mut ff) => ff.update_cert_storage(),
@@ -91,7 +91,7 @@ fn update_cert_storage() -> Result<()> {
     }
 }
 
-#[post("/update_firefox_nightly")]
+#[patch("/update_firefox_nightly")]
 fn update_firefox_nightly() -> Result<()> {
     match FIREFOX.write() {
         Ok(mut ff) => ff.force_update(),
