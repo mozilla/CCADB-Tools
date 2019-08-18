@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-FROM rustlang/rust:nightly AS buildStage
+FROM rustlang/rust@sha256:771b53ed3df7ee93a000a67be3307d7afe09523d4683956cb2d6e0a71b7dbf7e AS buildStage
 
 WORKDIR /opt
 COPY . .

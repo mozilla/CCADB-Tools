@@ -84,13 +84,19 @@ fn without_revocations() -> Result<String> {
 }
 
 #[post("/update_cert_storage")]
-fn update_cert_storage() {
-    FIREFOX.write().unwrap().update_cert_storage().unwrap();
+fn update_cert_storage() -> Result<()> {
+    match FIREFOX.write() {
+        Ok(mut ff) => ff.update_cert_storage(),
+        Err(err) => Err(Error::from(format!("{}", err))),
+    }
 }
 
 #[post("/update_firefox_nightly")]
-fn update_firefox_nightly() {
-    FIREFOX.write().unwrap().force_update().unwrap();
+fn update_firefox_nightly() -> Result<()> {
+    match FIREFOX.write() {
+        Ok(mut ff) => ff.force_update(),
+        Err(err) => Err(Error::from(format!("{}", err))),
+    }
 }
 
 #[macro_use]
