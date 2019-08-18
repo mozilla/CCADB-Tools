@@ -40,7 +40,7 @@ fn default() -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string(&result)?)
+    Ok(serde_json::to_string_pretty(&result)?)
 }
 
 #[get("/with_revocations?<url>")]
@@ -63,7 +63,7 @@ fn with_revocations(url: &RawStr) -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string(&result)?)
+    Ok(serde_json::to_string_pretty(&result)?)
 }
 
 #[post("/with_revocations", format = "text/plain", data = "<revocations_txt>")]
@@ -72,7 +72,7 @@ fn post_revocations(revocations_txt: Data) -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string(&result)?)
+    Ok(serde_json::to_string_pretty(&result)?)
 }
 
 #[get("/without_revocations")]
@@ -80,10 +80,53 @@ fn without_revocations() -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto).into();
-    Ok(serde_json::to_string(&result)?)
+    Ok(serde_json::to_string_pretty(&result)?)
+}
+
+#[patch("/update_cert_storage")]
+fn update_cert_storage() -> Result<()> {
+    match FIREFOX.write() {
+        Ok(mut ff) => ff.update_cert_storage(),
+        Err(err) => Err(Error::from(format!("{}", err))),
+    }
+}
+
+#[patch("/update_firefox_nightly")]
+fn update_firefox_nightly() -> Result<()> {
+    match FIREFOX.write() {
+        Ok(mut ff) => ff.force_update(),
+        Err(err) => Err(Error::from(format!("{}", err))),
+    }
+}
+
+#[macro_use]
+extern crate log;
+
+fn init_logging() {
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Off)
+        .level_for("kinto_integrity", log::LevelFilter::Debug)
+        .level_for("rocket", log::LevelFilter::Debug)
+        .level_for("_", log::LevelFilter::Debug)
+        .level_for("hyper", log::LevelFilter::Error)
+        .level_for("tokio", log::LevelFilter::Error)
+        .level_for("tokio_reactor", log::LevelFilter::Error)
+        .chain(std::io::stdout())
+        .apply()
+        .unwrap();
 }
 
 fn main() -> Result<()> {
+    init_logging();
     firefox::init();
     let port = match std::env::var("PORT") {
         Ok(port) => port.parse().unwrap(),
@@ -91,7 +134,8 @@ fn main() -> Result<()> {
     } as u16;
     let config = rocket::Config::build(rocket::config::Environment::Production)
         .port(port)
-        .finalize().unwrap();
+        .finalize()
+        .unwrap();
     rocket::custom(config)
         .mount(
             "/",
@@ -99,7 +143,9 @@ fn main() -> Result<()> {
                 default,
                 with_revocations,
                 post_revocations,
-                without_revocations
+                without_revocations,
+                update_cert_storage,
+                update_firefox_nightly
             ],
         )
         .launch();

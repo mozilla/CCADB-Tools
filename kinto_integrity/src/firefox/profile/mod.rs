@@ -3,6 +3,8 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use crate::errors::*;
+use crate::firefox::cert_storage::CertStorage;
+use std::convert::TryInto;
 use std::path::{Path, PathBuf};
 use tempdir::TempDir;
 
@@ -14,6 +16,15 @@ pub struct Profile {
     pub name: String,
     pub home: String,
     _tmp: TempDir,
+}
+
+impl Drop for Profile {
+    fn drop(&mut self) {
+        info!(
+            "Deleting Firefox profile located at {}",
+            self._tmp.path().to_string_lossy()
+        );
+    }
 }
 
 impl Profile {
@@ -29,9 +40,15 @@ impl Profile {
         Ok(Profile { name, home, _tmp })
     }
 
-    pub fn cert_storage(&self) -> PathBuf {
-        Path::new(&self.home)
-            .join(CERT_STORAGE_DIR)
-            .join(CERT_STORAGE_DB)
+    pub fn cert_storage(&self) -> Result<CertStorage> {
+        self.security_state().try_into()
+    }
+
+    pub fn security_state(&self) -> PathBuf {
+        Path::new(&self.home).join(CERT_STORAGE_DIR)
+    }
+
+    pub fn cert_storage_path(&self) -> PathBuf {
+        self.security_state().join(CERT_STORAGE_DB)
     }
 }
