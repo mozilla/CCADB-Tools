@@ -1,7 +1,123 @@
+use serde::Deserialize;
+use std::io::Read;
+
+use crate::errors::*;
+use reqwest::Url;
+use std::convert::{TryFrom, TryInto};
+
+const CCADB_URL: &str =
+    "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
+
+struct CCADBReport {
+    report: Vec<CCADB>,
+}
+
+impl CCADBReport {
+    pub fn from_reader<R: Read>(r: R) -> Result<CCADBReport> {
+        let mut report: Vec<CCADB> = vec![];
+        let mut rdr = csv::Reader::from_reader(r);
+        for entry in rdr.deserialize() {
+            let record = match entry {
+                Ok(val) => val,
+                Err(err) => panic!(format!("{:?}", err)),
+            };
+            report.push(record)
+        }
+        Ok(CCADBReport { report })
+    }
+}
+
+impl TryFrom<Url> for CCADBReport {
+    type Error = Error;
+
+    fn try_from(value: Url) -> Result<Self> {
+        CCADBReport::from_reader(crate::http::new_get_request(value).send()?)
+    }
+}
+
+impl TryFrom<&str> for CCADBReport {
+    type Error = Error;
+
+    fn try_from(url: &str) -> Result<Self> {
+        url.parse::<Url>()
+            .chain_err(|| format!("failed to parse {} to a valid URL", url))?
+            .try_into()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct CCADB {
+    #[serde(alias = "CA Owner")]
+    ca_owner: String,
+    #[serde(alias = "Revocation Status")]
+    revocation_status: String,
+    #[serde(alias = "RFC 5280 Revocation Reason Code")]
+    rfc_5280_revocation_reason_code: String,
+    #[serde(alias = "Date of Revocation")]
+    date_of_revocation: String,
+    #[serde(alias = "OneCRL Status")]
+    one_crl_status: String,
+    #[serde(alias = "Certificate Serial Number")]
+    certificate_serial_number: String,
+    #[serde(alias = "CA Owner/Certificate Name")]
+    ca_owner_certificate_name: String,
+    #[serde(alias = "Certificate Issuer Common Name")]
+    certificate_issuer_common_name: String,
+    #[serde(alias = "Certificate Issuer Organization")]
+    certificate_issuer_organization: String,
+    #[serde(alias = "Certificate Subject Common Name")]
+    certificate_subject_common_name: String,
+    #[serde(alias = "Certificate Subject Organization")]
+    certificate_subject_organization: String,
+    #[serde(alias = "SHA-256 Fingerprint")]
+    sha_256_fingerprint: String,
+    #[serde(alias = "Subject + SPKI SHA256")]
+    subject_spki_sha_256: String,
+    #[serde(alias = "Valid From [GMT]")]
+    valid_from_gmt: String,
+    #[serde(alias = "Valid To [GMT]")]
+    valid_to_gmt: String,
+    #[serde(alias = "Public Key Algorithm")]
+    public_key_algorithm: String,
+    #[serde(alias = "Signature Hash Algorithm")]
+    signature_hash_algorithm: String,
+    #[serde(alias = "CRL URL(s)")]
+    crl_urls: String,
+    #[serde(alias = "Alternate CRL")]
+    alternate_crl: String,
+    #[serde(alias = "OCSP URL(s)")]
+    ocsp_urls: String,
+    #[serde(alias = "Comments")]
+    comments: String,
+    #[serde(alias = "PEM Info")]
+    pem_info: String,
+}
+
+//fn try_from<R: Read>(r: R) -> Result<Vec<CCADB>> {
+//    let mut entries: Vec<CCADB> = vec![];
+//    let mut rdr = csv::Reader::from_reader(r);
+//    for entry in rdr.deserialize() {
+//        let record = match entry {
+//            Ok(val) => val,
+//            Err(err) => panic!(format!("{:?}", err))
+//        };
+//        entries.push(record)
+//    }
+//    Ok(entries)
+//}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reqwest::{get, Response};
     use x509_parser;
+
+    #[test]
+    fn yhjdrfgsdf() {
+        let _: CCADBReport = CCADB_URL.try_into().unwrap();
+        //        let mut resp: Response = get(CCADB_URL).unwrap();
+        //        let lol = try_from(resp).unwrap();
+    }
 
     const EXAMPLE: &str = r#"-----BEGIN CERTIFICATE-----
 MIIIWjCCBkKgAwIBAgIIAahE5mpsDY4wDQYJKoZIhvcNAQELBQAwgawxCzAJBgNV
