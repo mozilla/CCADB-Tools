@@ -2,6 +2,7 @@ use serde::Deserialize;
 use std::io::Read;
 
 use crate::errors::*;
+use crate::model::Intermediary;
 use reqwest::Url;
 use std::convert::{TryFrom, TryInto};
 
@@ -9,7 +10,7 @@ const CCADB_URL: &str =
     "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
 
 struct CCADBReport {
-    report: Vec<CCADB>,
+    pub report: Vec<CCADB>,
 }
 
 impl CCADBReport {
@@ -93,18 +94,91 @@ struct CCADB {
     pem_info: String,
 }
 
-//fn try_from<R: Read>(r: R) -> Result<Vec<CCADB>> {
-//    let mut entries: Vec<CCADB> = vec![];
-//    let mut rdr = csv::Reader::from_reader(r);
-//    for entry in rdr.deserialize() {
-//        let record = match entry {
-//            Ok(val) => val,
-//            Err(err) => panic!(format!("{:?}", err))
-//        };
-//        entries.push(record)
-//    }
-//    Ok(entries)
-//}
+use asn1_der::*;
+use base64;
+use simple_asn1::ASN1Block::*;
+use simple_asn1::*;
+use x509_parser;
+
+struct dammit {
+    things: Vec<ASN1Block>,
+}
+
+impl ToASN1 for dammit {
+    type Error = Error;
+
+    fn to_asn1_class(&self, c: ASN1Class) -> Result<Vec<ASN1Block>> {
+        Ok(self.things.clone())
+    }
+}
+
+impl TryInto<Option<Intermediary>> for CCADB {
+    type Error = Error;
+
+    fn try_into(self) -> Result<Option<Intermediary>> {
+        if self.pem_info.len() == 0 {
+            return Ok(None);
+        }
+        let p = match x509_parser::pem::pem_to_der(self.pem_info.trim_matches('\'').as_bytes()) {
+            Ok(thing) => thing,
+            Err(err) => {
+                eprintln!("{:?}", err);
+                return Ok(None);
+            }
+        };
+        let res = match p.1.parse_x509() {
+            Ok(thing) => thing,
+            Err(err) => {
+                eprintln!("{:?}", err);
+                return Ok(None);
+            }
+        };
+        let mut answer: Vec<ASN1Block> = vec![];
+        for thing in res.tbs_certificate.issuer.rdn_seq {
+            for attr in thing.set {
+                let oid = ObjectIdentifier(
+                    1,
+                    OID::new(
+                        attr.attr_type
+                            .iter()
+                            .map(|val| BigUint::from(val.clone()))
+                            .collect(),
+                    ),
+                );
+                let value = match attr.attr_value.content {
+                    der_parser::ber::BerObjectContent::PrintableString(s) => {
+                        let s = std::str::from_utf8(s).unwrap();
+                        PrintableString(s.len(), s.to_string())
+                    }
+                    der_parser::ber::BerObjectContent::UTF8String(s) => {
+                        let s = std::str::from_utf8(s).unwrap();
+                        UTF8String(s.len(), s.to_string())
+                    }
+                    der_parser::ber::BerObjectContent::IA5String(s) => {
+                        let s = std::str::from_utf8(s).unwrap();
+                        IA5String(s.len(), s.to_string())
+                    }
+                    der_parser::ber::BerObjectContent::T61String(s) => {
+                        let s = std::str::from_utf8(s).unwrap();
+                        TeletexString(s.len(), s.to_string())
+                    }
+                    val => panic!(format!("{:?}", val)),
+                };
+                let mut res = vec![Set(1, vec![Sequence(2, vec![oid, value])])];
+                answer.append(&mut res);
+            }
+        }
+        let seq = Sequence(1, answer);
+        //        println!(
+        //            "{}",
+        //            base64::encode(&der_encode(&dammit { things: vec![seq] }).unwrap())
+        //        );
+        Ok(Some(Intermediary {
+            issuer_name: base64::encode(&der_encode(&dammit { things: vec![seq] }).unwrap()),
+            serial: "".to_string(),
+        }))
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -114,7 +188,15 @@ mod tests {
 
     #[test]
     fn yhjdrfgsdf() {
-        let _: CCADBReport = CCADB_URL.try_into().unwrap();
+        let c: CCADBReport = CCADB_URL.try_into().unwrap();
+        let t: Vec<Intermediary> = c
+            .report
+            .into_iter()
+            .map(|c| c.try_into().unwrap())
+            .filter(|f: &Option<Intermediary>| f.is_some())
+            .map(|f| f.unwrap())
+            .collect();
+        println!("{}", t.len());
         //        let mut resp: Response = get(CCADB_URL).unwrap();
         //        let lol = try_from(resp).unwrap();
     }
