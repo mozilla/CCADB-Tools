@@ -134,6 +134,7 @@ impl TryInto<Option<Intermediary>> for CCADB {
             }
         };
         let mut answer: Vec<ASN1Block> = vec![];
+//        base64::encode(&res.tbs_certificate.serial.to_bytes_be());
         for thing in res.tbs_certificate.issuer.rdn_seq {
             for attr in thing.set {
                 let oid = ObjectIdentifier(
@@ -175,7 +176,7 @@ impl TryInto<Option<Intermediary>> for CCADB {
         //        );
         Ok(Some(Intermediary {
             issuer_name: base64::encode(&der_encode(&dammit { things: vec![seq] }).unwrap()),
-            serial: "".to_string(),
+            serial:  base64::encode(&res.tbs_certificate.serial.to_bytes_be()),
         }))
     }
 }
@@ -196,7 +197,13 @@ mod tests {
             .filter(|f: &Option<Intermediary>| f.is_some())
             .map(|f| f.unwrap())
             .collect();
-        println!("{}", t.len());
+        println!("{}", t[500].issuer_name);
+        println!("{}", t[500].serial);
+        let mut h = HashSet::new();
+        for i in t {
+            h.insert(i);
+        }
+        eprintln!("h.len() = {:#?}", h.len());
         //        let mut resp: Response = get(CCADB_URL).unwrap();
         //        let lol = try_from(resp).unwrap();
     }
@@ -282,6 +289,7 @@ AvMUz+wbPfDMWThnRmTw+U3Wz2tflWlhkDgHYcrs
     use crate::errors::*;
     use simple_asn1::ASN1Block::{ObjectIdentifier, Set};
     use simple_asn1::ASN1Block::{PrintableString, Sequence};
+    use std::collections::HashSet;
 
     impl ToASN1 for Country {
         type Error = Error;
