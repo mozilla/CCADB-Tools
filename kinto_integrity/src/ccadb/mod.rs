@@ -6,16 +6,21 @@ use crate::model::Intermediary;
 use reqwest::Url;
 use std::convert::{TryFrom, TryInto};
 
+use base64;
+use simple_asn1::ASN1Block::*;
+use simple_asn1::*;
+use x509_parser;
+
 const CCADB_URL: &str =
     "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
 
 struct CCADBReport {
-    pub report: Vec<CCADB>,
+    pub report: Vec<CCADBEntry>,
 }
 
 impl CCADBReport {
     pub fn from_reader<R: Read>(r: R) -> Result<CCADBReport> {
-        let mut report: Vec<CCADB> = vec![];
+        let mut report: Vec<CCADBEntry> = vec![];
         let mut rdr = csv::Reader::from_reader(r);
         for entry in rdr.deserialize() {
             let record = match entry {
@@ -47,7 +52,7 @@ impl TryFrom<&str> for CCADBReport {
 }
 
 #[derive(Debug, Deserialize)]
-struct CCADB {
+struct CCADBEntry {
     #[serde(alias = "CA Owner")]
     ca_owner: String,
     #[serde(alias = "Revocation Status")]
@@ -94,49 +99,31 @@ struct CCADB {
     pem_info: String,
 }
 
-use asn1_der::*;
-use base64;
-use simple_asn1::ASN1Block::*;
-use simple_asn1::*;
-use x509_parser;
-
-struct dammit {
-    things: Vec<ASN1Block>,
-}
-
-impl ToASN1 for dammit {
-    type Error = Error;
-
-    fn to_asn1_class(&self, c: ASN1Class) -> Result<Vec<ASN1Block>> {
-        Ok(self.things.clone())
-    }
-}
-
-impl TryInto<Option<Intermediary>> for CCADB {
+impl TryInto<Option<Intermediary>> for CCADBEntry {
     type Error = Error;
 
     fn try_into(self) -> Result<Option<Intermediary>> {
         if self.pem_info.len() == 0 {
+            eprintln!("0: {:?}", self.certificate_serial_number);
             return Ok(None);
         }
         let p = match x509_parser::pem::pem_to_der(self.pem_info.trim_matches('\'').as_bytes()) {
             Ok(thing) => thing,
             Err(err) => {
-                eprintln!("{:?}", err);
+                eprintln!("1: {:?} {:?}", err, self.certificate_serial_number);
                 return Ok(None);
             }
         };
         let res = match p.1.parse_x509() {
             Ok(thing) => thing,
             Err(err) => {
-                eprintln!("{:?}", err);
+                eprintln!("2: {:?} {:?}", err, self.certificate_serial_number);
                 return Ok(None);
             }
         };
-        let mut answer: Vec<ASN1Block> = vec![];
-//        base64::encode(&res.tbs_certificate.serial.to_bytes_be());
-        for thing in res.tbs_certificate.issuer.rdn_seq {
-            for attr in thing.set {
+        let mut rdn: Vec<ASN1Block> = vec![];
+        for block in res.tbs_certificate.issuer.rdn_seq {
+            for attr in block.set {
                 let oid = ObjectIdentifier(
                     1,
                     OID::new(
@@ -146,7 +133,7 @@ impl TryInto<Option<Intermediary>> for CCADB {
                             .collect(),
                     ),
                 );
-                let value = match attr.attr_value.content {
+                let content = match attr.attr_value.content {
                     der_parser::ber::BerObjectContent::PrintableString(s) => {
                         let s = std::str::from_utf8(s).unwrap();
                         PrintableString(s.len(), s.to_string())
@@ -165,47 +152,128 @@ impl TryInto<Option<Intermediary>> for CCADB {
                     }
                     val => panic!(format!("{:?}", val)),
                 };
-                let mut res = vec![Set(1, vec![Sequence(2, vec![oid, value])])];
-                answer.append(&mut res);
+                rdn.append(&mut vec![Set(1, vec![Sequence(1, vec![oid, content])])]);
             }
         }
-        let seq = Sequence(1, answer);
-        //        println!(
-        //            "{}",
-        //            base64::encode(&der_encode(&dammit { things: vec![seq] }).unwrap())
-        //        );
+        let seq = Sequence(1, rdn);
         Ok(Some(Intermediary {
-            issuer_name: base64::encode(&der_encode(&dammit { things: vec![seq] }).unwrap()),
-            serial:  base64::encode(&res.tbs_certificate.serial.to_bytes_be()),
+            issuer_name: base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
+            serial: base64::encode(&res.tbs_certificate.serial.to_bytes_be()),
         }))
+    }
+}
+
+struct RDN {
+    rdn: Vec<ASN1Block>,
+}
+
+impl ToASN1 for RDN {
+    type Error = Error;
+
+    fn to_asn1_class(&self, _: ASN1Class) -> Result<Vec<ASN1Block>> {
+        Ok(self.rdn.clone())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reqwest::{get, Response};
-    use x509_parser;
+    use std::collections::HashSet;
+    use std::io::Write;
+    use x509_parser::RelativeDistinguishedName;
 
     #[test]
     fn yhjdrfgsdf() {
         let c: CCADBReport = CCADB_URL.try_into().unwrap();
-        let t: Vec<Intermediary> = c
+        let c: Vec<Intermediary> = c
             .report
             .into_iter()
             .map(|c| c.try_into().unwrap())
             .filter(|f: &Option<Intermediary>| f.is_some())
             .map(|f| f.unwrap())
             .collect();
-        println!("{}", t[500].issuer_name);
-        println!("{}", t[500].serial);
-        let mut h = HashSet::new();
-        for i in t {
-            h.insert(i);
+        //        println!("{}", c[500].issuer_name);
+        //        println!("{}", c[500].serial);
+        let mut ccadb = HashSet::new();
+        for i in c {
+            ccadb.insert(i);
         }
-        eprintln!("h.len() = {:#?}", h.len());
-        //        let mut resp: Response = get(CCADB_URL).unwrap();
-        //        let lol = try_from(resp).unwrap();
+        eprintln!("ccadb.len() = {:#?}", ccadb.len());
+        let rev: HashSet<Intermediary> = crate::revocations_txt::Revocations::default()
+            .unwrap()
+            .into();
+        let in_ccadb = ccadb
+            .difference(&rev)
+            .cloned()
+            .collect::<Vec<Intermediary>>();
+        let in_rev = rev
+            .difference(&ccadb)
+            .cloned()
+            .collect::<Vec<Intermediary>>();
+        eprintln!("in_ccadb = {:#?}", in_ccadb.len());
+        eprintln!("in_rev = {:#?}", in_rev.len());
+        eprintln!(
+            "intersection = {:#?}",
+            ccadb
+                .intersection(&rev)
+                .cloned()
+                .collect::<Vec<Intermediary>>()
+                .len()
+        );;
+        use serde::Serialize;
+        #[derive(Serialize)]
+        struct Dammit {
+            in_ccadb: Vec<Easier>,
+            in_rev: Vec<Easier>,
+        };
+        let d = Dammit {
+            in_ccadb: in_ccadb.into_iter().map(|e| e.into()).collect(),
+            in_rev: in_rev.into_iter().map(|e| e.into()).collect(),
+        };
+        std::fs::File::create(r#"H:\in_ccadb.json"#)
+            .unwrap()
+            .write_all(
+                serde_json::to_string_pretty(&d.in_ccadb)
+                    .unwrap()
+                    .as_bytes(),
+            );
+        std::fs::File::create(r#"H:\in_rev.json"#)
+            .unwrap()
+            .write_all(serde_json::to_string_pretty(&d.in_rev).unwrap().as_bytes());
+    }
+
+    use serde::Serialize;
+    #[derive(Serialize)]
+    struct Easier {
+        name: String,
+        serial_b64: String,
+        serial_hex: String,
+    }
+
+    impl From<Intermediary> for Easier {
+        fn from(i: Intermediary) -> Self {
+            let serial = format!(
+                "{:X}",
+                BigUint::from_bytes_be(&base64::decode(&i.serial).unwrap())
+            );
+            Easier {
+                name: i.issuer_name,
+                serial_b64: i.serial,
+                serial_hex: serial,
+            }
+        }
+    }
+    use der_parser;
+    use x509_parser::pem::pem_to_der;
+
+    #[test]
+    fn baddy() {
+        let der = pem_to_der(BAD_CERT.as_bytes()).unwrap();
+        match der.1.parse_x509() {
+            Ok(_) => (),
+            Err(e) => eprintln!("{:?}", e),
+            _ => {}
+        };
     }
 
     const EXAMPLE: &str = r#"-----BEGIN CERTIFICATE-----
@@ -256,149 +324,30 @@ X4FJlpsRkl3PNzxr0GNOGkC/0CfAfP/+nXs09o92ZIyWyUTliyTqn5xpcL6G/wR8
 AvMUz+wbPfDMWThnRmTw+U3Wz2tflWlhkDgHYcrs
 -----END CERTIFICATE-----"#;
 
-    //    #[derive(Asn1Der)]
-    //    struct Country {
-    //        oid:
-    //        country: String,
-    //    }
-
-    #[derive(Asn1Der)]
-    struct Name {
-        country: String,
-    }
-
-    use asn1_der::*;
-    use base64;
-    use simple_asn1::{der_encode, ASN1Block, ASN1Class, BigUint, ToASN1, OID};
-
-    #[test]
-    fn drfgsdf() {
-        let n = Name {
-            country: "EU".to_string(),
-        };
-        let mut serialized = vec![0u8; n.serialized_len()];
-        n.serialize(serialized.iter_mut()).unwrap();
-
-        println!("{}", base64::encode(&serialized));
-    }
-
-    struct Country {
-        country: String,
-    }
-
-    use crate::errors::*;
-    use simple_asn1::ASN1Block::{ObjectIdentifier, Set};
-    use simple_asn1::ASN1Block::{PrintableString, Sequence};
-    use std::collections::HashSet;
-
-    impl ToASN1 for Country {
-        type Error = Error;
-
-        fn to_asn1_class(&self, c: ASN1Class) -> Result<Vec<ASN1Block>> {
-            let oid = ObjectIdentifier(
-                2,
-                OID::new(vec![
-                    BigUint::from(2 as u64),
-                    BigUint::from(5 as u64),
-                    BigUint::from(4 as u64),
-                    BigUint::from(6 as u64),
-                ]),
-            );
-            let name = PrintableString(self.country.len(), self.country.clone());
-            let res = vec![Set(1, vec![Sequence(2, vec![oid, name])])];
-            Ok(res)
-        }
-    }
-
-    struct dammit {
-        things: Vec<ASN1Block>,
-    }
-
-    impl ToASN1 for dammit {
-        type Error = Error;
-
-        fn to_asn1_class(&self, c: ASN1Class) -> Result<Vec<ASN1Block>> {
-            Ok(self.things.clone())
-        }
-    }
-
-    #[test]
-    fn hdfsdf() {
-        println!(
-            "{:?}",
-            base64::encode(
-                &simple_asn1::der_encode(&Country {
-                    country: "bob".to_string()
-                })
-                .unwrap()
-            )
-        );
-        //        simple_asn1::der_encode(&simple_asn1::ASN1Block::PrintableString(5, "12345".to_string())).unwrap();
-    }
-
-    #[test]
-    fn agdfsdf() {
-        let p = x509_parser::pem::pem_to_der(EXAMPLE.as_bytes()).unwrap();
-        let res = p.1.parse_x509().unwrap();
-        let mut answer: Vec<ASN1Block> = vec![];
-        for thing in res.tbs_certificate.issuer.rdn_seq {
-            for attr in thing.set {
-                let oid = ObjectIdentifier(
-                    1,
-                    OID::new(
-                        attr.attr_type
-                            .iter()
-                            .map(|val| BigUint::from(val.clone()))
-                            .collect(),
-                    ),
-                );
-                let value = match attr.attr_value.content {
-                    der_parser::ber::BerObjectContent::PrintableString(s) => {
-                        std::str::from_utf8(s).unwrap()
-                    }
-                    _ => panic!("please no"),
-                };
-                let value = PrintableString(value.len(), value.to_string());
-                let mut res = vec![Set(1, vec![Sequence(2, vec![oid, value])])];
-                answer.append(&mut res);
-            }
-        }
-        let seq = Sequence(1, answer);
-        println!(
-            "{}",
-            base64::encode(&der_encode(&dammit { things: vec![seq] }).unwrap())
-        );
-    }
-
-    #[test]
-    fn thing() {
-        let p = x509_parser::pem::pem_to_der(EXAMPLE.as_bytes()).unwrap();
-        let res = p.1.parse_x509().unwrap();
-        println!("{:?}", res.tbs_certificate.issuer.rdn_seq);
-        for name in res.tbs_certificate.issuer.rdn_seq {
-            for attr in name.set {
-                match attr.attr_type.to_string().as_ref() {
-                    "2.5.4.6" => {
-                        println!("{:?}", attr.attr_value.content);
-                        match attr.attr_value.content {
-                            der_parser::ber::BerObjectContent::PrintableString(s) => {
-                                eprintln!("String::from(s) = {:#?}", std::str::from_utf8(s))
-                            }
-                            _ => (),
-                        }
-                    }
-                    _ => (),
-                }
-            }
-        }
-        //        let res = x509_parser::parse_x509_der(p.1);
-        //        match res {
-        //            Ok((rem, cert)) => {
-        //                assert!(rem.is_empty());
-        //                //
-        //                assert_eq!(cert.tbs_certificate.version, 2);
-        //            },
-        //            _ => panic!("x509 parsing failed: {:?}", res),
-        //        }
-    }
+    const BAD_CERT: &str = r#"-----BEGIN CERTIFICATE-----
+MIIEbTCCA1WgAwIBAgIRALxyZmb/WL/wAuUiPK5oK/gwDQYJKoZIhvcNAQELBQAw
+PjELMAkGA1UEBhMCUEwxGzAZBgNVBAoTElVuaXpldG8gU3AuIHogby5vLjESMBAG
+A1UEAxMJQ2VydHVtIENBMBwXCzEyMDIwMTAxNTlaFw0yMDExMDIwMTAxNTlaMFgx
+CzAJBgNVBAYTAkNOMRowGAYDVQQKExFXb1NpZ24gQ0EgTGltaXRlZDEtMCsGA1UE
+AxMkQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkgb2YgV29TaWduIEcyMIIBIjANBgkq
+hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvsXEoCKASU+/2YcRxlPhuw+9YH+v9oIO
+H9ywjj2X4FA8jzrvZjtFB5sg+OPXJYY1kBaiXW8wGQiHC38Gsp1ij96vkqVg1CuA
+mlI/9ZqD6TRay9nVYlzmDuDfBpgOgHzKtB0TiGsOqCR3A9DuW/PKaZE1OVbFbeP3
+PU9ekzgkyhjpJMuSA93MHD0JcOQg5PGurLtzaaNjOg9FD6FKmsLRY6zLEPg95k4o
+t+vElbGs/V6r+kHLXZ1L3PR8du9nfwB6jdKgGlxNIuG12t12s9R23164i5jIFFTM
+axeSt+BKv0mUYQs4kI9dJGwlezt52eJ+na2fmKEG/HgUYFf47oB3sQIDAQABo4IB
+TDCCAUgwEgYDVR0TAQH/BAgwBgEB/wIBAjAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0O
+BBYEFPpgqetlxd0WFAhODA+Nm+D3ZK9nMFIGA1UdIwRLMEmhQqRAMD4xCzAJBgNV
+BAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNl
+cnR1bSBDQYIDAQAgMDkGA1UdHwQyMDAwLqAsoCqGKGh0dHA6Ly93b3NpZ24uY3Js
+LmNlcnR1bS5ldS9jZXJ0dW1jYS5jcmwwOAYIKwYBBQUHAQEELDAqMCgGCCsGAQUF
+BzABhhxodHRwOi8vc3ViY2Eub2NzcC1jZXJ0dW0uY29tMDoGA1UdIAQzMDEwLwYE
+VR0gADAnMCUGCCsGAQUFBwIBFhlodHRwczovL3d3dy5jZXJ0dW0ucGwvQ1BTMA0G
+CSqGSIb3DQEBCwUAA4IBAQBzFbBroKWp4Bv12bVYJiRnpYXNNAh9jBsb/oHCw+I5
+wX3khi5vbKW4Kp55w3oFB4oFYKK2FmZrDZV5/TUNgxHTtlP+Ge/gs8lkk6f6QW5D
+ZN5JVVR/u4gmZdJmCC9eRoJsc3TgiH5ZGxLOtqXi3GR8hIAJVIbkqHrbfA7YAUua
++IQP1MiL/mr08Ceq6NQY6jYD3ovJ9bx6sPSghn41TdnQL5Y2Ze7qayrh9cl5zVpU
+78CK9A6XG/zYcGdgC2wAAtOpobNsmFPJ0NR4EW7igvCq8VbKuCNIaUD6e2qOjGAA
+MrLquF5zoh4cdCw6X5o7HnYSEdfHxZuQ//FoIkEauUGp
+-----END CERTIFICATE-----"#;
 }

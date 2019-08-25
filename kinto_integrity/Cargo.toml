@@ -30,7 +30,6 @@ simple_asn1 = "0.4.0"
 
 csv = "1.1"
 
-
 serde_json = "1.0"
 serde =  { version = "1.0.92", features = ["derive"] }
 
