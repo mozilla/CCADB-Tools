@@ -191,11 +191,16 @@ pub(crate) mod tests {
         //        let mut out = String::new();
         //        cmd.stdout.unwrap().read_to_string(&mut out).unwrap();
         //        println!("{}", out);
-        let things: Vec<Deserialized> = out.split("\n").into_iter().filter(|i| i.len() > 0).map(|i| serde_json::from_str::<Deserialized>(i.as_ref()).unwrap()).collect();
+        let things: Vec<Deserialized> = out
+            .split("\n")
+            .into_iter()
+            .filter(|i| i.len() > 0)
+            .map(|i| serde_json::from_str::<Deserialized>(i.as_ref()).unwrap())
+            .collect();
         for thing in things {
             match thing.Err {
                 None => (),
-                Some(err) => panic!(err)
+                Some(err) => panic!(err),
             }
         }
         Ok(())
@@ -206,6 +211,6 @@ pub(crate) mod tests {
     struct Deserialized {
         CommonName: String,
         Organization: String,
-        Err: Option<String>
+        Err: Option<String>,
     }
 }

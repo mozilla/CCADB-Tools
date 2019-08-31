@@ -16,7 +16,7 @@ pub struct CertStorage {
     pub data: HashSet<IssuerSerial>,
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone)]
 pub struct IssuerSerial {
     pub issuer_name: String,
     pub serial: String,

@@ -16,6 +16,7 @@ error_chain! {
         Infallible(std::convert::Infallible);
         Json(serde_json::error::Error);
         ASN1(simple_asn1::ASN1EncodeErr);
+        Utf8(::std::string::FromUtf8Error);
     }
 }
 

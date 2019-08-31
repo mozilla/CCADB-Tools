@@ -7,9 +7,11 @@ use std::convert::From;
 
 use serde::Serialize;
 
-use crate::firefox::cert_storage::CertStorage;
+use crate::firefox::cert_storage::{CertStorage, IssuerSerial};
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
+
+mod asn1;
 
 //1. In Kinto but not in cert_storage
 //2. In cert_storage but not in Kinto
@@ -100,7 +102,8 @@ impl From<WithoutRevocations> for Return {
 
 #[derive(Eq, PartialEq, Hash, Debug, Serialize, Clone)]
 pub struct Intermediary {
-    pub issuer_name: String,
+    pub common_name: String,
+    pub organization: String,
     pub serial: String,
 }
 
@@ -113,13 +116,24 @@ impl From<Revocations> for HashSet<Intermediary> {
     /// To:
     ///     [(issuer, serial), (issuer, serial), (issuer, serial)]
     fn from(revocations: Revocations) -> Self {
+        let issuers = asn1::parse_issuers(
+            revocations
+                .data
+                .iter()
+                .map(|issuer| issuer.issuer_name.as_ref())
+                .collect(),
+        )
+        .unwrap();
         let mut set: HashSet<Intermediary> = HashSet::new();
-        for issuer in revocations.data.into_iter() {
-            for serial in issuer.serials.into_iter() {
-                set.insert(Intermediary {
-                    issuer_name: issuer.issuer_name.clone(),
-                    serial: serial,
-                });
+        for i in 0..issuers.len() {
+            for serial in revocations.data.get(i).unwrap().serials.iter() {
+                unsafe {
+                    set.insert(Intermediary {
+                        common_name: issuers.get_unchecked(i).common_name.clone(),
+                        organization: issuers.get_unchecked(i).organziation.clone(),
+                        serial: serial.clone(),
+                    });
+                }
             }
         }
         set
@@ -135,12 +149,23 @@ impl From<Kinto> for HashSet<Intermediary> {
     ///
     /// Please see kinto:tests::find_duplicates
     fn from(kinto: Kinto) -> Self {
+        let issuers = asn1::parse_issuers(
+            kinto
+                .data
+                .iter()
+                .map(|issuer| issuer.issuer_name.as_ref())
+                .collect(),
+        )
+        .unwrap();
         let mut set: HashSet<Intermediary> = HashSet::new();
-        for entry in kinto.data.into_iter() {
-            set.insert(Intermediary {
-                issuer_name: entry.issuer_name,
-                serial: entry.serial_number,
-            });
+        for i in 0..issuers.len() {
+            unsafe {
+                set.insert(Intermediary {
+                    common_name: issuers.get_unchecked(i).common_name.clone(),
+                    organization: issuers.get_unchecked(i).organziation.clone(),
+                    serial: kinto.data.get(i).unwrap().serial_number.clone(),
+                });
+            }
         }
         set
     }
@@ -148,13 +173,24 @@ impl From<Kinto> for HashSet<Intermediary> {
 
 impl From<CertStorage> for HashSet<Intermediary> {
     fn from(cs: CertStorage) -> Self {
-        cs.data
-            .into_iter()
-            .map(|is| Intermediary {
-                issuer_name: is.issuer_name,
-                serial: is.serial,
-            })
-            .collect()
+        let cs: Vec<IssuerSerial> = cs.data.iter().cloned().collect();
+        let issuers = asn1::parse_issuers(
+            cs
+                .iter()
+                .map(|issuer| issuer.issuer_name.as_ref())
+                .collect(),
+        ).unwrap();
+        let mut set = HashSet::new();
+        for i in 0..issuers.len() {
+            unsafe {
+                set.insert(Intermediary{
+                common_name: issuers.get_unchecked(i).common_name.clone(),
+                organization: issuers.get_unchecked(i).organziation.clone(),
+                serial: cs.get(i).unwrap().serial.clone()
+            });
+            }
+        }
+        set
     }
 }
 
