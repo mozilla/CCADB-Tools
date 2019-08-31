@@ -130,7 +130,7 @@ impl From<Revocations> for HashSet<Intermediary> {
                 unsafe {
                     set.insert(Intermediary {
                         common_name: issuers.get_unchecked(i).common_name.clone(),
-                        organization: issuers.get_unchecked(i).organziation.clone(),
+                        organization: issuers.get_unchecked(i).organization.clone(),
                         serial: serial.clone(),
                     });
                 }
@@ -162,7 +162,7 @@ impl From<Kinto> for HashSet<Intermediary> {
             unsafe {
                 set.insert(Intermediary {
                     common_name: issuers.get_unchecked(i).common_name.clone(),
-                    organization: issuers.get_unchecked(i).organziation.clone(),
+                    organization: issuers.get_unchecked(i).organization.clone(),
                     serial: kinto.data.get(i).unwrap().serial_number.clone(),
                 });
             }
@@ -185,7 +185,7 @@ impl From<CertStorage> for HashSet<Intermediary> {
             unsafe {
                 set.insert(Intermediary{
                 common_name: issuers.get_unchecked(i).common_name.clone(),
-                organization: issuers.get_unchecked(i).organziation.clone(),
+                organization: issuers.get_unchecked(i).organization.clone(),
                 serial: cs.get(i).unwrap().serial.clone()
             });
             }

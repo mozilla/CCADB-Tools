@@ -6,7 +6,7 @@ use std::process::{Command, Stdio};
 #[derive(Deserialize)]
 pub struct Issuer {
     pub common_name: String,
-    pub organziation: String,
+    pub organization: String,
     pub error: Option<String>,
 }
 
