@@ -165,7 +165,7 @@ pub(crate) mod tests {
 
     #[test]
     fn sdrfgsds() -> Result<()> {
-        let exe = r#"H:\CCADB-Tools\kinto_integrity\src\ccadb\whatever.exe"#;
+        let exe = r#"/Users/chris/Documents/Contracting/mozilla/CCADB-Tools/kinto_integrity/src/ccadb/whatever"#;
         let got: Revocations = REVOCATIONS_TXT.parse::<Url>().unwrap().try_into()?;
         let mut issuers: String = got
             .data
@@ -186,10 +186,26 @@ pub(crate) mod tests {
             .write_all(issuers.as_bytes())
             .unwrap();
         //        let out = cmd.wait_with_output().unwrap();
-        cmd.wait_with_output();
+        let out = String::from_utf8(cmd.wait_with_output().unwrap().stdout).unwrap();
+        println!("{}", out);
         //        let mut out = String::new();
         //        cmd.stdout.unwrap().read_to_string(&mut out).unwrap();
         //        println!("{}", out);
+        let things: Vec<Deserialized> = out.split("\n").into_iter().filter(|i| i.len() > 0).map(|i| serde_json::from_str::<Deserialized>(i.as_ref()).unwrap()).collect();
+        for thing in things {
+            match thing.Err {
+                None => (),
+                Some(err) => panic!(err)
+            }
+        }
         Ok(())
+    }
+
+    use serde::Deserialize;
+    #[derive(Deserialize)]
+    struct Deserialized {
+        CommonName: String,
+        Organization: String,
+        Err: Option<String>
     }
 }

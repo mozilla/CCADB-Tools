@@ -71,7 +71,6 @@ func main() {
 	w := json.NewEncoder(os.Stdout)
 	newline := []byte(fmt.Sprintln("-1"))
 	for line, err := r.ReadBytes('\n'); err == nil && !reflect.DeepEqual(line, newline); line, err = r.ReadBytes('\n') {
-		fmt.Printf("%s\n", line)
 		err := w.Encode(doit(bytes.TrimRight(line, "\n")))
 		if err != nil {
 			panic(err)
