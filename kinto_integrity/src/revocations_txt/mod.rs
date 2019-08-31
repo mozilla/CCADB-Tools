@@ -143,6 +143,8 @@ pub(crate) mod tests {
 
     use super::*;
     use std::convert::TryInto;
+    use std::io::Write;
+    use std::process::{Command, Stdio};
 
     pub const REVOCATIONS_TXT: &str =
         "https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502";
@@ -158,6 +160,36 @@ pub(crate) mod tests {
             .text()
             .unwrap();
         assert_eq!(got.serialize(), want);
+        Ok(())
+    }
+
+    #[test]
+    fn sdrfgsds() -> Result<()> {
+        let exe = r#"H:\CCADB-Tools\kinto_integrity\src\ccadb\whatever.exe"#;
+        let got: Revocations = REVOCATIONS_TXT.parse::<Url>().unwrap().try_into()?;
+        let mut issuers: String = got
+            .data
+            .iter()
+            .map(|e| e.issuer_name.clone())
+            .collect::<Vec<String>>()
+            .join("\n");
+        issuers.push_str("\n-1\n");
+        let mut cmd = Command::new(exe)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        cmd.stdin
+            .as_mut()
+            .unwrap()
+            .write_all(issuers.as_bytes())
+            .unwrap();
+        //        let out = cmd.wait_with_output().unwrap();
+        cmd.wait_with_output();
+        //        let mut out = String::new();
+        //        cmd.stdout.unwrap().read_to_string(&mut out).unwrap();
+        //        println!("{}", out);
         Ok(())
     }
 }

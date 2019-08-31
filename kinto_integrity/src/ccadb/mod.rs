@@ -180,7 +180,7 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     use std::io::Write;
-    use x509_parser::RelativeDistinguishedName;
+    use x509_parser::{RelativeDistinguishedName, X509Name};
 
     #[test]
     fn yhjdrfgsdf() {
@@ -350,4 +350,43 @@ ZN5JVVR/u4gmZdJmCC9eRoJsc3TgiH5ZGxLOtqXi3GR8hIAJVIbkqHrbfA7YAUua
 78CK9A6XG/zYcGdgC2wAAtOpobNsmFPJ0NR4EW7igvCq8VbKuCNIaUD6e2qOjGAA
 MrLquF5zoh4cdCw6X5o7HnYSEdfHxZuQ//FoIkEauUGp
 -----END CERTIFICATE-----"#;
+
+    use ::asn1_der::{FromDerObject, IntoDerObject};
+    #[derive(Asn1Der)]
+    struct Name {
+        //        srteet: String
+        rdn: RDN,
+    }
+
+    #[derive(Asn1Der)]
+    struct RDN {
+        RDNSequence: Vec<RelativeDistinguished>,
+    }
+
+    type RelativeDistinguished = Vec<AttributeTypeAnd>;
+
+    #[derive(Asn1Der)]
+    struct AttributeTypeAnd {
+        t: AttributeType,
+        v: AttributeValue,
+    }
+
+    type AttributeType = Vec<u128>;
+    type AttributeValue = String;
+
+    #[test]
+    fn asdas() {
+        let i: Vec<u8> =
+            base64::decode("MCwxCzAJBgNVBAYTAktaMR0wGwYDVQQDExRRYXpuZXQgVHJ1c3QgTmV0d29yaw==")
+                .unwrap();
+        RDN::deserialize(i.iter()).unwrap();
+    }
+
+    #[test]
+    fn asdfasf() {
+        let ccadb: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
+        for r in ccadb.report {
+            println!("{}", r.certificate_issuer_organization);
+        }
+    }
 }

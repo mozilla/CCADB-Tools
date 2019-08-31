@@ -12,6 +12,9 @@ extern crate lazy_static;
 #[macro_use]
 extern crate rocket;
 
+#[macro_use]
+extern crate asn1_der;
+
 use reqwest::Url;
 use rocket::http::RawStr;
 use rocket::Data;
