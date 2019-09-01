@@ -12,9 +12,6 @@ extern crate lazy_static;
 #[macro_use]
 extern crate rocket;
 
-#[macro_use]
-extern crate asn1_der;
-
 use reqwest::Url;
 use rocket::http::RawStr;
 use rocket::Data;
@@ -32,6 +29,7 @@ mod kinto;
 mod model;
 mod revocations_txt;
 
+use crate::ccadb::CCADBReport;
 use errors::*;
 use firefox::*;
 use kinto::*;
@@ -44,6 +42,14 @@ fn default() -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto, revocations).into();
+    Ok(serde_json::to_string_pretty(&result)?)
+}
+
+#[get("/ccadb_diff_cert_storage")]
+fn ccadb_diff_cert_storage() -> Result<String> {
+    let cert_storage = Firefox::default()?;
+    let ccadb_report = ccadb::CCADBReport::default()?;
+    let result: Return = (cert_storage, ccadb_report).into();
     Ok(serde_json::to_string_pretty(&result)?)
 }
 
@@ -149,7 +155,8 @@ fn main() -> Result<()> {
                 post_revocations,
                 without_revocations,
                 update_cert_storage,
-                update_firefox_nightly
+                update_firefox_nightly,
+                ccadb_diff_cert_storage
             ],
         )
         .launch();

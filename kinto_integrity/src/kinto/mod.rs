@@ -145,23 +145,23 @@ pub(crate) mod tests {
     ///	    last_modified: 1511530740428,
     ///	}
     fn find_duplicates() -> Result<()> {
-//        let kinto: Kinto = KINTO
-//            .parse::<Url>()
-//            .chain_err(|| "bad Kinto URL")?
-//            .try_into()?;
-//        let mut set = HashSet::new();
-//        for entry in kinto.data.into_iter() {
-//            let int = Intermediary {
-//                issuer_name: entry.issuer_name.clone(),
-//                serial: entry.serial_number.clone(),
-//            };
-//            match set.contains(&int) {
-//                true => eprintln!("entry = {:#?}", entry),
-//                false => {
-//                    set.insert(int);
-//                }
-//            };
-//        }
+        //        let kinto: Kinto = KINTO
+        //            .parse::<Url>()
+        //            .chain_err(|| "bad Kinto URL")?
+        //            .try_into()?;
+        //        let mut set = HashSet::new();
+        //        for entry in kinto.data.into_iter() {
+        //            let int = Intermediary {
+        //                issuer_name: entry.issuer_name.clone(),
+        //                serial: entry.serial_number.clone(),
+        //            };
+        //            match set.contains(&int) {
+        //                true => eprintln!("entry = {:#?}", entry),
+        //                false => {
+        //                    set.insert(int);
+        //                }
+        //            };
+        //        }
         Ok(())
     }
 }

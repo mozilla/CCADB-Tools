@@ -7,6 +7,7 @@ use std::convert::From;
 
 use serde::Serialize;
 
+use crate::ccadb::{CCADBEntry, CCADBReport};
 use crate::firefox::cert_storage::{CertStorage, IssuerSerial};
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
@@ -22,8 +23,10 @@ mod asn1;
 
 #[derive(Serialize)]
 pub struct Return {
-    pub in_kinto_not_in_cert_storage: Vec<Intermediary>,
-    pub in_cert_storage_not_in_kinto: Vec<Intermediary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_kinto_not_in_cert_storage: Option<Vec<Intermediary>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_cert_storage_not_in_kinto: Option<Vec<Intermediary>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub in_cert_storage_not_in_revocations: Option<Vec<Intermediary>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -32,10 +35,16 @@ pub struct Return {
     pub in_revocations_not_in_kinto: Option<Vec<Intermediary>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub in_kinto_not_in_revocations: Option<Vec<Intermediary>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_ccadb_not_in_cert_storage: Option<Vec<Intermediary>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_cert_storage_not_in_ccadb: Option<Vec<Intermediary>>,
 }
 
 type WithRevocations = (CertStorage, Kinto, Revocations);
 type WithoutRevocations = (CertStorage, Kinto);
+type CCADBDiffCertStorage = (CertStorage, CCADBReport);
 
 impl From<WithRevocations> for Return {
     fn from(values: WithRevocations) -> Self {
@@ -43,14 +52,14 @@ impl From<WithRevocations> for Return {
         let kinto: HashSet<Intermediary> = values.1.into();
         let revocations: HashSet<Intermediary> = values.2.into();
         Return {
-            in_kinto_not_in_cert_storage: kinto
+            in_kinto_not_in_cert_storage: Some(kinto
                 .difference(&cert_storage)
                 .cloned()
-                .collect::<Vec<Intermediary>>(),
-            in_cert_storage_not_in_kinto: cert_storage
+                .collect::<Vec<Intermediary>>()),
+            in_cert_storage_not_in_kinto: Some(cert_storage
                 .difference(&kinto)
                 .cloned()
-                .collect::<Vec<Intermediary>>(),
+                .collect::<Vec<Intermediary>>()),
             in_cert_storage_not_in_revocations: Some(
                 cert_storage
                     .difference(&revocations)
@@ -75,6 +84,8 @@ impl From<WithRevocations> for Return {
                     .cloned()
                     .collect::<Vec<Intermediary>>(),
             ),
+            in_ccadb_not_in_cert_storage: None,
+            in_cert_storage_not_in_ccadb: None
         }
     }
 }
@@ -84,18 +95,37 @@ impl From<WithoutRevocations> for Return {
         let cert_storage: HashSet<Intermediary> = values.0.into();
         let kinto: HashSet<Intermediary> = values.1.into();
         Return {
-            in_kinto_not_in_cert_storage: kinto
+            in_kinto_not_in_cert_storage: Some(kinto
                 .difference(&cert_storage)
                 .cloned()
-                .collect::<Vec<Intermediary>>(),
-            in_cert_storage_not_in_kinto: cert_storage
+                .collect::<Vec<Intermediary>>()),
+            in_cert_storage_not_in_kinto: Some(cert_storage
                 .difference(&kinto)
                 .cloned()
-                .collect::<Vec<Intermediary>>(),
+                .collect::<Vec<Intermediary>>()),
             in_cert_storage_not_in_revocations: None,
             in_revocations_not_in_cert_storage: None,
             in_revocations_not_in_kinto: None,
             in_kinto_not_in_revocations: None,
+            in_ccadb_not_in_cert_storage: None,
+            in_cert_storage_not_in_ccadb: None
+        }
+    }
+}
+
+impl From<CCADBDiffCertStorage> for Return {
+    fn from(values : CCADBDiffCertStorage) -> Self {
+        let cert_storage: HashSet<Intermediary> = values.0.into();
+        let cccad_report: HashSet<Intermediary> = values.1.into();
+        Return {
+            in_kinto_not_in_cert_storage: None,
+            in_cert_storage_not_in_kinto: None,
+            in_cert_storage_not_in_revocations: None,
+            in_revocations_not_in_cert_storage: None,
+            in_revocations_not_in_kinto: None,
+            in_kinto_not_in_revocations: None,
+            in_ccadb_not_in_cert_storage: Some(cccad_report.difference(&cert_storage).cloned().collect()),
+            in_cert_storage_not_in_ccadb: Some(cert_storage.difference(&cccad_report).cloned().collect())
         }
     }
 }
@@ -175,22 +205,38 @@ impl From<CertStorage> for HashSet<Intermediary> {
     fn from(cs: CertStorage) -> Self {
         let cs: Vec<IssuerSerial> = cs.data.iter().cloned().collect();
         let issuers = asn1::parse_issuers(
-            cs
-                .iter()
+            cs.iter()
                 .map(|issuer| issuer.issuer_name.as_ref())
                 .collect(),
-        ).unwrap();
+        )
+        .unwrap();
         let mut set = HashSet::new();
         for i in 0..issuers.len() {
             unsafe {
-                set.insert(Intermediary{
-                common_name: issuers.get_unchecked(i).common_name.clone(),
-                organization: issuers.get_unchecked(i).organization.clone(),
-                serial: cs.get(i).unwrap().serial.clone()
-            });
+                set.insert(Intermediary {
+                    common_name: issuers.get_unchecked(i).common_name.clone(),
+                    organization: issuers.get_unchecked(i).organization.clone(),
+                    serial: cs.get(i).unwrap().serial.clone(),
+                });
             }
         }
         set
+    }
+}
+
+impl From<CCADBReport> for HashSet<Intermediary> {
+    fn from(ccadb: CCADBReport) -> Self {
+        ccadb
+            .report
+            .into_iter()
+            .map(|entry| Intermediary {
+                common_name: entry.certificate_issuer_common_name.clone(),
+                organization: entry.certificate_issuer_organization,
+                serial: base64::encode(
+                    &hex::decode(entry.certificate_serial_number.as_bytes()).unwrap(),
+                ),
+            })
+            .collect()
     }
 }
 

@@ -1,103 +1,105 @@
-//use serde::Deserialize;
-//use std::io::Read;
-//
-//use crate::errors::*;
-//use crate::model::Intermediary;
-//use reqwest::Url;
-//use std::convert::{TryFrom, TryInto};
-//
-//use base64;
-//use simple_asn1::ASN1Block::*;
-//use simple_asn1::*;
-//use x509_parser;
-//
-//const CCADB_URL: &str =
-//    "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
-//
-//struct CCADBReport {
-//    pub report: Vec<CCADBEntry>,
-//}
-//
-//impl CCADBReport {
-//    pub fn from_reader<R: Read>(r: R) -> Result<CCADBReport> {
-//        let mut report: Vec<CCADBEntry> = vec![];
-//        let mut rdr = csv::Reader::from_reader(r);
-//        for entry in rdr.deserialize() {
-//            let record = match entry {
-//                Ok(val) => val,
-//                Err(err) => panic!(format!("{:?}", err)),
-//            };
-//            report.push(record)
-//        }
-//        Ok(CCADBReport { report })
-//    }
-//}
-//
-//impl TryFrom<Url> for CCADBReport {
-//    type Error = Error;
-//
-//    fn try_from(value: Url) -> Result<Self> {
-//        CCADBReport::from_reader(crate::http::new_get_request(value).send()?)
-//    }
-//}
-//
-//impl TryFrom<&str> for CCADBReport {
-//    type Error = Error;
-//
-//    fn try_from(url: &str) -> Result<Self> {
-//        url.parse::<Url>()
-//            .chain_err(|| format!("failed to parse {} to a valid URL", url))?
-//            .try_into()
-//    }
-//}
-//
-//#[derive(Debug, Deserialize)]
-//struct CCADBEntry {
-//    #[serde(alias = "CA Owner")]
-//    ca_owner: String,
-//    #[serde(alias = "Revocation Status")]
-//    revocation_status: String,
-//    #[serde(alias = "RFC 5280 Revocation Reason Code")]
-//    rfc_5280_revocation_reason_code: String,
-//    #[serde(alias = "Date of Revocation")]
-//    date_of_revocation: String,
-//    #[serde(alias = "OneCRL Status")]
-//    one_crl_status: String,
-//    #[serde(alias = "Certificate Serial Number")]
-//    certificate_serial_number: String,
-//    #[serde(alias = "CA Owner/Certificate Name")]
-//    ca_owner_certificate_name: String,
-//    #[serde(alias = "Certificate Issuer Common Name")]
-//    certificate_issuer_common_name: String,
-//    #[serde(alias = "Certificate Issuer Organization")]
-//    certificate_issuer_organization: String,
-//    #[serde(alias = "Certificate Subject Common Name")]
-//    certificate_subject_common_name: String,
-//    #[serde(alias = "Certificate Subject Organization")]
-//    certificate_subject_organization: String,
-//    #[serde(alias = "SHA-256 Fingerprint")]
-//    sha_256_fingerprint: String,
-//    #[serde(alias = "Subject + SPKI SHA256")]
-//    subject_spki_sha_256: String,
-//    #[serde(alias = "Valid From [GMT]")]
-//    valid_from_gmt: String,
-//    #[serde(alias = "Valid To [GMT]")]
-//    valid_to_gmt: String,
-//    #[serde(alias = "Public Key Algorithm")]
-//    public_key_algorithm: String,
-//    #[serde(alias = "Signature Hash Algorithm")]
-//    signature_hash_algorithm: String,
-//    #[serde(alias = "CRL URL(s)")]
-//    crl_urls: String,
-//    #[serde(alias = "Alternate CRL")]
-//    alternate_crl: String,
-//    #[serde(alias = "OCSP URL(s)")]
-//    ocsp_urls: String,
-//    #[serde(alias = "Comments")]
-//    comments: String,
-//    #[serde(alias = "PEM Info")]
-//    pem_info: String,
-//}
+use serde::Deserialize;
+use std::io::Read;
+
+use crate::errors::*;
+use crate::model::Intermediary;
+use reqwest::Url;
+use std::convert::{TryFrom, TryInto};
+
+const CCADB_URL: &str =
+    "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
+
+pub struct CCADBReport {
+    pub report: Vec<CCADBEntry>,
+}
+
+impl CCADBReport {
+    pub fn from_reader<R: Read>(r: R) -> Result<CCADBReport> {
+        let mut report: Vec<CCADBEntry> = vec![];
+        let mut rdr = csv::Reader::from_reader(r);
+        for entry in rdr.deserialize() {
+            let record = match entry {
+                Ok(val) => val,
+                Err(err) => panic!(format!("{:?}", err)),
+            };
+            report.push(record)
+        }
+        Ok(CCADBReport { report })
+    }
+
+    pub fn default() -> Result<CCADBReport> {
+        CCADB_URL
+            .parse::<Url>()
+            .chain_err(|| format!("failed to format {} to a proper URL", CCADB_URL))?
+            .try_into()
+    }
+}
+
+impl TryFrom<Url> for CCADBReport {
+    type Error = Error;
+
+    fn try_from(value: Url) -> Result<Self> {
+        CCADBReport::from_reader(crate::http::new_get_request(value).send()?)
+    }
+}
+
+impl TryFrom<&str> for CCADBReport {
+    type Error = Error;
+
+    fn try_from(url: &str) -> Result<Self> {
+        url.parse::<Url>()
+            .chain_err(|| format!("failed to parse {} to a valid URL", url))?
+            .try_into()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CCADBEntry {
+    #[serde(alias = "CA Owner")]
+    pub ca_owner: String,
+    #[serde(alias = "Revocation Status")]
+    pub revocation_status: String,
+    #[serde(alias = "RFC 5280 Revocation Reason Code")]
+    pub rfc_5280_revocation_reason_code: String,
+    #[serde(alias = "Date of Revocation")]
+    pub date_of_revocation: String,
+    #[serde(alias = "OneCRL Status")]
+    pub one_crl_status: String,
+    #[serde(alias = "Certificate Serial Number")]
+    pub certificate_serial_number: String,
+    #[serde(alias = "CA Owner/Certificate Name")]
+    pub ca_owner_certificate_name: String,
+    #[serde(alias = "Certificate Issuer Common Name")]
+    pub certificate_issuer_common_name: String,
+    #[serde(alias = "Certificate Issuer Organization")]
+    pub certificate_issuer_organization: String,
+    #[serde(alias = "Certificate Subject Common Name")]
+    pub certificate_subject_common_name: String,
+    #[serde(alias = "Certificate Subject Organization")]
+    pub certificate_subject_organization: String,
+    #[serde(alias = "SHA-256 Fingerprint")]
+    pub sha_256_fingerprint: String,
+    #[serde(alias = "Subject + SPKI SHA256")]
+    pub subject_spki_sha_256: String,
+    #[serde(alias = "Valid From [GMT]")]
+    pub valid_from_gmt: String,
+    #[serde(alias = "Valid To [GMT]")]
+    pub valid_to_gmt: String,
+    #[serde(alias = "Public Key Algorithm")]
+    pub public_key_algorithm: String,
+    #[serde(alias = "Signature Hash Algorithm")]
+    pub signature_hash_algorithm: String,
+    #[serde(alias = "CRL URL(s)")]
+    pub crl_urls: String,
+    #[serde(alias = "Alternate CRL")]
+    pub alternate_crl: String,
+    #[serde(alias = "OCSP URL(s)")]
+    pub ocsp_urls: String,
+    #[serde(alias = "Comments")]
+    pub comments: String,
+    #[serde(alias = "PEM Info")]
+    pub pem_info: String,
+}
 //
 //impl TryInto<Option<Intermediary>> for CCADBEntry {
 //    type Error = Error;
