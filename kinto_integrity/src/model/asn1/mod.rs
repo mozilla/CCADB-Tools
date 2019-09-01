@@ -30,7 +30,7 @@ pub struct Issuer {
 pub fn parse_issuers(issuers: Vec<&str>) -> Result<Vec<Issuer>> {
     let mut issuers: String = issuers.join("\n");
     issuers.push_str("\n-1\n");
-    let mut cmd = Command::new(r#"H:\CCADB-Tools\kinto_integrity\src\model\asn1\asn1"#)
+    let mut cmd = Command::new(r#"asn1"#)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
