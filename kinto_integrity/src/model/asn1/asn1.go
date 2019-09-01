@@ -43,9 +43,9 @@ func deser(issuer []byte) (d Deserialized) {
 	}
 	for _, r := range name {
 		for _, attr := range r {
-			if attr.Type.Equal([]int{2, 5, 4, 10}) {
+			if attr.Type.Equal([]int{2, 5, 4, 3}) {
 				d.CommonName = fmt.Sprint(attr.Value)
-			} else if attr.Type.Equal([]int{2, 5, 4, 3}) {
+			} else if attr.Type.Equal([]int{2, 5, 4, 10}) {
 				d.Organization = fmt.Sprint(attr.Value)
 			}
 		}
