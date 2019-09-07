@@ -5,6 +5,8 @@
 #![feature(slice_patterns)]
 #![feature(proc_macro_hygiene, decl_macro)]
 
+extern crate proc_macro;
+
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
@@ -29,11 +31,14 @@ mod kinto;
 mod model;
 mod revocations_txt;
 
+use crate::ccadb::CCADBReport;
 use errors::*;
 use firefox::*;
 use kinto::*;
 use model::*;
 use revocations_txt::*;
+use serde::Serialize;
+use std::collections::HashSet;
 
 #[get("/")]
 fn default() -> Result<String> {
@@ -81,6 +86,14 @@ fn without_revocations() -> Result<String> {
     let kinto: Kinto = Kinto::default()?;
     let cert_storage = Firefox::default()?;
     let result: Return = (cert_storage, kinto).into();
+    Ok(serde_json::to_string_pretty(&result)?)
+}
+
+#[get("/ccadb_cert_storage")]
+fn ccadb_cert_storage() -> Result<String> {
+    let ccadb: CCADBReport = CCADBReport::default()?;
+    let cert_storage = Firefox::default()?;
+    let result: Return = (cert_storage, ccadb).into();
     Ok(serde_json::to_string_pretty(&result)?)
 }
 
@@ -145,6 +158,7 @@ fn main() -> Result<()> {
                 with_revocations,
                 post_revocations,
                 without_revocations,
+                ccadb_cert_storage,
                 update_cert_storage,
                 update_firefox_nightly
             ],

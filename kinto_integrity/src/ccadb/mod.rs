@@ -2,10 +2,10 @@ use serde::Deserialize;
 use std::io::Read;
 
 use crate::errors::*;
-use crate::model::Intermediary;
 use reqwest::Url;
 use std::convert::{TryFrom, TryInto};
 
+use crate::model::Intermediary;
 use base64;
 use simple_asn1::ASN1Block::*;
 use simple_asn1::*;
@@ -14,11 +14,15 @@ use x509_parser;
 const CCADB_URL: &str =
     "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
 
-struct CCADBReport {
+pub struct CCADBReport {
     pub report: Vec<CCADBEntry>,
 }
 
 impl CCADBReport {
+    pub fn default() -> Result<CCADBReport> {
+        CCADB_URL.parse::<Url>().unwrap().try_into()
+    }
+
     pub fn from_reader<R: Read>(r: R) -> Result<CCADBReport> {
         let mut report: Vec<CCADBEntry> = vec![];
         let mut rdr = csv::Reader::from_reader(r);
@@ -52,73 +56,71 @@ impl TryFrom<&str> for CCADBReport {
 }
 
 #[derive(Debug, Deserialize)]
-struct CCADBEntry {
+pub struct CCADBEntry {
     #[serde(alias = "CA Owner")]
-    ca_owner: String,
+    pub ca_owner: String,
     #[serde(alias = "Revocation Status")]
-    revocation_status: String,
+    pub revocation_status: String,
     #[serde(alias = "RFC 5280 Revocation Reason Code")]
-    rfc_5280_revocation_reason_code: String,
+    pub rfc_5280_revocation_reason_code: String,
     #[serde(alias = "Date of Revocation")]
-    date_of_revocation: String,
+    pub date_of_revocation: String,
     #[serde(alias = "OneCRL Status")]
-    one_crl_status: String,
+    pub one_crl_status: String,
     #[serde(alias = "Certificate Serial Number")]
-    certificate_serial_number: String,
+    pub certificate_serial_number: String,
     #[serde(alias = "CA Owner/Certificate Name")]
-    ca_owner_certificate_name: String,
+    pub ca_owner_certificate_name: String,
     #[serde(alias = "Certificate Issuer Common Name")]
-    certificate_issuer_common_name: String,
+    pub certificate_issuer_common_name: String,
     #[serde(alias = "Certificate Issuer Organization")]
-    certificate_issuer_organization: String,
+    pub certificate_issuer_organization: String,
     #[serde(alias = "Certificate Subject Common Name")]
-    certificate_subject_common_name: String,
+    pub certificate_subject_common_name: String,
     #[serde(alias = "Certificate Subject Organization")]
-    certificate_subject_organization: String,
+    pub certificate_subject_organization: String,
     #[serde(alias = "SHA-256 Fingerprint")]
-    sha_256_fingerprint: String,
+    pub sha_256_fingerprint: String,
     #[serde(alias = "Subject + SPKI SHA256")]
-    subject_spki_sha_256: String,
+    pub subject_spki_sha_256: String,
     #[serde(alias = "Valid From [GMT]")]
-    valid_from_gmt: String,
+    pub valid_from_gmt: String,
     #[serde(alias = "Valid To [GMT]")]
-    valid_to_gmt: String,
+    pub valid_to_gmt: String,
     #[serde(alias = "Public Key Algorithm")]
-    public_key_algorithm: String,
+    pub public_key_algorithm: String,
     #[serde(alias = "Signature Hash Algorithm")]
-    signature_hash_algorithm: String,
+    pub signature_hash_algorithm: String,
     #[serde(alias = "CRL URL(s)")]
-    crl_urls: String,
+    pub crl_urls: String,
     #[serde(alias = "Alternate CRL")]
-    alternate_crl: String,
+    pub alternate_crl: String,
     #[serde(alias = "OCSP URL(s)")]
-    ocsp_urls: String,
+    pub ocsp_urls: String,
     #[serde(alias = "Comments")]
-    comments: String,
+    pub comments: String,
     #[serde(alias = "PEM Info")]
-    pem_info: String,
+    pub pem_info: String,
 }
 
-impl TryInto<Option<Intermediary>> for CCADBEntry {
-    type Error = Error;
-
-    fn try_into(self) -> Result<Option<Intermediary>> {
+impl Into<Option<Intermediary>> for CCADBEntry {
+    fn into(self) -> Option<Intermediary> {
         if self.pem_info.len() == 0 {
             eprintln!("0: {:?}", self.certificate_serial_number);
-            return Ok(None);
+            return None;
         }
         let p = match x509_parser::pem::pem_to_der(self.pem_info.trim_matches('\'').as_bytes()) {
             Ok(thing) => thing,
             Err(err) => {
                 eprintln!("1: {:?} {:?}", err, self.certificate_serial_number);
-                return Ok(None);
+                return None;
             }
         };
         let res = match p.1.parse_x509() {
             Ok(thing) => thing,
             Err(err) => {
                 eprintln!("2: {:?} {:?}", err, self.certificate_serial_number);
-                return Ok(None);
+                return None;
             }
         };
         let mut rdn: Vec<ASN1Block> = vec![];
@@ -156,12 +158,76 @@ impl TryInto<Option<Intermediary>> for CCADBEntry {
             }
         }
         let seq = Sequence(1, rdn);
-        Ok(Some(Intermediary {
+        Some(Intermediary {
             issuer_name: base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
-            serial: base64::encode(&res.tbs_certificate.serial.to_bytes_be()),
-        }))
+            serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
+        })
     }
 }
+
+//impl TryInto<Option<Intermediary>> for CCADBEntry {
+//    type Error = Error;
+//
+//    fn try_into(self) -> Result<Option<Intermediary>> {
+//        if self.pem_info.len() == 0 {
+//            eprintln!("0: {:?}", self.certificate_serial_number);
+//            return Ok(None);
+//        }
+//        let p = match x509_parser::pem::pem_to_der(self.pem_info.trim_matches('\'').as_bytes()) {
+//            Ok(thing) => thing,
+//            Err(err) => {
+//                eprintln!("1: {:?} {:?}", err, self.certificate_serial_number);
+//                return Ok(None);
+//            }
+//        };
+//        let res = match p.1.parse_x509() {
+//            Ok(thing) => thing,
+//            Err(err) => {
+//                eprintln!("2: {:?} {:?}", err, self.certificate_serial_number);
+//                return Ok(None);
+//            }
+//        };
+//        let mut rdn: Vec<ASN1Block> = vec![];
+//        for block in res.tbs_certificate.issuer.rdn_seq {
+//            for attr in block.set {
+//                let oid = ObjectIdentifier(
+//                    1,
+//                    OID::new(
+//                        attr.attr_type
+//                            .iter()
+//                            .map(|val| BigUint::from(val.clone()))
+//                            .collect(),
+//                    ),
+//                );
+//                let content = match attr.attr_value.content {
+//                    der_parser::ber::BerObjectContent::PrintableString(s) => {
+//                        let s = std::str::from_utf8(s).unwrap();
+//                        PrintableString(s.len(), s.to_string())
+//                    }
+//                    der_parser::ber::BerObjectContent::UTF8String(s) => {
+//                        let s = std::str::from_utf8(s).unwrap();
+//                        UTF8String(s.len(), s.to_string())
+//                    }
+//                    der_parser::ber::BerObjectContent::IA5String(s) => {
+//                        let s = std::str::from_utf8(s).unwrap();
+//                        IA5String(s.len(), s.to_string())
+//                    }
+//                    der_parser::ber::BerObjectContent::T61String(s) => {
+//                        let s = std::str::from_utf8(s).unwrap();
+//                        TeletexString(s.len(), s.to_string())
+//                    }
+//                    val => panic!(format!("{:?}", val)),
+//                };
+//                rdn.append(&mut vec![Set(1, vec![Sequence(1, vec![oid, content])])]);
+//            }
+//        }
+//        let seq = Sequence(1, rdn);
+//        Ok(Some(Intermediary {
+//            issuer_name: base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
+//            serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
+//        }))
+//    }
+//}
 
 struct RDN {
     rdn: Vec<ASN1Block>,
@@ -182,99 +248,102 @@ mod tests {
     use std::io::Write;
     use x509_parser::RelativeDistinguishedName;
 
-    #[test]
-    fn yhjdrfgsdf() {
-        let c: CCADBReport = CCADB_URL.try_into().unwrap();
-        let c: Vec<Intermediary> = c
-            .report
-            .into_iter()
-            .map(|c| c.try_into().unwrap())
-            .filter(|f: &Option<Intermediary>| f.is_some())
-            .map(|f| f.unwrap())
-            .collect();
-        //        println!("{}", c[500].issuer_name);
-        //        println!("{}", c[500].serial);
-        let mut ccadb = HashSet::new();
-        for i in c {
-            ccadb.insert(i);
-        }
-        eprintln!("ccadb.len() = {:#?}", ccadb.len());
-        let rev: HashSet<Intermediary> = crate::revocations_txt::Revocations::default()
-            .unwrap()
-            .into();
-        let in_ccadb = ccadb
-            .difference(&rev)
-            .cloned()
-            .collect::<Vec<Intermediary>>();
-        let in_rev = rev
-            .difference(&ccadb)
-            .cloned()
-            .collect::<Vec<Intermediary>>();
-        eprintln!("in_ccadb = {:#?}", in_ccadb.len());
-        eprintln!("in_rev = {:#?}", in_rev.len());
-        eprintln!(
-            "intersection = {:#?}",
-            ccadb
-                .intersection(&rev)
-                .cloned()
-                .collect::<Vec<Intermediary>>()
-                .len()
-        );;
-        use serde::Serialize;
-        #[derive(Serialize)]
-        struct Dammit {
-            in_ccadb: Vec<Easier>,
-            in_rev: Vec<Easier>,
-        };
-        let d = Dammit {
-            in_ccadb: in_ccadb.into_iter().map(|e| e.into()).collect(),
-            in_rev: in_rev.into_iter().map(|e| e.into()).collect(),
-        };
-        std::fs::File::create(r#"H:\in_ccadb.json"#)
-            .unwrap()
-            .write_all(
-                serde_json::to_string_pretty(&d.in_ccadb)
-                    .unwrap()
-                    .as_bytes(),
-            );
-        std::fs::File::create(r#"H:\in_rev.json"#)
-            .unwrap()
-            .write_all(serde_json::to_string_pretty(&d.in_rev).unwrap().as_bytes());
-    }
-
-    use serde::Serialize;
-    #[derive(Serialize)]
-    struct Easier {
-        name: String,
-        serial_b64: String,
-        serial_hex: String,
-    }
-
-    impl From<Intermediary> for Easier {
-        fn from(i: Intermediary) -> Self {
-            let serial = format!(
-                "{:X}",
-                BigUint::from_bytes_be(&base64::decode(&i.serial).unwrap())
-            );
-            Easier {
-                name: i.issuer_name,
-                serial_b64: i.serial,
-                serial_hex: serial,
-            }
-        }
-    }
-    use der_parser;
-    use x509_parser::pem::pem_to_der;
-
-    #[test]
-    fn baddy() {
-        let der = pem_to_der(BAD_CERT.as_bytes()).unwrap();
-        match der.1.parse_x509() {
-            Ok(_) => (),
-            Err(e) => eprintln!("{:?}", e),
-            _ => {}
-        };
-    }
+    //    #[test]
+    //    fn yhjdrfgsdf() {
+    //        let c: CCADBReport = CCADB_URL.try_into().unwrap();
+    //        eprintln!("c.report.len() = {:#?}", c.report.len());
+    //        let c: Vec<Intermediary> = c
+    //            .report
+    //            .into_iter()
+    //            .filter(|f| f.one_crl_status.eq("Cert Expired") || f.one_crl_status.eq("Added to OneCRL"))
+    //            .map(|c| c.try_into().unwrap())
+    //            .filter(|f: &Option<Intermediary>| f.is_some())
+    //            .map(|f| f.unwrap())
+    //            .collect();
+    //        //        println!("{}", c[500].issuer_name);
+    //        //        println!("{}", c[500].serial);
+    //        let mut ccadb = HashSet::new();
+    //        for i in c {
+    //            ccadb.insert(i);
+    //        }
+    //        eprintln!("ccadb.len() = {:#?}", ccadb.len());
+    //        let rev: HashSet<Intermediary> = crate::kinto::Kinto::default()
+    //            .unwrap()
+    //            .into();
+    //        eprintln!("rev.len() = {:#?}", rev.len());
+    //        let in_ccadb = ccadb
+    //            .difference(&rev)
+    //            .cloned()
+    //            .collect::<Vec<Intermediary>>();
+    //        let in_rev = rev
+    //            .difference(&ccadb)
+    //            .cloned()
+    //            .collect::<Vec<Intermediary>>();
+    //        eprintln!("in_ccadb = {:#?}", in_ccadb.len());
+    //        eprintln!("in_rev = {:#?}", in_rev.len());
+    //        eprintln!(
+    //            "intersection = {:#?}",
+    //            ccadb
+    //                .intersection(&rev)
+    //                .cloned()
+    //                .collect::<Vec<Intermediary>>()
+    //                .len()
+    //        );;
+    //        use serde::Serialize;
+    //        #[derive(Serialize)]
+    //        struct Dammit {
+    //            in_ccadb: Vec<Easier>,
+    //            in_rev: Vec<Easier>,
+    //        };
+    //        let d = Dammit {
+    //            in_ccadb: in_ccadb.into_iter().map(|e| e.into()).collect(),
+    //            in_rev: in_rev.into_iter().map(|e| e.into()).collect(),
+    //        };
+    //        std::fs::File::create(r#"H:\in_ccadb.json"#)
+    //            .unwrap()
+    //            .write_all(
+    //                serde_json::to_string_pretty(&d.in_ccadb)
+    //                    .unwrap()
+    //                    .as_bytes(),
+    //            );
+    //        std::fs::File::create(r#"H:\in_rev.json"#)
+    //            .unwrap()
+    //            .write_all(serde_json::to_string_pretty(&d.in_rev).unwrap().as_bytes());
+    //    }
+    //
+    //    use serde::Serialize;
+    //    #[derive(Serialize)]
+    //    struct Easier {
+    //        name: String,
+    //        serial_b64: String,
+    //        serial_hex: String,
+    //    }
+    //
+    //    impl From<Intermediary> for Easier {
+    //        fn from(i: Intermediary) -> Self {
+    //            let serial = format!(
+    //                "{:X}",
+    //                BigUint::from_bytes_be(&base64::decode(&i.serial).unwrap())
+    //            );
+    //            Easier {
+    //                name: i.issuer_name,
+    //                serial_b64: i.serial,
+    //                serial_hex: serial,
+    //            }
+    //        }
+    //    }
+    //    use der_parser;
+    //    use x509_parser::pem::pem_to_der;
+    //
+    //    #[test]
+    //    fn baddy() {
+    //        let der = pem_to_der(BAD_CERT.as_bytes()).unwrap();
+    //        match der.1.parse_x509() {
+    //            Ok(_) => (),
+    //            Err(e) => eprintln!("{:?}", e),
+    //            _ => {}
+    //        };
+    //    }
 
     const EXAMPLE: &str = r#"-----BEGIN CERTIFICATE-----
 MIIIWjCCBkKgAwIBAgIIAahE5mpsDY4wDQYJKoZIhvcNAQELBQAwgawxCzAJBgNV
