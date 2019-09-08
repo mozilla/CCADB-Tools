@@ -11,7 +11,6 @@ use crate::ccadb::CCADBReport;
 use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
-use std::hash::Hash;
 
 //1. In Kinto but not in cert_storage
 //2. In cert_storage but not in Kinto
