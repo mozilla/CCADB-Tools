@@ -33,9 +33,6 @@ impl CCADBReport {
         for entry in rdr.deserialize() {
             let record: CCADBEntry =
                 entry.chain_err(|| "failed to deserialize a record from the CCADB")?;
-            if record.one_crl_status.len() == 0 {
-                continue;
-            }
             report.push(record)
         }
         Ok(CCADBReport { report })
