@@ -32,7 +32,7 @@ impl CCADBReport {
         let mut rdr = csv::Reader::from_reader(r);
         for entry in rdr.deserialize() {
             let record: CCADBEntry = entry.chain_err(|| "failed to deserialize a record from the CCADB")?;
-            if record.revocation_status.len() == 0 {
+            if record.one_crl_status.len() == 0 {
                 continue;
             }
             report.push(record)
@@ -204,7 +204,10 @@ mod tests {
 
     #[test]
     fn smoke() {
-        let _: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
+        let r: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
+        for e in r.report {
+            eprintln!("e.one_crl_status = {:#?}", e.one_crl_status);
+        }
     }
 
     #[test]
