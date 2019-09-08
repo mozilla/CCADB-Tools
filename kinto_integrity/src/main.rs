@@ -37,8 +37,6 @@ use firefox::*;
 use kinto::*;
 use model::*;
 use revocations_txt::*;
-use serde::Serialize;
-use std::collections::HashSet;
 
 #[get("/")]
 fn default() -> Result<String> {

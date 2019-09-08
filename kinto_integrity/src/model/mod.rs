@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::convert::From;
 
 use serde::Serialize;
@@ -12,9 +12,6 @@ use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
 use std::hash::Hash;
-use std::iter::Sum;
-
-use crate::errors::*;
 
 //1. In Kinto but not in cert_storage
 //2. In cert_storage but not in Kinto
