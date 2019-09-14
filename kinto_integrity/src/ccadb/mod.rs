@@ -35,6 +35,8 @@ const _01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428: &[u8] =
     "vendored_certs/01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428.crt"
 );
 
+const BAD_CERT: &str = "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C";
+
 lazy_static! {
     static ref VENDORED_CERTS: HashMap<String, &'static [u8]> = [
         (
@@ -157,6 +159,8 @@ pub struct CCADBEntry {
     pub pem_info: String,
 }
 
+//MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ==
+
 impl Into<Option<Intermediary>> for CCADBEntry {
     fn into(self) -> Option<Intermediary> {
         let mut pem = self.pem_info.clone();
@@ -165,6 +169,13 @@ impl Into<Option<Intermediary>> for CCADBEntry {
             Some(cert) => {
                 pem = String::from_utf8(Vec::from(*cert)).unwrap();
             }
+        }
+        if pem == BAD_CERT {
+            return Some(Intermediary {
+                issuer_name: "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C"
+                    .to_string(),
+                serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
+            });
         }
         if pem.len() == 0 {
             error!(
@@ -382,4 +393,7 @@ MrLquF5zoh4cdCw6X5o7HnYSEdfHxZuQ//FoIkEauUGp
         let p = x509_parser::pem::pem_to_der(BAD_CERT.trim_matches('\'').as_bytes()).unwrap();
         p.1.parse_x509().unwrap();
     }
+
+    #[test]
+    fn herasd() {}
 }
