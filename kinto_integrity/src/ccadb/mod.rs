@@ -262,7 +262,10 @@ mod tests {
     #[test]
     fn smoke() {
         let c: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
-        let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
+        let s: std::collections::HashSet<String> =
+            c.report.into_iter().map(|e| e.one_crl_status).collect();
+        println!("{:?}", s);
+        //        let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
     }
 
     #[test]

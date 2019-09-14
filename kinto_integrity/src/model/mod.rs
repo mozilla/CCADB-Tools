@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::collections::HashSet;
-use std::convert::From;
+use std::convert::{From, TryInto};
 
 use serde::Serialize;
 
@@ -11,6 +11,8 @@ use crate::ccadb::CCADBReport;
 use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
+use std::fs::read;
+use std::process::exit;
 
 //1. In Kinto but not in cert_storage
 //2. In cert_storage but not in Kinto
@@ -116,6 +118,98 @@ impl From<WithoutRevocations> for Return {
             in_cert_storage_not_in_ccadb: None,
             in_ccadb_not_in_cert_storage: None,
         }
+    }
+}
+
+#[derive(Serialize)]
+pub struct Thing {
+    pub added_and_present_in_cert_storage: Vec<Intermediary>,
+    pub expired_and_present_in_cert_storage: Vec<Intermediary>,
+    pub ready_to_add_and_present_in_cert_storage: Vec<Intermediary>,
+    pub absent_from_ccadb_and_present_in_cert_storage: Vec<Intermediary>,
+    pub added_and_absent_from_cert_storage: Vec<Intermediary>,
+    pub expired_and_absent_from_cert_storage: Vec<Intermediary>,
+    pub ready_to_add_and_absent_from_cert_storage: Vec<Intermediary>,
+    pub absent_from_ccadb_and_absent_from_cert_storage: Vec<Intermediary>,
+    pub no_revocation_status_and_in_cert_storage: Vec<Intermediary>,
+    pub no_revocation_status_and_absent_from_cert_storage: Vec<Intermediary>,
+}
+
+impl From<CCADBDiffCertStorage> for Thing {
+    fn from(values: CCADBDiffCertStorage) -> Self {
+        let mut added: HashSet<Intermediary> = HashSet::new();
+        let mut expired: HashSet<Intermediary> = HashSet::new();
+        let mut ready: HashSet<Intermediary> = HashSet::new();
+        let mut no_status: HashSet<Intermediary> = HashSet::new();
+        let mut union: HashSet<Intermediary> = HashSet::new();
+        // Type deduction got horribly confused when I tried to chain these calls,
+        // so I just spread it out over several lines.
+        //
+        // 1. Map each entry to their OneCRL Status and their intermediate representation.
+        // 2. Filter out failed certificate filters (these are logged during parsing)
+        // 3. Insert the intermediate into the union set
+        // 4. Insert the intermediate into its appropriate OneCRL Status set.
+        let v: Vec<(String, Option<Intermediary>)> = values
+            .1
+            .report
+            .into_iter()
+            .map(|entry| (entry.one_crl_status.clone(), entry.into()))
+            .collect();
+        v.into_iter()
+            .filter(|e| e.1.is_some())
+            .map(|e| (e.0, e.1.unwrap()))
+            .for_each(|entry| {
+                union.insert(entry.1.clone());
+                match entry.0.as_str() {
+                    "" => {
+                        no_status.insert(entry.1);
+                    }
+                    "Ready to Add" => {
+                        ready.insert(entry.1);
+                    }
+                    "Added to OneCRL" => {
+                        added.insert(entry.1);
+                    }
+                    "Cert Expired" => {
+                        expired.insert(entry.1);
+                    }
+                    _ => panic!("asdasd"),
+                }
+            });
+        let cert_storage: HashSet<Intermediary> = values.0.into();
+        return Thing {
+            added_and_present_in_cert_storage: added.intersection(&cert_storage).cloned().collect(),
+            expired_and_present_in_cert_storage: expired
+                .intersection(&cert_storage)
+                .cloned()
+                .collect(),
+            ready_to_add_and_present_in_cert_storage: ready
+                .intersection(&cert_storage)
+                .cloned()
+                .collect(),
+            absent_from_ccadb_and_present_in_cert_storage: cert_storage
+                .difference(&union)
+                .cloned()
+                .collect(),
+            added_and_absent_from_cert_storage: added.difference(&cert_storage).cloned().collect(),
+            expired_and_absent_from_cert_storage: expired
+                .difference(&cert_storage)
+                .cloned()
+                .collect(),
+            ready_to_add_and_absent_from_cert_storage: ready
+                .difference(&cert_storage)
+                .cloned()
+                .collect(),
+            absent_from_ccadb_and_absent_from_cert_storage: vec![],
+            no_revocation_status_and_in_cert_storage: no_status
+                .intersection(&cert_storage)
+                .cloned()
+                .collect(),
+            no_revocation_status_and_absent_from_cert_storage: no_status
+                .difference(&cert_storage)
+                .cloned()
+                .collect(),
+        };
     }
 }
 
