@@ -170,7 +170,7 @@ impl Into<Option<Intermediary>> for CCADBEntry {
                 pem = String::from_utf8(Vec::from(*cert)).unwrap();
             }
         }
-        if pem == BAD_CERT {
+        if self.sha_256_fingerprint == BAD_CERT {
             return Some(Intermediary {
                 issuer_name: "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C"
                     .to_string(),
