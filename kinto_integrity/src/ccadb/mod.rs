@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::io::Read;
 
 use crate::errors::*;
@@ -14,6 +15,57 @@ use base64;
 use simple_asn1::ASN1Block::*;
 use simple_asn1::*;
 use x509_parser;
+
+const _7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C: &[u8] = include_bytes!(
+    "vendored_certs/7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C.crt"
+);
+const _A90F97D6B5C7612E020CBBCF0746200C9676E1828C5A850BE6BC888C345FA4B5: &[u8] = include_bytes!(
+    "vendored_certs/A90F97D6B5C7612E020CBBCF0746200C9676E1828C5A850BE6BC888C345FA4B5.crt"
+);
+const _805A7B80601A6FFB4ABDE635EF47705EAE17620DEF9CFAF61462B62D7C4B886A: &[u8] = include_bytes!(
+    "vendored_certs/805A7B80601A6FFB4ABDE635EF47705EAE17620DEF9CFAF61462B62D7C4B886A.crt"
+);
+const _7160A0D841B1C5C120A08C92DE2326483D90D9BFCE1984BDD6FF4AB6B7D273C3: &[u8] = include_bytes!(
+    "vendored_certs/7160A0D841B1C5C120A08C92DE2326483D90D9BFCE1984BDD6FF4AB6B7D273C3.crt"
+);
+const _9C009CA2F97EA2CBF28173600DEF6F7A54C5664599B8AB500EE1885A56E4F270: &[u8] = include_bytes!(
+    "vendored_certs/9C009CA2F97EA2CBF28173600DEF6F7A54C5664599B8AB500EE1885A56E4F270.crt"
+);
+const _01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428: &[u8] = include_bytes!(
+    "vendored_certs/01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428.crt"
+);
+
+lazy_static! {
+    static ref VENDORED_CERTS: HashMap<String, &'static [u8]> = [
+        (
+            "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C".to_string(),
+            _7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C
+        ),
+        (
+            "A90F97D6B5C7612E020CBBCF0746200C9676E1828C5A850BE6BC888C345FA4B5".to_string(),
+            _A90F97D6B5C7612E020CBBCF0746200C9676E1828C5A850BE6BC888C345FA4B5
+        ),
+        (
+            "805A7B80601A6FFB4ABDE635EF47705EAE17620DEF9CFAF61462B62D7C4B886A".to_string(),
+            _805A7B80601A6FFB4ABDE635EF47705EAE17620DEF9CFAF61462B62D7C4B886A
+        ),
+        (
+            "7160A0D841B1C5C120A08C92DE2326483D90D9BFCE1984BDD6FF4AB6B7D273C3".to_string(),
+            _7160A0D841B1C5C120A08C92DE2326483D90D9BFCE1984BDD6FF4AB6B7D273C3
+        ),
+        (
+            "9C009CA2F97EA2CBF28173600DEF6F7A54C5664599B8AB500EE1885A56E4F270".to_string(),
+            _9C009CA2F97EA2CBF28173600DEF6F7A54C5664599B8AB500EE1885A56E4F270
+        ),
+        (
+            "01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428".to_string(),
+            _01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428
+        )
+    ]
+    .iter()
+    .cloned()
+    .collect();
+}
 
 const CCADB_URL: &str =
     "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
@@ -107,19 +159,26 @@ pub struct CCADBEntry {
 
 impl Into<Option<Intermediary>> for CCADBEntry {
     fn into(self) -> Option<Intermediary> {
-        if self.pem_info.len() == 0 {
+        let mut pem = self.pem_info.clone();
+        match VENDORED_CERTS.get(&self.sha_256_fingerprint) {
+            None => (),
+            Some(cert) => {
+                pem = String::from_utf8(Vec::from(*cert)).unwrap();
+            }
+        }
+        if pem.len() == 0 {
             error!(
                 "No PEM attached to certificate with serial {:?}",
-                self.certificate_serial_number
+                self.sha_256_fingerprint
             );
             return None;
         }
-        let p = match x509_parser::pem::pem_to_der(self.pem_info.trim_matches('\'').as_bytes()) {
+        let p = match x509_parser::pem::pem_to_der(pem.trim_matches('\'').as_bytes()) {
             Ok(thing) => thing,
             Err(err) => {
                 error!(
                     "The following PEM failed to decode. err = {:?}, serial = {:?}",
-                    err, self.certificate_serial_number
+                    err, self.sha_256_fingerprint
                 );
                 return None;
             }
@@ -129,7 +188,7 @@ impl Into<Option<Intermediary>> for CCADBEntry {
             Err(err) => {
                 error!(
                     "The following x509 certificate failed to parse. err = {:?}, serial = {:?}",
-                    err, self.certificate_serial_number
+                    err, self.sha_256_fingerprint
                 );
                 return None;
             }
@@ -202,7 +261,8 @@ mod tests {
 
     #[test]
     fn smoke() {
-        let _: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
+        let c: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
+        let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
     }
 
     #[test]
