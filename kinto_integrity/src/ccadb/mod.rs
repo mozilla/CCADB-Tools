@@ -170,9 +170,10 @@ impl Into<Option<Intermediary>> for CCADBEntry {
                 pem = String::from_utf8(Vec::from(*cert)).unwrap();
             }
         }
-        if self.sha_256_fingerprint == BAD_CERT {
+        if self.sha_256_fingerprint == BAD_CERT{
+            panic!("YASY");
             return Some(Intermediary {
-                issuer_name: "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C"
+                issuer_name: "MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ=="
                     .to_string(),
                 serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
             });
@@ -273,10 +274,10 @@ mod tests {
     #[test]
     fn smoke() {
         let c: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
-        let s: std::collections::HashSet<String> =
-            c.report.into_iter().map(|e| e.one_crl_status).collect();
-        println!("{:?}", s);
-        //        let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
+//        let s: std::collections::HashSet<String> =
+//            c.report.into_iter().map(|e| e.one_crl_status).collect();
+//        println!("{:?}", s);
+                let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
     }
 
     #[test]
