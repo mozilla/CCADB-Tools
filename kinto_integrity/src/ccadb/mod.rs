@@ -171,7 +171,6 @@ impl Into<Option<Intermediary>> for CCADBEntry {
             }
         }
         if self.sha_256_fingerprint == BAD_CERT{
-            panic!("YASY");
             return Some(Intermediary {
                 issuer_name: "MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ=="
                     .to_string(),
