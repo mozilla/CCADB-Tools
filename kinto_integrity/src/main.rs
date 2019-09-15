@@ -91,7 +91,7 @@ fn without_revocations() -> Result<String> {
 fn ccadb_cert_storage() -> Result<String> {
     let ccadb: CCADBReport = CCADBReport::default()?;
     let cert_storage = Firefox::default()?;
-    let result: Return = (cert_storage, ccadb).into();
+    let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
     Ok(serde_json::to_string_pretty(&result)?)
 }
 
