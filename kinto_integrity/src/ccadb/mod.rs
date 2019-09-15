@@ -48,7 +48,7 @@ lazy_static!(
     static ref BAD_CERT_VALUE: Intermediary = Intermediary {
                 issuer_name: "MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ=="
                     .to_string(),
-                serial: "e7wSpVxmgAS5/ioLi2iBIA==".to_string(),
+                serial: "ALxyZmb/WL/wAuUiPK5oK/g=".to_string(),
             };
 );
 
