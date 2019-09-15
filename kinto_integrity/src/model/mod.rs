@@ -3,16 +3,14 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::collections::HashSet;
-use std::convert::{From, TryInto};
+use std::convert::From;
 
 use serde::Serialize;
 
-use crate::ccadb::CCADBReport;
+use crate::ccadb::{CCADBReport, OneCRLStatus};
 use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
-use std::fs::read;
-use std::process::exit;
 
 //1. In Kinto but not in cert_storage
 //2. In cert_storage but not in Kinto
@@ -35,16 +33,10 @@ pub struct Return {
     pub in_revocations_not_in_kinto: Option<Vec<Intermediary>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub in_kinto_not_in_revocations: Option<Vec<Intermediary>>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub in_ccadb_not_in_cert_storage: Option<Vec<Intermediary>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub in_cert_storage_not_in_ccadb: Option<Vec<Intermediary>>,
 }
 
 type WithRevocations = (CertStorage, Kinto, Revocations);
 type WithoutRevocations = (CertStorage, Kinto);
-type CCADBDiffCertStorage = (CertStorage, CCADBReport);
 
 impl From<WithRevocations> for Return {
     fn from(values: WithRevocations) -> Self {
@@ -88,8 +80,6 @@ impl From<WithRevocations> for Return {
                     .cloned()
                     .collect::<Vec<Intermediary>>(),
             ),
-            in_cert_storage_not_in_ccadb: None,
-            in_ccadb_not_in_cert_storage: None,
         }
     }
 }
@@ -115,14 +105,12 @@ impl From<WithoutRevocations> for Return {
             in_revocations_not_in_cert_storage: None,
             in_revocations_not_in_kinto: None,
             in_kinto_not_in_revocations: None,
-            in_cert_storage_not_in_ccadb: None,
-            in_ccadb_not_in_cert_storage: None,
         }
     }
 }
 
 #[derive(Serialize)]
-pub struct Thing {
+pub struct CCADBDiffCertStorage {
     pub added_and_present_in_cert_storage: Vec<Intermediary>,
     pub expired_and_present_in_cert_storage: Vec<Intermediary>,
     pub ready_to_add_and_present_in_cert_storage: Vec<Intermediary>,
@@ -135,49 +123,46 @@ pub struct Thing {
     pub no_revocation_status_and_absent_from_cert_storage: Vec<Intermediary>,
 }
 
-impl From<CCADBDiffCertStorage> for Thing {
-    fn from(values: CCADBDiffCertStorage) -> Self {
+impl From<(CertStorage, CCADBReport)> for CCADBDiffCertStorage {
+    fn from(values: (CertStorage, CCADBReport)) -> Self {
         let mut added: HashSet<Intermediary> = HashSet::new();
         let mut expired: HashSet<Intermediary> = HashSet::new();
         let mut ready: HashSet<Intermediary> = HashSet::new();
         let mut no_status: HashSet<Intermediary> = HashSet::new();
         let mut union: HashSet<Intermediary> = HashSet::new();
-        // Type deduction got horribly confused when I tried to chain these calls,
-        // so I just spread it out over several lines.
-        //
-        // 1. Map each entry to their OneCRL Status and their intermediate representation.
-        // 2. Filter out failed certificate filters (these are logged during parsing)
-        // 3. Insert the intermediate into the union set
-        // 4. Insert the intermediate into its appropriate OneCRL Status set.
-        let v: Vec<(String, Option<Intermediary>)> = values
+        values
             .1
             .report
             .into_iter()
+            // Convert the entry into an intermediate but keep around its OneCRL Status
             .map(|entry| (entry.one_crl_status.clone(), entry.into()))
-            .collect();
-        v.into_iter()
-            .filter(|e| e.1.is_some())
-            .map(|e| (e.0, e.1.unwrap()))
+            // Filter out any that failed to parse, these must be logged.
+            .filter(|e: &(String, Option<Intermediary>)| e.1.is_some())
+            .map(|e: (String, Option<Intermediary>)| (e.0, e.1.unwrap()))
+            // For each one, put their clone into the union of all entries and then
+            // put the original into its appropriate bucket.
             .for_each(|entry| {
                 union.insert(entry.1.clone());
-                match entry.0.as_str() {
-                    "" => {
+                match OneCRLStatus::from(entry.0.as_str()) {
+                    OneCRLStatus::Empty => {
                         no_status.insert(entry.1);
                     }
-                    "Ready to Add" => {
+                    OneCRLStatus::Ready => {
                         ready.insert(entry.1);
                     }
-                    "Added to OneCRL" => {
+                    OneCRLStatus::Added => {
                         added.insert(entry.1);
                     }
-                    "Cert Expired" => {
+                    OneCRLStatus::Expired => {
                         expired.insert(entry.1);
                     }
-                    _ => panic!("asdasd"),
+                    OneCRLStatus::Unknown => {
+                        error!(r#"received the unknown OneCRL status "{}""#, entry.0)
+                    }
                 }
             });
         let cert_storage: HashSet<Intermediary> = values.0.into();
-        return Thing {
+        return CCADBDiffCertStorage {
             added_and_present_in_cert_storage: added.intersection(&cert_storage).cloned().collect(),
             expired_and_present_in_cert_storage: expired
                 .intersection(&cert_storage)
@@ -210,33 +195,6 @@ impl From<CCADBDiffCertStorage> for Thing {
                 .cloned()
                 .collect(),
         };
-    }
-}
-
-impl From<CCADBDiffCertStorage> for Return {
-    fn from(values: CCADBDiffCertStorage) -> Self {
-        let cert_storage: HashSet<Intermediary> = values.0.into();
-        let ccadb: HashSet<Intermediary> = values.1.into();
-        Return {
-            in_kinto_not_in_cert_storage: None,
-            in_cert_storage_not_in_kinto: None,
-            in_cert_storage_not_in_revocations: None,
-            in_revocations_not_in_cert_storage: None,
-            in_revocations_not_in_kinto: None,
-            in_kinto_not_in_revocations: None,
-            in_ccadb_not_in_cert_storage: Some(
-                ccadb
-                    .difference(&cert_storage)
-                    .cloned()
-                    .collect::<Vec<Intermediary>>(),
-            ),
-            in_cert_storage_not_in_ccadb: Some(
-                cert_storage
-                    .difference(&ccadb)
-                    .cloned()
-                    .collect::<Vec<Intermediary>>(),
-            ),
-        }
     }
 }
 

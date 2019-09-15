@@ -16,6 +16,9 @@ use simple_asn1::ASN1Block::*;
 use simple_asn1::*;
 use x509_parser;
 
+// These certitifcates are too large to fit into the CCADB's varchar field for PEMs, so
+// we gotta just store them in this binary and associate them with their fingerprint so that
+// we can bring them in when referred to.
 const _7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C: &[u8] = include_bytes!(
     "vendored_certs/7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C.crt"
 );
@@ -35,7 +38,19 @@ const _01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428: &[u8] =
     "vendored_certs/01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428.crt"
 );
 
-const BAD_CERT: &str = "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C";
+// This certificate, for whatever reason, fails to parse. Now, this is more likely a bug in
+// our x509 parser as parsers in other languages and on the web appear to not have anyt
+// problem with it. So, until that bug gets fixed at some point, we can just match on
+// the fingerprint and swap in its hardcoded issuer/serial pair.
+const BAD_CERT_FP: &str = "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C";
+
+lazy_static!(
+    static ref BAD_CERT_VALUE: Intermediary = Intermediary {
+                issuer_name: "MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ=="
+                    .to_string(),
+                serial: "e7wSpVxmgAS5/ioLi2iBIA==".to_string(),
+            };
+);
 
 lazy_static! {
     static ref VENDORED_CERTS: HashMap<String, &'static [u8]> = [
@@ -159,7 +174,25 @@ pub struct CCADBEntry {
     pub pem_info: String,
 }
 
-//MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ==
+pub enum OneCRLStatus {
+    Empty,
+    Added,
+    Ready,
+    Expired,
+    Unknown,
+}
+
+impl OneCRLStatus {
+    pub fn from(s: &str) -> OneCRLStatus {
+        match s {
+            "" => OneCRLStatus::Empty,
+            "Ready to Add" => OneCRLStatus::Ready,
+            "Added to OneCRL" => OneCRLStatus::Added,
+            "Cert Expired" => OneCRLStatus::Expired,
+            _ => OneCRLStatus::Unknown,
+        }
+    }
+}
 
 impl Into<Option<Intermediary>> for CCADBEntry {
     fn into(self) -> Option<Intermediary> {
@@ -170,12 +203,8 @@ impl Into<Option<Intermediary>> for CCADBEntry {
                 pem = String::from_utf8(Vec::from(*cert)).unwrap();
             }
         }
-        if self.sha_256_fingerprint == BAD_CERT{
-            return Some(Intermediary {
-                issuer_name: "MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ=="
-                    .to_string(),
-                serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
-            });
+        if self.sha_256_fingerprint == BAD_CERT_FP {
+            return Some(BAD_CERT_VALUE.clone());
         }
         if pem.len() == 0 {
             error!(
@@ -273,10 +302,7 @@ mod tests {
     #[test]
     fn smoke() {
         let c: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
-//        let s: std::collections::HashSet<String> =
-//            c.report.into_iter().map(|e| e.one_crl_status).collect();
-//        println!("{:?}", s);
-                let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
+        let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
     }
 
     #[test]
@@ -306,7 +332,7 @@ mod tests {
             alternate_crl: "".to_string(),
             ocsp_urls: "".to_string(),
             comments: "".to_string(),
-            pem_info: EXAMPLE.to_string(),
+            pem_info: EXAMPLE.to_string(), // This is the relevant data member that we are testing.
         };
         let entry: Option<Intermediary> = entry.into();
         let entry = entry.unwrap();
@@ -360,40 +386,4 @@ X4FJlpsRkl3PNzxr0GNOGkC/0CfAfP/+nXs09o92ZIyWyUTliyTqn5xpcL6G/wR8
 8n7YM0TwiqPOW+VGbIaPsqzpL0zqDXk37K+mZv1dMxtn1W/77vC3vLWg8/WsyIph
 AvMUz+wbPfDMWThnRmTw+U3Wz2tflWlhkDgHYcrs
 -----END CERTIFICATE-----"#;
-
-    const BAD_CERT: &str = r#"-----BEGIN CERTIFICATE-----
-MIIEbTCCA1WgAwIBAgIRALxyZmb/WL/wAuUiPK5oK/gwDQYJKoZIhvcNAQELBQAw
-PjELMAkGA1UEBhMCUEwxGzAZBgNVBAoTElVuaXpldG8gU3AuIHogby5vLjESMBAG
-A1UEAxMJQ2VydHVtIENBMBwXCzEyMDIwMTAxNTlaFw0yMDExMDIwMTAxNTlaMFgx
-CzAJBgNVBAYTAkNOMRowGAYDVQQKExFXb1NpZ24gQ0EgTGltaXRlZDEtMCsGA1UE
-AxMkQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkgb2YgV29TaWduIEcyMIIBIjANBgkq
-hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvsXEoCKASU+/2YcRxlPhuw+9YH+v9oIO
-H9ywjj2X4FA8jzrvZjtFB5sg+OPXJYY1kBaiXW8wGQiHC38Gsp1ij96vkqVg1CuA
-mlI/9ZqD6TRay9nVYlzmDuDfBpgOgHzKtB0TiGsOqCR3A9DuW/PKaZE1OVbFbeP3
-PU9ekzgkyhjpJMuSA93MHD0JcOQg5PGurLtzaaNjOg9FD6FKmsLRY6zLEPg95k4o
-t+vElbGs/V6r+kHLXZ1L3PR8du9nfwB6jdKgGlxNIuG12t12s9R23164i5jIFFTM
-axeSt+BKv0mUYQs4kI9dJGwlezt52eJ+na2fmKEG/HgUYFf47oB3sQIDAQABo4IB
-TDCCAUgwEgYDVR0TAQH/BAgwBgEB/wIBAjAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0O
-BBYEFPpgqetlxd0WFAhODA+Nm+D3ZK9nMFIGA1UdIwRLMEmhQqRAMD4xCzAJBgNV
-BAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNl
-cnR1bSBDQYIDAQAgMDkGA1UdHwQyMDAwLqAsoCqGKGh0dHA6Ly93b3NpZ24uY3Js
-LmNlcnR1bS5ldS9jZXJ0dW1jYS5jcmwwOAYIKwYBBQUHAQEELDAqMCgGCCsGAQUF
-BzABhhxodHRwOi8vc3ViY2Eub2NzcC1jZXJ0dW0uY29tMDoGA1UdIAQzMDEwLwYE
-VR0gADAnMCUGCCsGAQUFBwIBFhlodHRwczovL3d3dy5jZXJ0dW0ucGwvQ1BTMA0G
-CSqGSIb3DQEBCwUAA4IBAQBzFbBroKWp4Bv12bVYJiRnpYXNNAh9jBsb/oHCw+I5
-wX3khi5vbKW4Kp55w3oFB4oFYKK2FmZrDZV5/TUNgxHTtlP+Ge/gs8lkk6f6QW5D
-ZN5JVVR/u4gmZdJmCC9eRoJsc3TgiH5ZGxLOtqXi3GR8hIAJVIbkqHrbfA7YAUua
-+IQP1MiL/mr08Ceq6NQY6jYD3ovJ9bx6sPSghn41TdnQL5Y2Ze7qayrh9cl5zVpU
-78CK9A6XG/zYcGdgC2wAAtOpobNsmFPJ0NR4EW7igvCq8VbKuCNIaUD6e2qOjGAA
-MrLquF5zoh4cdCw6X5o7HnYSEdfHxZuQ//FoIkEauUGp
------END CERTIFICATE-----"#;
-
-    #[test]
-    fn bad_cert() {
-        let p = x509_parser::pem::pem_to_der(BAD_CERT.trim_matches('\'').as_bytes()).unwrap();
-        p.1.parse_x509().unwrap();
-    }
-
-    #[test]
-    fn herasd() {}
 }
