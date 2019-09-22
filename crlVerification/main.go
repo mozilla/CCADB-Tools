@@ -19,10 +19,6 @@ import (
 	"time"
 )
 
-//CRL URL (can be null), Certificate Serial Number, Date of Revocation, Revocation Reason Code
-
-// http://thing.com/?crl=asdasd&serial=asdas&revocation_date=asdas&revocation_reason=asdas
-
 type Input struct {
 	Crl    *string
 	Serial *big.Int
