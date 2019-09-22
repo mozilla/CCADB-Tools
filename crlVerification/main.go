@@ -152,10 +152,9 @@ func endpoint(resp http.ResponseWriter, req *http.Request) {
 	defer func() {
 		resp.Header().Set("Content-Type", "application/json")
 		resp.WriteHeader(code)
-		fmt.Println(ret)
-		js, _ := json.Marshal(&ret)
-		fmt.Println(string(js))
-		if err := json.NewEncoder(resp).Encode(&ret); err != nil {
+		encoder := json.NewEncoder(resp)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(&ret); err != nil {
 			fmt.Println(err)
 		}
 	}()
