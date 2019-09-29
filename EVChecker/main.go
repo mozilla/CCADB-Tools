@@ -4,176 +4,258 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
+	"log"
+	"net"
 	"net/http"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
-const str = `MEUxCzAJBgNVBAYTAkNIMRUwEwYDVQQKEwxTd2lzc1NpZ24gQUcxHzAdBgNVBAMTFlN3aXNzU2lnbiBHb2xkIENBIC0gRzI=`
+const extendedValidation = "https://hg.mozilla.org/mozilla-central/raw-file/tip/security/certverifier/ExtendedValidation.cpp"
 
-func get() []byte {
-	resp, err := http.Get("https://hg.mozilla.org/mozilla-central/raw-file/tip/security/certverifier/ExtendedValidation.cpp")
+func get() ([]byte, error) {
+	client := http.Client{}
+	req, err := http.NewRequest(http.MethodGet, extendedValidation, nil)
 	if err != nil {
-		panic(err)
+		return nil, err
+	}
+	req.Header.Add("X-Automated-Tool", "https://github.com/mozilla/CCADB-Tools/EVChecker")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return b
+	return b, nil
 }
 
-const canary = `static const struct EVInfo kEVInfos.*\n(.*\n)*};`
+// Yanks out the array literal of EVInfos.
+var canary = regexp.MustCompile(`static const struct EVInfo kEVInfos.*\n(.*\n)*};`)
 
-//const commentsAndDebugPragmas = `[//.*\n|#ifdef DEBUG\n(.*\n)#endif\n]`
-const commentsAndDebugPragmas = `(//.*\n|#ifdef DEBUG.*\n(.*\n)*#endif)`
+// Strips away all comments and DEBUG pragma blocks.
+var commentsAndDebugPragmas = regexp.MustCompile(`(//.*\n|#ifdef DEBUG.*\n(.*\n)*#endif)`)
 
-const multlineString = `"\n`
-const joinMultiLine = `"\s*"`
+// Finds instances of multiline strings, E.G. any string literal this is followed by a raw newline.
+var multlineString = regexp.MustCompile(`"\s*\n`)
 
-func extract(src []byte) {
-	r, err := regexp.Compile(canary)
-	if err != nil {
-		panic(err)
-	}
-	b := r.Find(src)
-	//fmt.Println(string(b))
-	r, err = regexp.Compile(commentsAndDebugPragmas)
-	b = r.ReplaceAll(b, []byte{})
-	//fmt.Println(string(b))
-	r, err = regexp.Compile(multlineString)
-	b = r.ReplaceAll(b, []byte{'"'})
-	//fmt.Println(string(b))
-	r, err = regexp.Compile(joinMultiLine)
-	b = r.ReplaceAll(b, []byte{})
-	//fmt.Println(string(b))
-	deser(b)
+// After putting all entries of a multiline string onto the same line, we need to strip away
+// any spaces between the string entries as well as their internal quotation marks.
+var joinMultiLine = regexp.MustCompile(`"\s*"`)
+
+func extract(src []byte) ([]*EVInfo, error) {
+	b := canary.Find(src)
+	b = commentsAndDebugPragmas.ReplaceAll(b, []byte{})
+	b = multlineString.ReplaceAll(b, []byte{'"'})
+	b = joinMultiLine.ReplaceAll(b, []byte{})
+	return deser(b)
 }
 
 type EVInfo struct {
-	dottedOid         string
-	oidName           string
-	sha256Fingerprint string
-	issuer            string
-	serial            string
+	DottedOID         string
+	OIDName           string
+	SHA256Fingerprint string
+	Issuer            string
+	Serial            string
 }
 
-func deser(src []byte) {
+func deser(src []byte) ([]*EVInfo, error) {
+	kEVinfos := make([]*EVInfo, 0)
 	r := bytes.NewReader(src)
 	var b rune
 	var err error
+	// consumes all declaration info up to the opening brace that starts the array literal.
+	// 		I.E. static const struct .... {
 	for b, _, err = r.ReadRune(); err == nil && b != '{'; b, _, err = r.ReadRune() {
 	}
 	if err != nil {
-		panic(err)
+		return kEVinfos, errors.Wrap(err, "failed to begin reading the kEVinfos array")
 	}
-	//b, err = consumeWhiteSpace(r)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(src)
-	//fmt.Println(string(b))
-	fmt.Println(string(src))
 	for {
-		b, _, err = r.ReadRune()
-		switch err {
-		case nil:
-		case io.EOF:
-			return
-		default:
-			panic(err)
+		b, err := consumeWhiteSpace(r)
+		if err != nil {
+			return kEVinfos, err
 		}
 		switch b {
-		case ' ', '\n':
 		case '{':
-			fmt.Println("YA")
-			NewEVInfo(r)
-		// deser
+			// Begin an EVInfo object boundary.
+			evinfo, err := NewEVInfo(r)
+			if err != nil {
+				return kEVinfos, err
+			}
+			kEVinfos = append(kEVinfos, evinfo)
 		case '}':
-			return
+			// The end of the kEVinfo array
+			return kEVinfos, nil
 		default:
-			panic(b)
+			return kEVinfos, errors.New(fmt.Sprintf(`received an unexpected character while parsing the kEVInfos array, got ""%s"`, string(b)))
 		}
 
 	}
 }
 
-func NewEVInfo(r io.RuneReader) {
-	dottedOid := extractStringField(r)
-	fmt.Println(dottedOid)
-	oidName := extractStringField(r)
-	fmt.Println(oidName)
-	fp := extractFingerprint(r)
-	fmt.Println(fp)
-	issuer := decodeIssuer(extractStringField(r))
-	fmt.Println(issuer)
-	serial := extractStringField(r)
-	fmt.Println(serial)
-
-	consumeWhiteSpace(r)
-	r.ReadRune()
-
+func NewEVInfo(r io.RuneReader) (*EVInfo, error) {
+	dottedOid, err := extractStringField(r)
+	if err != nil {
+		return nil, err
+	}
+	oidName, err := extractStringField(r)
+	if err != nil {
+		return nil, err
+	}
+	fp, err := extractFingerprint(r)
+	if err != nil {
+		return nil, err
+	}
+	issuer, err := extractStringField(r)
+	if err != nil {
+		return nil, err
+	}
+	issuer, err = decodeIssuer(issuer)
+	if err != nil {
+		return nil, err
+	}
+	serial, err := extractStringField(r)
+	if err != nil {
+		return nil, err
+	}
+	s, err := base64.StdEncoding.DecodeString(serial)
+	if err != nil {
+		return nil, err
+	}
+	// hex Serial number left padded with 0
+	serial = fmt.Sprintf("%032X", s)
+	brace, err := consumeWhiteSpace(r)
+	if err != nil {
+		return nil, err
+	}
+	if brace != '}' {
+		return nil, errors.New(fmt.Sprintf("expected a closing brace for an EVInfo boundary, but got %s", string(brace)))
+	}
+	comma, err := consumeWhiteSpace(r)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to consume the delimiting comma between EVInfos")
+	}
+	// consume up to the , that delimits struct literal fields.
+	// This does not in any way honor the final field omitting this comma.
+	if comma != ',' {
+		return nil, errors.New(fmt.Sprintf(`expected the character "," while decoding the delimiter for an EVInfo array, got "%s"`, string(comma)))
+	}
+	return &EVInfo{
+		DottedOID:         dottedOid,
+		OIDName:           oidName,
+		SHA256Fingerprint: fp,
+		Issuer:            issuer,
+		Serial:            serial,
+	}, nil
 }
 
-func decodeIssuer(i string) string {
+func decodeIssuer(i string) (string, error) {
 	b, err := base64.StdEncoding.DecodeString(i)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	var issuer pkix.RDNSequence
 	_, err = asn1.Unmarshal(b, &issuer)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return issuer.String()
+	return issuer.String(), nil
 }
 
-func extractFingerprint(r io.RuneReader) string {
-	consumeWhiteSpace(r)
+func extractFingerprint(r io.RuneReader) (string, error) {
+	_, err := consumeWhiteSpace(r)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to consume the whitespace prefixing a fingerprint")
+	}
 	str := strings.Builder{}
 	for i := 0; i < 32; i++ {
-		consumeWhiteSpace(r)
-		r.ReadRune() // read x
-		b, _, _ := r.ReadRune()
+		zero, err := consumeWhiteSpace(r)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to consume whitespace while extracting fingerprint")
+		}
+		if zero != '0' {
+			return "", errors.New(fmt.Sprintf(`Expected the character "0" while decoding hex, got "%s"`, string(zero)))
+		}
+		x, _, err := r.ReadRune() // read the x in 0xAA
+		if err != nil {
+			return "", errors.Wrap(err, `failed to read the "x" in a hex literal`)
+		}
+		if x != 'x' {
+			return "", errors.New(fmt.Sprintf(`Expected the character "x" while decoding hex, got "%s"`, string(x)))
+		}
+		b, _, err := r.ReadRune() // get the upper byte of 0xAA
+		if err != nil {
+			return "", errors.Wrap(err, `failed to read the upper byte in a hex literal`)
+		}
 		str.WriteRune(b)
-		b, _, _ = r.ReadRune()
+		b, _, err = r.ReadRune() // get the lower byte of 0xAA
+		if err != nil {
+			return "", errors.Wrap(err, `failed to read the lower byte in a hex literal`)
+		}
 		str.WriteRune(b)
-		r.ReadRune() //,
-	}
-	r.ReadRune()
-	r.ReadRune()
-	return str.String()
-}
-
-func extractStringField(r io.RuneReader) string {
-	b, err := consumeWhiteSpace(r)
-	if err != nil {
-		panic(err)
-	}
-	if b != '"' {
-		panic("unexpected byte")
-	}
-	str := strings.Builder{}
-	for b, _, err = r.ReadRune(); err == nil && b != '"'; b, _, err = r.ReadRune() {
-		_, er := str.WriteRune(b)
-		if er != nil {
-			panic(err)
+		comma, _, err := r.ReadRune() // read the , in the array literal
+		if err != nil {
+			return "", errors.Wrap(err, `failed to read the hex literal array delimiter`)
+		}
+		if comma != ',' && comma != ' ' {
+			return "", errors.New(fmt.Sprintf(`Expected the character "," or " " while decoding the internals of a hex array, got "%s"`, string(x)))
 		}
 	}
-	b, _, err = r.ReadRune()
+	brace, err := consumeWhiteSpace(r)
 	if err != nil {
-		panic(err)
+		return "", errors.Wrap(err, "failed to consume the closing brace while extracting a fingerprint")
 	}
-	if b != ',' {
-		panic("unexpected byte")
+	if brace != '}' {
+		return "", errors.New(fmt.Sprintf(`Expected the character "}" while decoding a hex array, got "%s"`, string(brace)))
 	}
-	return str.String()
+	comma, err := consumeWhiteSpace(r)
+	if comma != ',' {
+		return "", errors.New(fmt.Sprintf(`Expected the character "," while decoding the end of a hex array, got "%s"`, string(comma)))
+	}
+	return str.String(), nil
 }
 
+func extractStringField(r io.RuneReader) (string, error) {
+	// consume whitespace up to the opening quote
+	b, err := consumeWhiteSpace(r)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to consume the leading whitespace before a string literal")
+	}
+	if b != '"' {
+		return "", errors.New(fmt.Sprintf(`expected the beginning byte of a string to be an opening quote, but we got a "%s"`, string(b)))
+	}
+	str := strings.Builder{}
+	// consume the string literal
+	// This loop does not in any way honor escaped quotes.
+	for b, _, err = r.ReadRune(); err == nil && b != '"'; b, _, err = r.ReadRune() {
+		str.WriteRune(b) // always returns a nil error
+	}
+	if err != nil {
+		return "", errors.Wrap(err, "failure occurred while consuming a string literal")
+	}
+	// consume up to the , that delimits struct literal fields.
+	// This does not in any way honor the final field omitting this comma.
+	b, err = consumeWhiteSpace(r)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to consume the leading whitespace before the string field delimiter (comma)")
+	}
+	if b != ',' {
+		return "", errors.New(fmt.Sprintf(`expected the final byte of a string field to be a comma, but we got a "%s"`, string(b)))
+	}
+	return str.String(), nil
+}
+
+// consumes all whitespace up to the next non-whitespace run and returns that rune.
 func consumeWhiteSpace(r io.RuneReader) (rune, error) {
 	var b rune
 	var err error
@@ -187,14 +269,75 @@ func consumeWhiteSpace(r io.RuneReader) (rune, error) {
 	return b, err
 }
 
-//{ 0xBC, 0x4D, 0x80, 0x9B, 0x15, 0x18, 0x9D, 0x78, 0xDB, 0x3E, 0x1D,
-//  0x8C, 0xF4, 0xF9, 0x72, 0x6A, 0x79, 0x5D, 0xA1, 0x64, 0x3C, 0xA5,
-//  0xF1, 0x35, 0x8E, 0x1D, 0xDB, 0x0E, 0xDC, 0x0D, 0x7E, 0xB3 },
+type Response struct {
+	Error   *string
+	EVInfos []*EVInfo
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	resp := Response{}
+	code := 500
+	defer func() {
+		w.WriteHeader(code)
+		encoder := json.NewEncoder(w)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(resp); err != nil {
+			log.Print(err)
+		}
+	}()
+	file, err := get()
+	if err != nil {
+		code = 500
+		errStr := err.Error()
+		resp.Error = &errStr
+		return
+	}
+	kEVInfos, err := extract(file)
+	if err != nil {
+		code = 500
+		errStr := err.Error()
+		resp.Error = &errStr
+		return
+	}
+	resp.EVInfos = kEVInfos
+}
 
 func main() {
-	//_, err := hex.DecodeString("BC")
-	//if err != nil {
-	//	panic(err)
-	//}
-	extract(get())
+	http.HandleFunc("/", handler)
+	port := Port()
+	addr := BindingAddress()
+	if err := http.ListenAndServe(addr+":"+port, nil); err != nil {
+		log.Panicln(err)
+	}
+}
+
+func Port() string {
+	return fmt.Sprintf("%d", parseIntFromEnvOrDie("PORT", 8080))
+}
+
+func BindingAddress() string {
+	switch addr := os.Getenv("ADDR"); addr {
+	case "":
+		return "0.0.0.0"
+	default:
+		_, _, err := net.ParseCIDR(addr)
+		if err != nil {
+			panic("failed to parse the provided ADDR to a valid CIDR")
+		}
+		return addr
+	}
+}
+
+func parseIntFromEnvOrDie(key string, defaultVal int) int {
+	switch val := os.Getenv(key); val {
+	case "":
+		return defaultVal
+	default:
+		i, err := strconv.ParseUint(val, 10, 32)
+		if err != nil {
+			fmt.Printf("%s (%s) could not be parsed to an integer", val, key)
+			os.Exit(1)
+		}
+		return int(i)
+	}
 }
