@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 package main // import "github.com/mozilla/CCADB-Tools"
 import (
 	"bytes"
@@ -12,17 +16,20 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-const extendedValidation = "https://hg.mozilla.org/mozilla-central/raw-file/tip/security/certverifier/ExtendedValidation.cpp"
+const nightly = "https://hg.mozilla.org/mozilla-central/raw-file/tip/security/certverifier/ExtendedValidation.cpp"
+const beta = "https://hg.mozilla.org/releases/mozilla-beta/raw-file/tip/security/certverifier/ExtendedValidation.cpp"
+const release = "https://hg.mozilla.org/releases/mozilla-release/raw-file/tip/security/certverifier/ExtendedValidation.cpp"
 
-func get() ([]byte, error) {
+func get(url string) ([]byte, error) {
 	client := http.Client{}
-	req, err := http.NewRequest(http.MethodGet, extendedValidation, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +281,49 @@ type Response struct {
 	EVInfos []*EVInfo
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func nightlyHandler(w http.ResponseWriter, r *http.Request) {
+	corehandler(w, r, nightly)
+}
+
+func betaHandler(w http.ResponseWriter, r *http.Request) {
+	corehandler(w, r, beta)
+}
+
+func releaseHandler(w http.ResponseWriter, r *http.Request) {
+	corehandler(w, r, release)
+}
+
+func givenHandler(w http.ResponseWriter, r *http.Request) {
+	u, ok := r.URL.Query()["url"]
+	if !ok {
+		w.WriteHeader(400)
+		_, err := w.Write([]byte("'url' is a required query parameter"))
+		if err != nil {
+			log.Println(err)
+		}
+		return
+	}
+	if len(u) == 0 {
+		w.WriteHeader(400)
+		_, err := w.Write([]byte("'url' query parameter may not be empty"))
+		if err != nil {
+			log.Println(err)
+		}
+		return
+	}
+	target, err := url.QueryUnescape(u[0])
+	if err != nil {
+		w.WriteHeader(400)
+		_, err = w.Write([]byte(fmt.Sprintf("failed to decode `url` query parameter, err: %s", err)))
+		if err != nil {
+			log.Println(err)
+		}
+		return
+	}
+	corehandler(w, r, target)
+}
+
+func corehandler(w http.ResponseWriter, r *http.Request, target string) {
 	resp := Response{}
 	code := 500
 	defer func() {
@@ -285,7 +334,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 		}
 	}()
-	file, err := get()
+	file, err := get(target)
 	if err != nil {
 		code = 500
 		errStr := err.Error()
@@ -303,7 +352,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/nightly", nightlyHandler)
+	http.HandleFunc("/beta", betaHandler)
+	http.HandleFunc("/release", releaseHandler)
+	http.HandleFunc("/", givenHandler)
 	port := Port()
 	addr := BindingAddress()
 	if err := http.ListenAndServe(addr+":"+port, nil); err != nil {
