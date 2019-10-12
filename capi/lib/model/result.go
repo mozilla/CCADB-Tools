@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"github.com/mozilla/CCADB-Tools/capi/lib/certificateUtils"
 	"github.com/mozilla/CCADB-Tools/capi/lib/expiration"
+	"github.com/mozilla/CCADB-Tools/capi/lib/lint/x509lint"
 	"github.com/mozilla/CCADB-Tools/capi/lib/revocation/crl"
 	"github.com/mozilla/CCADB-Tools/capi/lib/revocation/ocsp"
 )
@@ -95,9 +96,10 @@ type CertificateResult struct {
 	OCSP              []ocsp.OCSP
 	CRL               []crl.CRL
 	Expiration        expiration.ExpirationStatus
+	X509Lint x509lint.X509Lint
 }
 
-func NewCeritifcateResult(certificate *x509.Certificate, ocspResonse []ocsp.OCSP, crlStatus []crl.CRL, expirationStatus expiration.ExpirationStatus) CertificateResult {
+func NewCeritifcateResult(certificate *x509.Certificate, ocspResonse []ocsp.OCSP, crlStatus []crl.CRL, expirationStatus expiration.ExpirationStatus, x509Lint x509lint.X509Lint) CertificateResult {
 	return CertificateResult{
 		certificate,
 		certificateUtils.FingerprintOf(certificate),
@@ -106,5 +108,6 @@ func NewCeritifcateResult(certificate *x509.Certificate, ocspResonse []ocsp.OCSP
 		ocspResonse,
 		crlStatus,
 		expirationStatus,
+		x509Lint,
 	}
 }
