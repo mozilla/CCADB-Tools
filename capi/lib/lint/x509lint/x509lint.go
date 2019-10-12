@@ -50,34 +50,38 @@ func Lint(certificate *x509.Certificate) X509Lint {
 		return result
 	}
 	cmd := exec.Command("x509lint", f.Name())
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		errStr := err.Error()
-		result.CmdError = &errStr
-		return result
-	}
-	defer stdout.Close()
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		errStr := err.Error()
-		result.CmdError = &errStr
-		return result
-	}
-	defer stderr.Close()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	//stdout, err := cmd.StdoutPipe()
+	//if err != nil {
+	//	errStr := err.Error()
+	//	result.CmdError = &errStr
+	//	return result
+	//}
+	//defer stdout.Close()
+	//stderr, err := cmd.StderrPipe()
+	//if err != nil {
+	//	errStr := err.Error()
+	//	result.CmdError = &errStr
+	//	return result
+	//}
+	//defer stderr.Close()
 	err = cmd.Run()
 	if err != nil {
 		errStr := err.Error()
 		result.CmdError = &errStr
 		return result
 	}
-	output, err := ioutil.ReadAll(stdout)
+	output, err := ioutil.ReadAll(&stdout)
 	if err != nil {
 		log.Println("closing stdout")
 		errStr := err.Error()
 		result.CmdError = &errStr
 		return result
 	}
-	errors, err := ioutil.ReadAll(stderr)
+	errors, err := ioutil.ReadAll(&stderr)
 	if err != nil {
 		log.Println("closing stderr")
 		errStr := err.Error()
