@@ -3,6 +3,7 @@ package x509lint
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/pem"
 	"io/ioutil"
 	"log"
 	"os"
@@ -37,7 +38,7 @@ func Lint(certificate *x509.Certificate) X509Lint {
 			log.Println(err)
 		}
 	}()
-	_, err = f.Write(certificate.Raw)
+	err = pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
 	if err != nil {
 		errStr := err.Error()
 		result.CmdError = &errStr
