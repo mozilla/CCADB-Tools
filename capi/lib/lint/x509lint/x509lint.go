@@ -50,10 +50,10 @@ func Lint(certificate *x509.Certificate) X509Lint {
 		return result
 	}
 	cmd := exec.Command("x509lint", f.Name())
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := bytes.NewBuffer([]byte{})
+	stderr := bytes.NewBuffer([]byte{})
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	//stdout, err := cmd.StdoutPipe()
 	//if err != nil {
 	//	errStr := err.Error()
