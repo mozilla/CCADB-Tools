@@ -72,12 +72,14 @@ func Lint(certificate *x509.Certificate) X509Lint {
 	}
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
+		log.Println("closing stdout")
 		errStr := err.Error()
 		result.CmdError = &errStr
 		return result
 	}
 	errors, err := ioutil.ReadAll(stderr)
 	if err != nil {
+		log.Println("closing stderr")
 		errStr := err.Error()
 		result.CmdError = &errStr
 		return result
