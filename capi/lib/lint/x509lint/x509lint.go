@@ -19,18 +19,18 @@ type X509Lint struct {
 func LintChain(certificates []*x509.Certificate) []X509Lint {
 	results := make([]X509Lint, len(certificates))
 	for _, cert := range certificates {
-		results = append(results, *Lint(cert))
+		results = append(results, Lint(cert))
 	}
 	return results
 }
 
-func Lint(certificate *x509.Certificate) (result *X509Lint) {
-	result = NewX509Lint()
+func Lint(certificate *x509.Certificate) X509Lint {
+	result := NewX509Lint()
 	f, err := ioutil.TempFile("", "x509lint")
 	if err != nil {
 		errStr := err.Error()
 		result.CmdError = &errStr
-		return
+		return result
 	}
 	defer func() {
 		if err := os.Remove(f.Name()); err != nil {
@@ -42,45 +42,45 @@ func Lint(certificate *x509.Certificate) (result *X509Lint) {
 	if err != nil {
 		errStr := err.Error()
 		result.CmdError = &errStr
-		return
+		return result
 	}
 	defer stdout.Close()
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		errStr := err.Error()
 		result.CmdError = &errStr
-		return
+		return result
 	}
 	defer stderr.Close()
 	err = cmd.Run()
 	if err != nil {
 		errStr := err.Error()
 		result.CmdError = &errStr
-		return
+		return result
 	}
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		errStr := err.Error()
 		result.CmdError = &errStr
-		return
+		return result
 	}
 	errors, err := ioutil.ReadAll(stderr)
 	if err != nil {
 		errStr := err.Error()
 		result.CmdError = &errStr
-		return
+		return result
 	}
 	if string(errors) != "" {
 		errStr := string(errors)
 		result.CmdError = &errStr
-		return
+		return result
 	}
-	parseOutput(output, result)
-	return
+	parseOutput(output, &result)
+	return result
 }
 
-func NewX509Lint() *X509Lint {
-	return &X509Lint{
+func NewX509Lint() X509Lint {
+	return X509Lint{
 		Errors:   make([]string, 0),
 		Warnings: make([]string, 0),
 		Info:     make([]string, 0),
