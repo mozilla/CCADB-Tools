@@ -96,7 +96,7 @@ type CertificateResult struct {
 	OCSP              []ocsp.OCSP
 	CRL               []crl.CRL
 	Expiration        expiration.ExpirationStatus
-	X509Lint x509lint.X509Lint
+	X509Lint          x509lint.X509Lint
 }
 
 func NewCeritifcateResult(certificate *x509.Certificate, ocspResonse []ocsp.OCSP, crlStatus []crl.CRL, expirationStatus expiration.ExpirationStatus, x509Lint x509lint.X509Lint) CertificateResult {
