@@ -37,6 +37,18 @@ func Lint(certificate *x509.Certificate) X509Lint {
 			log.Println(err)
 		}
 	}()
+	_, err = f.Write(certificate.Raw)
+	if err != nil {
+		errStr := err.Error()
+		result.CmdError = &errStr
+		return result
+	}
+	err = f.Close()
+	if err != nil {
+		errStr := err.Error()
+		result.CmdError = &errStr
+		return result
+	}
 	cmd := exec.Command("x509lint", f.Name())
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
