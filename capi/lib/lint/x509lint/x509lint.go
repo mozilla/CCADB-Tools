@@ -19,8 +19,8 @@ type X509Lint struct {
 
 func LintChain(certificates []*x509.Certificate) []X509Lint {
 	results := make([]X509Lint, len(certificates))
-	for _, cert := range certificates {
-		results = append(results, Lint(cert))
+	for i, cert := range certificates {
+		results[i] = Lint(cert)
 	}
 	return results
 }
@@ -55,20 +55,6 @@ func Lint(certificate *x509.Certificate) X509Lint {
 	stderr := bytes.NewBuffer([]byte{})
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	//stdout, err := cmd.StdoutPipe()
-	//if err != nil {
-	//	errStr := err.Error()
-	//	result.CmdError = &errStr
-	//	return result
-	//}
-	//defer stdout.Close()
-	//stderr, err := cmd.StderrPipe()
-	//if err != nil {
-	//	errStr := err.Error()
-	//	result.CmdError = &errStr
-	//	return result
-	//}
-	//defer stderr.Close()
 	err = cmd.Run()
 	if err != nil {
 		errStr := err.Error()
