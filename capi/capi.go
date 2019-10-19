@@ -5,6 +5,7 @@
 package main // import "github.com/mozilla/CCADB-Tools/capi"
 
 import (
+	"bufio"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -53,10 +54,12 @@ func main() {
 	verifyCCADBLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(verifyFromCCADB))
 	verifyFromCertificateDetailsLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(verifyFromCertificateDetails))
 	lintCCADBLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(lintFromCCADB))
+	lintFromCertificateDetailsLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(lintFromCertificateDetails))
 	http.Handle("/", verifyLimiter)
 	http.Handle("/fromreport", verifyCCADBLimiter)
 	http.Handle("/fromCertificateDetails", verifyFromCertificateDetailsLimiter)
 	http.Handle("/lintFromReport", lintCCADBLimiter)
+	http.Handle("/lintFromCertificateDetails", lintFromCertificateDetailsLimiter)
 	port := Port()
 	addr := BindingAddress()
 	log.WithFields(log.Fields{"Binding Address": addr, "Port": port}).Info("Starting server")
@@ -373,6 +376,55 @@ func lintFromCCADB(resp http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	resp.Write([]byte{']'})
+}
+
+func lintFromCertificateDetails(resp http.ResponseWriter, req *http.Request) {
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		//@TODO
+	}
+	var records model.CCADBRecords
+	err = json.Unmarshal(body, &records)
+	if err != nil {
+		//@TODO
+	}
+	answers := make(chan model.ChainLintResult, len(records.CertificateDetails))
+	work := make(chan model.CCADBRecord, len(records.CertificateDetails))
+	for _, record := range records.CertificateDetails {
+		work <- record
+	}
+	close(work)
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for record := range work {
+				answers <- lintSubject(record.TestWebsiteValid)
+				answers <- lintSubject(record.TestWebsiteExpired)
+				answers <- lintSubject(record.TestWebsiteRevoked)
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(answers)
+	}()
+	total := len(records.CertificateDetails) * 3
+	w := bufio.NewWriter(resp)
+	w.Write([]byte{'['})
+	jsonResp := json.NewEncoder(w)
+	jsonResp.SetIndent("", "    ")
+	i := 0
+	for answer := range answers {
+		i++
+		jsonResp.Encode(answer)
+		if i < total {
+			w.Write([]byte{','})
+		}
+	}
+	w.Write([]byte{']'})
+	w.Flush()
 }
 
 func lintSubject(subject string) model.ChainLintResult {
