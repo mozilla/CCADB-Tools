@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"github.com/mozilla/CCADB-Tools/capi/lib/certificateUtils"
 	"github.com/mozilla/CCADB-Tools/capi/lib/expiration"
-	"github.com/mozilla/CCADB-Tools/capi/lib/lint/certlint"
-	"github.com/mozilla/CCADB-Tools/capi/lib/lint/x509lint"
 	"github.com/mozilla/CCADB-Tools/capi/lib/model"
 	"github.com/mozilla/CCADB-Tools/capi/lib/revocation/crl"
 	"github.com/mozilla/CCADB-Tools/capi/lib/revocation/ocsp"
@@ -35,12 +33,10 @@ func VerifyChain(chain []*x509.Certificate) model.ChainResult {
 	}
 	ocsps := ocsp.VerifyChain(chain)
 	crls := crl.VerifyChain(chain)
-	x509lints := x509lint.LintChain(chain)
-	certlints := certlint.LintCerts(chain)
-	result.Leaf = model.NewCeritifcateResult(chain[0], ocsps[0], crls[0], expirations[0], x509lints[0], certlints[0])
+	result.Leaf = model.NewCeritifcateResult(chain[0], ocsps[0], crls[0], expirations[0])
 
 	ca := len(chain) - 1
-	result.Root = model.NewCeritifcateResult(chain[ca], ocsps[ca], crls[ca], expirations[ca], x509lints[ca], certlints[ca])
+	result.Root = model.NewCeritifcateResult(chain[ca], ocsps[ca], crls[ca], expirations[ca])
 
 	// Just a leaf and its root, no intermediates.
 	if len(chain) <= 2 {
@@ -49,7 +45,7 @@ func VerifyChain(chain []*x509.Certificate) model.ChainResult {
 
 	result.Intermediates = make([]model.CertificateResult, len(chain[1:len(chain)-1]))
 	for i := 1; i < len(chain)-1; i++ {
-		result.Intermediates[i-1] = model.NewCeritifcateResult(chain[i], ocsps[i], crls[i], expirations[i], x509lints[i], certlints[i])
+		result.Intermediates[i-1] = model.NewCeritifcateResult(chain[i], ocsps[i], crls[i], expirations[i])
 	}
 
 	return result

@@ -1,9 +1,14 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 package certlint
 
 import (
 	"bytes"
 	"crypto/x509"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 )
@@ -14,53 +19,57 @@ const CABLINT = `/opt/certlint/bin/cablint`
 
 type Certlint struct {
 	Certlint certlint
-	Cablint certlint
+	Cablint  certlint
 }
 
-func LintCerts(certificates []*x509.Certificate) []Certlint {
+func LintCerts(certificates []*x509.Certificate) ([]Certlint, error) {
 	lints := make([]Certlint, len(certificates))
 	for i, cert := range certificates {
-		lints[i] = Lint(cert)
+		l, err := Lint(cert)
+		if err != nil {
+			return lints, err
+		}
+		lints[i] = l
 	}
-	return lints
+	return lints, nil
 }
 
-func Lint(certificate *x509.Certificate) Certlint {
+func Lint(certificate *x509.Certificate) (Certlint, error) {
 	var result Certlint
 	f, err := ioutil.TempFile("", "certlint")
 	if err != nil {
-		panic(err)
+		return result, err
 	}
 	defer os.Remove(f.Name())
 	defer f.Close()
 	err = ioutil.WriteFile(f.Name(), certificate.Raw, 066)
 	if err != nil {
-		panic(err)
+		return result, err
 	}
 	result.Certlint = lint(f.Name(), CERTLINT)
 	result.Cablint = lint(f.Name(), CABLINT)
-	return result
+	return result, nil
 }
 
 type certlint struct {
-	Bug []string
-	Info []string
-	Notices []string
+	Bug      []string
+	Info     []string
+	Notices  []string
 	Warnings []string
-	Errors []string
-	Fatal []string
+	Errors   []string
+	Fatal    []string
 	CmdError *string
 }
 
 func NewCertlint() certlint {
 	return certlint{
-		Bug:  make([]string, 0),
-		Info:    make([]string, 0),
+		Bug:      make([]string, 0),
+		Info:     make([]string, 0),
 		Notices:  make([]string, 0),
 		Warnings: make([]string, 0),
 		Errors:   make([]string, 0),
-		Fatal:   make([]string, 0),
-		CmdError:nil,
+		Fatal:    make([]string, 0),
+		CmdError: nil,
 	}
 }
 
@@ -99,13 +108,12 @@ func lint(fname, tool string) certlint {
 }
 
 //
-    //B: Bug. Your certificate has a feature not handled by certlint.
-    //I: Information. These are purely informational; no action is needed.
-    //N: Notice. These are items known to cause issues with one or more implementations of certificate processing but are not errors according to the standard.
-    //W: Warning. These are issues where a standard recommends differently but the standard uses terms such as "SHOULD" or "MAY".
-    //E: Error. These are issues where the certificate is not compliant with the standard.
-    //F: Fatal Error. These errors are fatal to the checks and prevent most further checks from being executed. These are extremely bad errors.
-
+// B: Bug. Your certificate has a feature not handled by certlint.
+// I: Information. These are purely informational; no action is needed.
+// N: Notice. These are items known to cause issues with one or more implementations of certificate processing but are not errors according to the standard.
+// W: Warning. These are issues where a standard recommends differently but the standard uses terms such as "SHOULD" or "MAY".
+// E: Error. These are issues where the certificate is not compliant with the standard.
+// F: Fatal Error. These errors are fatal to the checks and prevent most further checks from being executed. These are extremely bad errors.
 func parseOutput(output []byte, result *certlint) {
 	for _, line := range bytes.Split(output, []byte{'\n'}) {
 		if bytes.HasPrefix(line, []byte("B: ")) {
@@ -120,6 +128,8 @@ func parseOutput(output []byte, result *certlint) {
 			result.Errors = append(result.Errors, string(line[3:]))
 		} else if bytes.HasPrefix(line, []byte("F: ")) {
 			result.Fatal = append(result.Fatal, string(line[3:]))
+		} else {
+			log.Printf(`unexpected certlint output: "%s"\n`, string(output))
 		}
 	}
 }
