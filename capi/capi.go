@@ -55,11 +55,13 @@ func main() {
 	verifyFromCertificateDetailsLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(verifyFromCertificateDetails))
 	lintCCADBLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(lintFromCCADB))
 	lintFromCertificateDetailsLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(lintFromCertificateDetails))
+	lintFromSubjectLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(lintFromSubject))
 	http.Handle("/", verifyLimiter)
 	http.Handle("/fromreport", verifyCCADBLimiter)
 	http.Handle("/fromCertificateDetails", verifyFromCertificateDetailsLimiter)
 	http.Handle("/lintFromReport", lintCCADBLimiter)
 	http.Handle("/lintFromCertificateDetails", lintFromCertificateDetailsLimiter)
+	http.Handle("/lintFromSubject", lintFromSubjectLimiter)
 	port := Port()
 	addr := BindingAddress()
 	log.WithFields(log.Fields{"Binding Address": addr, "Port": port}).Info("Starting server")
@@ -425,6 +427,31 @@ func lintFromCertificateDetails(resp http.ResponseWriter, req *http.Request) {
 	}
 	w.Write([]byte{']'})
 	w.Flush()
+}
+
+func lintFromSubject(w http.ResponseWriter, req *http.Request) {
+	query, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("malformed query string, " + err.Error()))
+		return
+	}
+	s, ok := query["subject"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("'subject' query parameter is required"))
+		return
+	}
+	if len(s) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("'subject' query parameter may not be empty"))
+		return
+	}
+	result := lintSubject(s[0])
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	encoder.Encode(result)
+	w.WriteHeader(http.StatusOK)
 }
 
 func lintSubject(subject string) model.ChainLintResult {
