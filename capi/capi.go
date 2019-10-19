@@ -56,7 +56,7 @@ func main() {
 	http.Handle("/", verifyLimiter)
 	http.Handle("/fromreport", verifyCCADBLimiter)
 	http.Handle("/fromCertificateDetails", verifyFromCertificateDetailsLimiter)
-	http.Handle("/lintFromReprot", lintCCADBLimiter)
+	http.Handle("/lintFromReport", lintCCADBLimiter)
 	port := Port()
 	addr := BindingAddress()
 	log.WithFields(log.Fields{"Binding Address": addr, "Port": port}).Info("Starting server")
@@ -395,7 +395,7 @@ func lintSubject(subject string) model.ChainLintResult {
 		result.Error = fmt.Sprintf("certificate chain contains %d certificates", len(chain))
 		result.Opinion.Result = model.FAIL
 		result.Opinion.Errors = append(result.Opinion.Errors, model.Concern{
-			Raw:            err.Error(),
+			Raw:            result.Error,
 			Interpretation: "The subject test website failed to provide a certificate chain with at least two certificates.",
 			Advise:         "Please check that " + subject + " is up and responding on an HTTPS endpoint and is not using a trust anchor as the sole certificate.",
 		})

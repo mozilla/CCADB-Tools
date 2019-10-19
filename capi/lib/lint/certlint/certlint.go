@@ -128,8 +128,10 @@ func parseOutput(output []byte, result *certlint) {
 			result.Errors = append(result.Errors, string(line[3:]))
 		} else if bytes.HasPrefix(line, []byte("F: ")) {
 			result.Fatal = append(result.Fatal, string(line[3:]))
+		} else if bytes.Equal(line, []byte("")) {
+			//
 		} else {
-			log.Printf(`unexpected certlint output: "%s"\n`, string(output))
+			log.Printf(`unexpected certlint output: "%s"`, string(output))
 		}
 	}
 }
