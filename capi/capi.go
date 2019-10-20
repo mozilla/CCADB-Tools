@@ -5,12 +5,15 @@
 package main // import "github.com/mozilla/CCADB-Tools/capi"
 
 import (
+	"bufio"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"github.com/mozilla/CCADB-Tools/capi/lib/ccadb"
 	"github.com/mozilla/CCADB-Tools/capi/lib/certificateUtils"
+	"github.com/mozilla/CCADB-Tools/capi/lib/lint/certlint"
+	"github.com/mozilla/CCADB-Tools/capi/lib/lint/x509lint"
 	"github.com/mozilla/CCADB-Tools/capi/lib/model"
 	"github.com/mozilla/CCADB-Tools/capi/lib/service"
 	"github.com/natefinch/lumberjack"
@@ -50,13 +53,19 @@ func main() {
 	verifyLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(verify))
 	verifyCCADBLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(verifyFromCCADB))
 	verifyFromCertificateDetailsLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(verifyFromCertificateDetails))
+	lintCCADBLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(lintFromCCADB))
+	lintFromCertificateDetailsLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(lintFromCertificateDetails))
+	lintFromSubjectLimiter := httpRateLimiter.RateLimit(http.HandlerFunc(lintFromSubject))
 	http.Handle("/", verifyLimiter)
 	http.Handle("/fromreport", verifyCCADBLimiter)
 	http.Handle("/fromCertificateDetails", verifyFromCertificateDetailsLimiter)
+	http.Handle("/lintFromReport", lintCCADBLimiter)
+	http.Handle("/lintFromCertificateDetails", lintFromCertificateDetailsLimiter)
+	http.Handle("/lintFromSubject", lintFromSubjectLimiter)
 	port := Port()
 	addr := BindingAddress()
 	log.WithFields(log.Fields{"Binding Address": addr, "Port": port}).Info("Starting server")
-	if err := http.ListenAndServe(addr+":"+string(port), nil); err != nil {
+	if err := http.ListenAndServe(addr+":"+port, nil); err != nil {
 		log.Panicln(err)
 	}
 }
@@ -317,6 +326,188 @@ func test(subject string, root *x509.Certificate, expectation service.Expectatio
 	// And, finally, fill out chain verification information.
 	result.Chain = service.VerifyChain(chain)
 	service.InterpretResult(&result, expectation)
+	return result
+}
+
+func lintFromCCADB(resp http.ResponseWriter, _ *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error(err)
+		}
+	}()
+	report, err := ccadb.NewReport()
+	if err != nil {
+		resp.WriteHeader(500)
+		resp.Write([]byte(err.Error()))
+		return
+	}
+	ret := make(chan model.ChainLintResult, 30)
+	work := make(chan ccadb.Record, len(report.Records))
+	for _, record := range report.Records {
+		work <- record
+	}
+	close(work)
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for record := range work {
+				ret <- lintSubject(record.TestWebsiteValid())
+				ret <- lintSubject(record.TestWebsiteExpired())
+				ret <- lintSubject(record.TestWebsiteRevoked())
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(ret)
+	}()
+	resp.Write([]byte{'['})
+	jsonResp := json.NewEncoder(resp)
+	jsonResp.SetIndent("", "    ")
+	i := 0
+	for answer := range ret {
+		i++
+		jsonResp.Encode(answer)
+		if i < len(report.Records)*3 {
+			resp.Write([]byte{','})
+		}
+		if flusher, ok := resp.(http.Flusher); ok {
+			flusher.Flush()
+		}
+	}
+	resp.Write([]byte{']'})
+}
+
+func lintFromCertificateDetails(resp http.ResponseWriter, req *http.Request) {
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		//@TODO
+	}
+	var records model.CCADBRecords
+	err = json.Unmarshal(body, &records)
+	if err != nil {
+		//@TODO
+	}
+	answers := make(chan model.ChainLintResult, len(records.CertificateDetails))
+	work := make(chan model.CCADBRecord, len(records.CertificateDetails))
+	for _, record := range records.CertificateDetails {
+		work <- record
+	}
+	close(work)
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for record := range work {
+				answers <- lintSubject(record.TestWebsiteValid)
+				answers <- lintSubject(record.TestWebsiteExpired)
+				answers <- lintSubject(record.TestWebsiteRevoked)
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(answers)
+	}()
+	total := len(records.CertificateDetails) * 3
+	w := bufio.NewWriter(resp)
+	w.Write([]byte{'['})
+	jsonResp := json.NewEncoder(w)
+	jsonResp.SetIndent("", "    ")
+	i := 0
+	for answer := range answers {
+		i++
+		jsonResp.Encode(answer)
+		if i < total {
+			w.Write([]byte{','})
+		}
+	}
+	w.Write([]byte{']'})
+	w.Flush()
+}
+
+func lintFromSubject(w http.ResponseWriter, req *http.Request) {
+	query, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("malformed query string, " + err.Error()))
+		return
+	}
+	s, ok := query["subject"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("'subject' query parameter is required"))
+		return
+	}
+	if len(s) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("'subject' query parameter may not be empty"))
+		return
+	}
+	result := lintSubject(s[0])
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	encoder.Encode(result)
+	w.WriteHeader(http.StatusOK)
+}
+
+func lintSubject(subject string) model.ChainLintResult {
+	result := model.NewChainLintResult(subject)
+	if subject == "" {
+		return result
+	}
+	chain, err := certificateUtils.GatherCertificateChain(subject)
+	if err != nil {
+		result.Error = err.Error()
+		result.Opinion.Result = model.FAIL
+		result.Opinion.Errors = append(result.Opinion.Errors, model.Concern{
+			Raw:            err.Error(),
+			Interpretation: "The subject test website failed to respond within 10 seconds.",
+			Advise:         "Please check that " + subject + " is up and responding in a reasonable time.",
+		})
+		return result
+	}
+	if len(chain) <= 1 {
+		result.Error = fmt.Sprintf("certificate chain contains %d certificates", len(chain))
+		result.Opinion.Result = model.FAIL
+		result.Opinion.Errors = append(result.Opinion.Errors, model.Concern{
+			Raw:            result.Error,
+			Interpretation: "The subject test website failed to provide a certificate chain with at least two certificates.",
+			Advise:         "Please check that " + subject + " is up and responding on an HTTPS endpoint and is not using a trust anchor as the sole certificate.",
+		})
+		return result
+	}
+	chainWithoutRoot := chain[:len(chain)-1]
+	clint, err := certlint.LintCerts(chainWithoutRoot)
+	if err != nil {
+		result.Error = err.Error()
+		result.Opinion.Result = model.FAIL
+		result.Opinion.Errors = append(result.Opinion.Errors, model.Concern{
+			Raw:            err.Error(),
+			Interpretation: "An internal error appears to have occurred while using certlint",
+			Advise:         "Please report this error.",
+		})
+		return result
+	}
+	xlint, err := x509lint.LintChain(chainWithoutRoot)
+	if err != nil {
+		result.Error = err.Error()
+		result.Opinion.Result = model.FAIL
+		result.Opinion.Errors = append(result.Opinion.Errors, model.Concern{
+			Raw:            err.Error(),
+			Interpretation: "An internal error appears to have occurred while using x509lint",
+			Advise:         "Please report this error.",
+		})
+		return result
+	}
+	lintResults := make([]model.CertificateLintResult, len(chainWithoutRoot))
+	for i := 0; i < len(lintResults); i++ {
+		lintResults[i] = model.NewCertificateLintResult(xlint[i], clint[i])
+	}
+	result.Finalize(lintResults[0], lintResults[1:])
 	return result
 }
 
