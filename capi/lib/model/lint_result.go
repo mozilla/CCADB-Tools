@@ -1,6 +1,8 @@
 package model
 
 import (
+	"crypto/x509"
+	"github.com/mozilla/CCADB-Tools/capi/lib/certificateUtils"
 	"github.com/mozilla/CCADB-Tools/capi/lib/lint/certlint"
 	"github.com/mozilla/CCADB-Tools/capi/lib/lint/x509lint"
 )
@@ -100,11 +102,13 @@ func interpretLint(c CertificateLintResult, opinion *Opinion) {
 type CertificateLintResult struct {
 	X509Lint x509lint.X509Lint
 	Certlint certlint.Certlint
+	CrtSh    string
 }
 
-func NewCertificateLintResult(X509 x509lint.X509Lint, clint certlint.Certlint) CertificateLintResult {
+func NewCertificateLintResult(original *x509.Certificate, X509 x509lint.X509Lint, clint certlint.Certlint) CertificateLintResult {
 	return CertificateLintResult{
 		X509Lint: X509,
 		Certlint: clint,
+		CrtSh:    "https://crt.sh/?q=" + certificateUtils.FingerprintOf(original),
 	}
 }

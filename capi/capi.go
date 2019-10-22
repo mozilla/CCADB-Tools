@@ -505,7 +505,7 @@ func lintSubject(subject string) model.ChainLintResult {
 	}
 	lintResults := make([]model.CertificateLintResult, len(chainWithoutRoot))
 	for i := 0; i < len(lintResults); i++ {
-		lintResults[i] = model.NewCertificateLintResult(xlint[i], clint[i])
+		lintResults[i] = model.NewCertificateLintResult(chainWithoutRoot[i], xlint[i], clint[i])
 	}
 	result.Finalize(lintResults[0], lintResults[1:])
 	return result
