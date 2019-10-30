@@ -10,7 +10,9 @@ impl Revocation {
     pub fn to_cert_storage(&self) -> Vec<u8> {
         let i = base64::decode(&self.issuer).unwrap();
         let s = base64::decode(&self.serial).unwrap();
-        vec![vec![b'i', b's'], i, s].concat()
+        let ret = vec![vec![b'i', b's'], i, s].concat();
+        println!("{:?}", ret);
+        ret
     }
 }
 
@@ -38,8 +40,8 @@ mod tests {
     use std::path::PathBuf;
     use crate::cert_storage;
 
-    const mozi: &str = "ME0xCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxJzAlBgNVBAMTHkRpZ2lDZXJ0IFNIQTIgU2VjdXJlIFNlcnZlciBDQQ==";
-    const mozs: &str = "DJduPkI49CDWPd+G7+u6kA==";
+    const mozi: &str = "MEYxCzAJBgNVBAYTAlVTMQ8wDQYDVQQKEwZBbWF6b24xFTATBgNVBAsTDFNlcnZlciBDQSAxQjEPMA0GA1UEAxMGQW1hem9u";
+    const mozs: &str = "Djr7lDTxEblG+13uaFQgnQ==";
 //    const p: &str = r#"C:\Users\Christopher Henderso\AppData\Roaming\Mozilla\Firefox\Profiles\b1e6quep.default-nightly\security_state\data.mdb"#;
     const p: &str = r#"H:\CCADB-Tools\oneCRL2CertStorage\data.mdb"#;
     #[test]
