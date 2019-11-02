@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"reflect"
 )
 
 type X509Lint struct {
@@ -21,10 +22,33 @@ type X509Lint struct {
 	CmdError *string
 }
 
+type certType int
+
+const (
+	subscriber certType = iota
+	intermediate
+	ca
+)
+
+var certTypeToStr = map[certType]string{
+	subscriber:   "subscriber",
+	intermediate: "intermediate",
+	ca:           "ca",
+}
+
 func LintChain(certificates []*x509.Certificate) ([]X509Lint, error) {
 	results := make([]X509Lint, len(certificates))
 	for i, cert := range certificates {
-		l, err := Lint(cert)
+		var ct certType
+		switch {
+		case i == 0:
+			ct = subscriber
+		case reflect.DeepEqual(cert.Subject, cert.Issuer):
+			ct = ca
+		default:
+			ct = intermediate
+		}
+		l, err := Lint(cert, ct)
 		if err != nil {
 			return results, err
 		}
@@ -33,7 +57,7 @@ func LintChain(certificates []*x509.Certificate) ([]X509Lint, error) {
 	return results, nil
 }
 
-func Lint(certificate *x509.Certificate) (X509Lint, error) {
+func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
 	result := NewX509Lint()
 	f, err := ioutil.TempFile("", "x509lint")
 	if err != nil {
@@ -52,7 +76,7 @@ func Lint(certificate *x509.Certificate) (X509Lint, error) {
 	if err != nil {
 		return result, err
 	}
-	cmd := exec.Command("x509lint", f.Name())
+	cmd := exec.Command("x509lint", f.Name(), certTypeToStr[ctype])
 	stdout := bytes.NewBuffer([]byte{})
 	stderr := bytes.NewBuffer([]byte{})
 	cmd.Stdout = stdout
