@@ -92,7 +92,7 @@ func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
 		return result, err
 	}
 	if cmderr != nil {
-		errStr := fmt.Sprintf("%s: %s %s %s %s", cmderr, string(errors), "x509lint", f.Name(), certTypeToStr[ctype])
+		errStr := fmt.Sprintf("%s, stderr: %s, stdout: %s, cmd: %s %s %s", cmderr, string(errors), string(output), "x509lint", f.Name(), certTypeToStr[ctype])
 		result.CmdError = &errStr
 		// This has the slight distinction of being an error
 		// from x509lint itself rather than from, say,
