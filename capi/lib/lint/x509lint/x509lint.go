@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -81,10 +82,7 @@ func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
 	stderr := bytes.NewBuffer([]byte{})
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	err = cmd.Run()
-	if err != nil {
-		return result, err
-	}
+	cmderr := cmd.Run()
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		return result, err
@@ -93,12 +91,12 @@ func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
 	if err != nil {
 		return result, err
 	}
-	if string(errors) != "" {
-		errStr := string(errors)
+	if cmderr != nil {
+		errStr := fmt.Sprintf("%s: %s", cmderr, string(errors))
 		result.CmdError = &errStr
 		// This has the slight distinction of being an error
 		// from x509lint itself rather than from, say,
-		// the filesystem failing.
+		// the filesystem or shell failing.
 		return result, nil
 	}
 	parseOutput(output, &result)
