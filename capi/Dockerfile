@@ -15,9 +15,12 @@ ENV CGO_ENABLED=0
 RUN apt-get update
 RUN apt-get install -y libnss3-tools libssl-dev ruby-dev
 RUN go build capi.go
-RUN git clone https://github.com/kroeckx/x509lint.git && \
+RUN git clone https://github.com/christopher-henderson/x509lint.git && \
     cd x509lint && \
     make
+#RUN git clone https://github.com/kroeckx/x509lint.git && \
+#    cd x509lint && \
+#    make
 
 FROM alpine:latest
 
