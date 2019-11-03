@@ -17,7 +17,6 @@ RUN apt-get install -y libnss3-tools libssl-dev ruby-dev
 RUN go build capi.go
 RUN git clone https://github.com/christopher-henderson/x509lint.git && \
     cd x509lint && \
-    git checkout type && \
     make
 #RUN git clone https://github.com/kroeckx/x509lint.git && \
 #    cd x509lint && \
