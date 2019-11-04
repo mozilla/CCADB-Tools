@@ -166,8 +166,6 @@ pub struct CCADBEntry {
     pub crl_urls: String,
     #[serde(alias = "Alternate CRL")]
     pub alternate_crl: String,
-    #[serde(alias = "OCSP URL(s)")]
-    pub ocsp_urls: String,
     #[serde(alias = "Comments")]
     pub comments: String,
     #[serde(alias = "PEM Info")]
