@@ -115,6 +115,10 @@ func NewX509Lint() X509Lint {
 func parseOutput(output []byte, result *X509Lint) {
 	for _, line := range bytes.Split(output, []byte{'\n'}) {
 		if bytes.HasPrefix(line, []byte("E: ")) {
+			if bytes.Contains(line, []byte("Fails decoding the characterset")) {
+				// @TODO We currently have no notion as why this happens, so we are ignoring it for now.
+				continue
+			}
 			result.Errors = append(result.Errors, string(line[3:]))
 		} else if bytes.HasPrefix(line, []byte("W: ")) {
 			result.Warnings = append(result.Warnings, string(line[3:]))
