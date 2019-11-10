@@ -206,16 +206,21 @@ pub struct Intermediary {
 
 impl Intermediary {
     pub fn new(issuer: String, serial: String) -> Intermediary {
-        let cmd = std::process::Command::new("/opt/consultant").arg(&issuer).output();
+        let cmd = std::process::Command::new("/opt/consultant")
+            .arg(&issuer)
+            .output();
         let i = match cmd {
-            Ok(out) => unsafe{String::from_utf8_unchecked(out.stdout)},
-            Err(err) => issuer
+            Ok(out) => unsafe { String::from_utf8_unchecked(out.stdout) },
+            Err(_) => issuer,
         };
         let s = match base64::decode(serial.as_bytes()) {
             Ok(s) => Intermediary::btoh(&s),
-            Err(err) => serial
+            Err(_) => serial,
         };
-        Intermediary{issuer_name: i, serial: s}
+        Intermediary {
+            issuer_name: i,
+            serial: s,
+        }
     }
 
     pub fn btoh(input: &[u8]) -> String {
@@ -235,7 +240,7 @@ impl Intermediary {
 #[cfg(test)]
 mod testsasdas {
     use super::*;
-    
+
     #[test]
     fn asdasd() {
         let b = base64::decode("F5Bg+EziQQ==").unwrap();
@@ -256,10 +261,6 @@ impl From<Revocations> for HashSet<Intermediary> {
         for issuer in revocations.data.into_iter() {
             for serial in issuer.serials.into_iter() {
                 set.insert(Intermediary::new(issuer.issuer_name.clone(), serial));
-//                set.insert(Intermediary {
-//                    issuer_name: issuer.issuer_name.clone(),
-//                    serial: serial,
-//                });
             }
         }
         set
@@ -278,10 +279,6 @@ impl From<Kinto> for HashSet<Intermediary> {
         let mut set: HashSet<Intermediary> = HashSet::new();
         for entry in kinto.data.into_iter() {
             set.insert(Intermediary::new(entry.issuer_name, entry.serial_number));
-//            set.insert(Intermediary {
-//                issuer_name: entry.issuer_name,
-//                serial: entry.serial_number,
-//            });
         }
         set
     }
@@ -292,10 +289,6 @@ impl From<CertStorage> for HashSet<Intermediary> {
         cs.data
             .into_iter()
             .map(|is| Intermediary::new(is.issuer_name, is.serial))
-//                Intermediary {
-//                issuer_name: is.issuer_name,
-//                serial: is.serial,
-//            })
             .collect()
     }
 }
