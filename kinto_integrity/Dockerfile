@@ -17,6 +17,6 @@ RUN apt-get install xvfb libssl-dev ca-certificates libgtk-3-0 libdbus-glib-1-2 
 RUN apt-get clean
 
 COPY --from=buildStage /opt/target/release/kinto_integrity /opt/
-COPY --from=builStage /opt/consultant /opt/
+COPY --from=buildStage /opt/consultant /opt/
 
 ENTRYPOINT ["/opt/kinto_integrity"]
