@@ -274,10 +274,11 @@ impl Into<Option<Intermediary>> for CCADBEntry {
             }
         }
         let seq = Sequence(1, rdn);
-        Some(Intermediary {
-            issuer_name: base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
-            serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
-        })
+        Some(Intermediary::new( base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()), base64::encode(&hex::decode(&self.certificate_serial_number).unwrap())))
+//        Some(Intermediary {
+//            issuer_name: base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
+//            serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
+//        })
     }
 }
 
@@ -328,7 +329,6 @@ mod tests {
             signature_hash_algorithm: "".to_string(),
             crl_urls: "".to_string(),
             alternate_crl: "".to_string(),
-            ocsp_urls: "".to_string(),
             comments: "".to_string(),
             pem_info: EXAMPLE.to_string(), // This is the relevant data member that we are testing.
         };

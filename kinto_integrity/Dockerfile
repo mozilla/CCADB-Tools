@@ -7,6 +7,9 @@ FROM rustlang/rust@sha256:771b53ed3df7ee93a000a67be3307d7afe09523d4683956cb2d6e0
 WORKDIR /opt
 COPY . .
 RUN cargo build --release
+RUN wget https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz
+RUN tar zxf go1.13.4.linux-amd64.tar.gz
+RUN go/bin/go build -o consultant consultant.go
 
 FROM ubuntu:latest
 RUN apt-get update
@@ -14,5 +17,6 @@ RUN apt-get install xvfb libssl-dev ca-certificates libgtk-3-0 libdbus-glib-1-2 
 RUN apt-get clean
 
 COPY --from=buildStage /opt/target/release/kinto_integrity /opt/
+COPY --from=builStage /opt/consultant /opt/
 
 ENTRYPOINT ["/opt/kinto_integrity"]
