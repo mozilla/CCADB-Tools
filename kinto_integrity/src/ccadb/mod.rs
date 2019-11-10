@@ -275,10 +275,6 @@ impl Into<Option<Intermediary>> for CCADBEntry {
         }
         let seq = Sequence(1, rdn);
         Some(Intermediary::new( base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()), base64::encode(&hex::decode(&self.certificate_serial_number).unwrap())))
-//        Some(Intermediary {
-//            issuer_name: base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
-//            serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
-//        })
     }
 }
 

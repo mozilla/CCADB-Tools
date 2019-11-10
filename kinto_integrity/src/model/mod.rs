@@ -222,7 +222,7 @@ impl Intermediary {
         let mut hex = String::new();
         let mut i = 1;
         for byte in input {
-            hex.push_str(&format!("{:X}", byte));
+            hex.push_str(&format!("{:02X}", byte));
             if i != input.len() {
                 hex.push(':');
             }
