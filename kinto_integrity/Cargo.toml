@@ -38,4 +38,4 @@ indicatif = "0.11.0"
 # deps from Dana's tool
 base64 = "0.10"
 lmdb-rkv = "0.11"
-rkv = "^0.9"
+rkv = "0.10.2"
