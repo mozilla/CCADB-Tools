@@ -25,15 +25,14 @@ pub struct IssuerSerial {
 impl TryFrom<PathBuf> for CertStorage {
     type Error = Error;
 
-    fn try_from(db_path: PathBuf) -> Result<Self> {
+    fn try_from(mut db_path: PathBuf) -> Result<Self> {
         let mut revocations = CertStorage {
             data: HashSet::new(),
         };
         let mut builder = Rkv::environment_builder();
         builder.set_max_dbs(2);
         builder.set_flags(EnvironmentFlags::READ_ONLY);
-
-        info!("{}", db_path.as_path().is_dir());
+        db_path.push("data.safe.bin");
         let env = Rkv::from_env(&db_path, builder)?;
         let store = env.open_single("cert_storage", StoreOptions::default())?;
         let reader = env.read()?;
