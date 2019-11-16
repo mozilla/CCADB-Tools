@@ -32,6 +32,7 @@ impl TryFrom<PathBuf> for CertStorage {
         let mut builder = Rkv::environment_builder();
         builder.set_max_dbs(2);
         builder.set_flags(EnvironmentFlags::READ_ONLY);
+        builder.set_flags(EnvironmentFlags::NO_SUB_DIR);
         db_path.push("data.safe.bin");
         let env = Rkv::from_env(&db_path, builder)?;
         let store = env.open_single("cert_storage", StoreOptions::default())?;
