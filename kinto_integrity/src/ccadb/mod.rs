@@ -39,7 +39,7 @@ const _01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428: &[u8] =
 );
 
 // This certificate, for whatever reason, fails to parse. Now, this is more likely a bug in
-// our x509 parser as parsers in other languages and on the web appear to not have anyt
+// our x509 parser as parsers in other languages and on the web appear to not have any
 // problem with it. So, until that bug gets fixed at some point, we can just match on
 // the fingerprint and swap in its hardcoded issuer/serial pair.
 const BAD_CERT_FP: &str = "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C";
@@ -49,6 +49,7 @@ lazy_static!(
                 issuer_name: "MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ=="
                     .to_string(),
                 serial: "ALxyZmb/WL/wAuUiPK5oK/g=".to_string(),
+                sha_256: Some(BAD_CERT_FP.to_string()),
             };
 );
 
@@ -277,6 +278,7 @@ impl Into<Option<Intermediary>> for CCADBEntry {
         Some(Intermediary::new(
             base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
             base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
+            Some(self.sha_256_fingerprint)
         ))
     }
 }
