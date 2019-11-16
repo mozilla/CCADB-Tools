@@ -10,7 +10,7 @@ use tempdir::TempDir;
 
 const TMP_PREFIX: &str = "kinto_integrity_profile";
 const CERT_STORAGE_DIR: &str = "security_state";
-const CERT_STORAGE_DB: &str = "data.mdb";
+const CERT_STORAGE_DB: &str = "data.safe.bin";
 
 pub struct Profile {
     pub name: String,
