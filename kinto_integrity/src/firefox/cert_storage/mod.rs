@@ -32,7 +32,7 @@ impl TryFrom<PathBuf> for CertStorage {
         let mut builder = Rkv::environment_builder();
         builder.set_max_dbs(2);
         builder.set_flags(EnvironmentFlags::READ_ONLY);
-        let env = Rkv::from_env(&db_path, builder)?;
+        let env = Rkv::from_env(&db_path, builder).unwrap();
         let store = env.open_single("cert_storage", StoreOptions::default())?;
         let reader = env.read()?;
         for item in store.iter_start(&reader)? {
