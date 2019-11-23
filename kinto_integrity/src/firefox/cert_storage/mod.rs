@@ -32,9 +32,7 @@ impl TryFrom<PathBuf> for CertStorage {
         };
         let mut builder = Rkv::environment_builder::<SafeMode>();
         builder.set_max_dbs(2);
-        builder.set_map_size(16777216); // 16MB
-                                        // Bug 1595004: Migrate databases between backends in the future,
-                                        // and handle 32 and 64 bit architectures in case of LMDB.
+        builder.set_map_size(16777216);
         let env = match Rkv::from_builder(&db_path, builder) {
             Err(err) => Err(format!("{}", err))?,
             Ok(env) => env
