@@ -34,7 +34,13 @@ impl TryFrom<PathBuf> for CertStorage {
         builder.set_flags(EnvironmentFlags::READ_ONLY | EnvironmentFlags::NO_SUB_DIR);
 //        builder.set_flags(EnvironmentFlags::NO_SUB_DIR);
         db_path.push("data.safe.bin");
-        let env = Rkv::from_env(&db_path, builder)?;
+//        let env = Rkv::from_env(&db_path, builder)?;
+        let env = Rkv {
+            path: db_path.clone().into(),
+            env: builder.open(&db_path).map_err(|e| match e {
+                lmdb::Error::Other(2) => panic!("hit the other error"),
+                e => panic!(e),
+            }).unwrap()};
         let store = env.open_single("cert_storage", StoreOptions::default())?;
         let reader = env.read()?;
         for item in store.iter_start(&reader)? {
