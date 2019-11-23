@@ -6,7 +6,6 @@
 // https://github.com/mozkeeler/cert-storage-inspector
 
 use crate::errors::*;
-use lmdb::EnvironmentFlags;
 use rkv::backend::{BackendEnvironmentBuilder, SafeMode};
 use rkv::{Rkv, StoreOptions, Value};
 use std::collections::HashSet;
@@ -26,7 +25,7 @@ pub struct IssuerSerial {
 impl TryFrom<PathBuf> for CertStorage {
     type Error = Error;
 
-    fn try_from(mut db_path: PathBuf) -> Result<Self> {
+    fn try_from(db_path: PathBuf) -> Result<Self> {
         let mut revocations = CertStorage {
             data: HashSet::new(),
         };
