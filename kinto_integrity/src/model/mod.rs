@@ -11,6 +11,7 @@ use crate::ccadb::{CCADBReport, OneCRLStatus};
 use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
+use std::hash::{Hash, Hasher};
 
 //1. In Kinto but not in cert_storage
 //2. In cert_storage but not in Kinto
@@ -161,7 +162,13 @@ impl From<(CertStorage, CCADBReport)> for CCADBDiffCertStorage {
                     }
                 }
             });
-        let cert_storage: HashSet<Intermediary> = values.0.into();
+        let mut cert_storage: HashSet<Intermediary> = values.0.into();
+        for ccadb_entry in union.iter() {
+            if let Some(mut storage_entry) = cert_storage.take(ccadb_entry) {
+                storage_entry.sha_256 = ccadb_entry.sha_256.clone();
+                cert_storage.insert(storage_entry);
+            }
+        }
         return CCADBDiffCertStorage {
             added_and_present_in_cert_storage: added.intersection(&cert_storage).cloned().collect(),
             expired_and_present_in_cert_storage: expired
@@ -198,14 +205,28 @@ impl From<(CertStorage, CCADBReport)> for CCADBDiffCertStorage {
     }
 }
 
-#[derive(Eq, PartialEq, Hash, Debug, Serialize, Clone)]
+#[derive(Eq, Debug, Serialize, Clone)]
 pub struct Intermediary {
     pub issuer_name: String,
     pub serial: String,
+    pub sha_256: Option<String>,
+}
+
+impl Hash for Intermediary {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(self.issuer_name.as_bytes());
+        state.write(self.serial.as_bytes());
+    }
+}
+
+impl PartialEq for Intermediary {
+    fn eq(&self, other: &Self) -> bool {
+        self.issuer_name == other.issuer_name && self.serial == other.serial
+    }
 }
 
 impl Intermediary {
-    pub fn new(issuer: String, serial: String) -> Intermediary {
+    pub fn new(issuer: String, serial: String, sha_256: Option<String>) -> Intermediary {
         let cmd = std::process::Command::new("/opt/consultant")
             .arg(&issuer)
             .output();
@@ -220,6 +241,7 @@ impl Intermediary {
         Intermediary {
             issuer_name: i,
             serial: s,
+            sha_256,
         }
     }
 
@@ -260,7 +282,7 @@ impl From<Revocations> for HashSet<Intermediary> {
         let mut set: HashSet<Intermediary> = HashSet::new();
         for issuer in revocations.data.into_iter() {
             for serial in issuer.serials.into_iter() {
-                set.insert(Intermediary::new(issuer.issuer_name.clone(), serial));
+                set.insert(Intermediary::new(issuer.issuer_name.clone(), serial, None));
             }
         }
         set
@@ -278,7 +300,11 @@ impl From<Kinto> for HashSet<Intermediary> {
     fn from(kinto: Kinto) -> Self {
         let mut set: HashSet<Intermediary> = HashSet::new();
         for entry in kinto.data.into_iter() {
-            set.insert(Intermediary::new(entry.issuer_name, entry.serial_number));
+            set.insert(Intermediary::new(
+                entry.issuer_name,
+                entry.serial_number,
+                None,
+            ));
         }
         set
     }
@@ -288,7 +314,7 @@ impl From<CertStorage> for HashSet<Intermediary> {
     fn from(cs: CertStorage) -> Self {
         cs.data
             .into_iter()
-            .map(|is| Intermediary::new(is.issuer_name, is.serial))
+            .map(|is| Intermediary::new(is.issuer_name, is.serial, None))
             .collect()
     }
 }

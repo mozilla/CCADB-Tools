@@ -6,7 +6,7 @@
 // https://github.com/mozkeeler/cert-storage-inspector
 
 use crate::errors::*;
-use lmdb::EnvironmentFlags;
+use rkv::backend::{BackendEnvironmentBuilder, SafeMode};
 use rkv::{Rkv, StoreOptions, Value};
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -29,10 +29,13 @@ impl TryFrom<PathBuf> for CertStorage {
         let mut revocations = CertStorage {
             data: HashSet::new(),
         };
-        let mut builder = Rkv::environment_builder();
+        let mut builder = Rkv::environment_builder::<SafeMode>();
         builder.set_max_dbs(2);
-        builder.set_flags(EnvironmentFlags::READ_ONLY);
-        let env = Rkv::from_env(&db_path, builder)?;
+        builder.set_map_size(16777216);
+        let env = match Rkv::from_builder(&db_path, builder) {
+            Err(err) => Err(format!("{}", err))?,
+            Ok(env) => env
+        };
         let store = env.open_single("cert_storage", StoreOptions::default())?;
         let reader = env.read()?;
         for item in store.iter_start(&reader)? {
