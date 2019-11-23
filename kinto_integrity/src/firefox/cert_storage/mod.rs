@@ -7,6 +7,7 @@
 
 use crate::errors::*;
 use lmdb::EnvironmentFlags;
+use rkv::backend::{BackendEnvironmentBuilder, SafeMode};
 use rkv::{Rkv, StoreOptions, Value};
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -29,18 +30,15 @@ impl TryFrom<PathBuf> for CertStorage {
         let mut revocations = CertStorage {
             data: HashSet::new(),
         };
-        let mut builder = Rkv::environment_builder();
+        let mut builder = Rkv::environment_builder::<SafeMode>();
         builder.set_max_dbs(2);
-        builder.set_flags(EnvironmentFlags::READ_ONLY | EnvironmentFlags::NO_SUB_DIR);
-//        builder.set_flags(EnvironmentFlags::NO_SUB_DIR);
-        db_path.push("data.safe.bin");
-//        let env = Rkv::from_env(&db_path, builder)?;
-        let env = Rkv {
-            path: db_path.clone().into(),
-            env: builder.open(&db_path).map_err(|e| match e {
-                lmdb::Error::Other(2) => panic!("hit the other error"),
-                e => panic!(e),
-            }).unwrap()};
+        builder.set_map_size(16777216); // 16MB
+                                        // Bug 1595004: Migrate databases between backends in the future,
+                                        // and handle 32 and 64 bit architectures in case of LMDB.
+        let env = match Rkv::from_builder(&db_path, builder) {
+            Err(err) => Err(format!("{}", err))?,
+            Ok(env) => env
+        };
         let store = env.open_single("cert_storage", StoreOptions::default())?;
         let reader = env.read()?;
         for item in store.iter_start(&reader)? {

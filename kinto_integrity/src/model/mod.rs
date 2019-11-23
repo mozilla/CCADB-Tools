@@ -209,7 +209,7 @@ impl From<(CertStorage, CCADBReport)> for CCADBDiffCertStorage {
 pub struct Intermediary {
     pub issuer_name: String,
     pub serial: String,
-    pub sha_256: Option<String>
+    pub sha_256: Option<String>,
 }
 
 impl Hash for Intermediary {
@@ -221,8 +221,8 @@ impl Hash for Intermediary {
 
 impl PartialEq for Intermediary {
     fn eq(&self, other: &Self) -> bool {
-         self.issuer_name == other.issuer_name && self.serial == other.serial
-     }
+        self.issuer_name == other.issuer_name && self.serial == other.serial
+    }
 }
 
 impl Intermediary {
@@ -300,7 +300,11 @@ impl From<Kinto> for HashSet<Intermediary> {
     fn from(kinto: Kinto) -> Self {
         let mut set: HashSet<Intermediary> = HashSet::new();
         for entry in kinto.data.into_iter() {
-            set.insert(Intermediary::new(entry.issuer_name, entry.serial_number, None));
+            set.insert(Intermediary::new(
+                entry.issuer_name,
+                entry.serial_number,
+                None,
+            ));
         }
         set
     }

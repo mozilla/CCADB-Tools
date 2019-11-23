@@ -278,7 +278,7 @@ impl Into<Option<Intermediary>> for CCADBEntry {
         Some(Intermediary::new(
             base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
             base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
-            Some(self.sha_256_fingerprint)
+            Some(self.sha_256_fingerprint),
         ))
     }
 }

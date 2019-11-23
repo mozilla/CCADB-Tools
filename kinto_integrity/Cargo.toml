@@ -38,4 +38,4 @@ indicatif = "0.11.0"
 # deps from Dana's tool
 base64 = "0.10"
 lmdb-rkv = "0.12.3"
-rkv = "0.10.2"
+rkv = { git = "https://github.com/mozilla/rkv", rev="6a866fdad2ca880df9b87fcbc9921abac1e91914", default-features = false }
