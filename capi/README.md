@@ -83,3 +83,88 @@ A certificate chain, in the context of the `revoked` test suite, is considered t
 2. The leaf certificate of the candidate chain is considered to be revoked by every CRL endpoint and OCSP responder.
 3. The intermediate certificates within the candidate chain _may_ either be `revoked` or `good` with regard to their CRL endpoints and OCSP responders.
 4. The root certificate _must_ be considered `good` by all OCSP responders and CRL endpoints.
+
+## Linting
+
+This tool supports linting certificate chains using the [x509lint](https://github.com/kroeckx/x509lint) tool and the [certlint](https://github.com/awslabs/certlint) tool.
+
+The following three endpoints are provided:
+	
+1. `/lintFromReport` takes no arguments and no body, and returns lint results for the entire [IncludedCACertificateReportPEMCSV](https://ccadb-public.secure.force.com/mozilla/IncludedCACertificateReportPEMCSV) report. 
+2. `/lintFromCertificateDetails` takes no arguments but takes a body which is a JSON array of the following struct:
+    ```go
+    type CCADBRecord struct {
+        RecordID           string
+        Name               string
+        PEM                string
+        TestWebsiteValid   string
+        TestWebsiteRevoked string
+        TestWebsiteExpired string
+    }
+    ```
+3. `/lintFromSubject/?subject=<TEST WEBSITE URL>` takes one argument which is the URL of the target test website and no body.
+
+For each test website submitted, linters are ran against all certificates within the the target certificate chain _except_ for the root certificate.
+
+#### Linter Return
+
+The following is an example JSON structure of a single linter result. If an endpoint returns multiple results (E.G. `/lintFromReport`), then the client will receive a JSON array of these objects.
+
+```json
+{
+    "Subject": "https://ssltest-active.actalis.it/",
+    "Leaf": {
+        "X509Lint": {
+            "Errors": [],
+            "Warnings": [],
+            "Info": [
+                "Subject has a deprecated CommonName"
+            ],
+            "CmdError": null // describes an error that resulted from running the tool itself. E.G. bad command line arguments
+        },
+        "Certlint": {
+            "Certlint": {
+                "Bug": [],
+                "Info": [],
+                "Notices": [],
+                "Warnings": [],
+                "Errors": [],
+                "Fatal": [],
+                "CmdError": null // describes an error that resulted from running the tool itself. E.G. bad command line arguments
+            },
+            "Cablint": {
+                "Bug": [],
+                "Info": [
+                    "TLS Server certificate identified\tcertlint262274680"
+                ],
+                "Notices": [],
+                "Warnings": [],
+                "Errors": [],
+                "Fatal": [],
+                "CmdError": null // describes an error that resulted from running the tool itself. E.G. bad command line arguments
+            }
+        },
+        "CrtSh": "https://crt.sh/?q=EE5778EE98C58D73D3EA555A26F381A610C71AF208CD024159BDE0646849DC64"
+    },
+    "Intermediates": [],
+    "Opinion": {
+        "Result": "PASS",
+        "Errors": []
+    },
+    "Error": "" // describes an error when executing the request itself rather than an error about linting
+}
+```
+
+#### Interpreting Linter Results
+
+##### x509lint
+
+The full list of possible error messages may be found [here](https://github.com/kroeckx/x509lint/blob/master/messages.c). All messages prefixed with `E:`, except for [`E: Fails decoding the characterset`](https://github.com/kroeckx/x509lint/blob/33c4b3bc36d2cd911d7eca7528c049c023031508/messages.c#L35) will result in a `FAIL` of that particular certificate.
+
+All errors, warnings, and infos provided by x509lint are mapped directly to the `Errors`, `Warnings`, and `Info` arrays.
+
+##### certlint
+
+A description of the output of certlint (and its subtool, cablint) can be found [here](https://github.com/awslabs/certlint#output). Any error messages marked as bug, error, or fatal will result in a `FAIL` of that particular certificate.
+
+All bugs, info, notices, warnings, errors, and fatal output are mapped to the `Bug`, `Info`, `Notices`, `Warnings`, `Errors`, and `Fatal` arrays.
