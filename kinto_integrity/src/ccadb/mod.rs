@@ -44,14 +44,13 @@ const _01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428: &[u8] =
 // the fingerprint and swap in its hardcoded issuer/serial pair.
 const BAD_CERT_FP: &str = "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C";
 
-lazy_static!(
+lazy_static! {
     static ref BAD_CERT_VALUE: Intermediary = Intermediary {
-                issuer_name: "MD4xCzAJBgNVBAYTAlBMMRswGQYDVQQKExJVbml6ZXRvIFNwLiB6IG8uby4xEjAQBgNVBAMTCUNlcnR1bSBDQQ=="
-                    .to_string(),
-                serial: "ALxyZmb/WL/wAuUiPK5oK/g=".to_string(),
-                sha_256: Some(BAD_CERT_FP.to_string()),
-            };
-);
+        issuer_name: "CN=Certum CA,O=Unizeto Sp. z o.o.,C=PL".to_string(),
+        serial: "00:BC:72:66:66:FF:58:BF:F0:02:E5:22:3C:AE:68:2B:F8".to_string(),
+        sha_256: Some(BAD_CERT_FP.to_string()),
+    };
+}
 
 lazy_static! {
     static ref VENDORED_CERTS: HashMap<String, &'static [u8]> = [
