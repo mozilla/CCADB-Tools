@@ -9,8 +9,28 @@ import (
 	"testing"
 )
 
-const good = `{
+const goodSingleCRL = `{
 	"crl": "http://google.com/crl",
+	"serial": "0123456789abcdef",
+	"revocationDate": "2019/12/13",
+	"revocationReason": "(10) aACompromise"
+}`
+
+func TestInput_UnmarshalJSON_Single(t *testing.T) {
+	i := NewInput()
+	if err := json.Unmarshal([]byte(goodSingleCRL), &i); err != nil {
+		t.Fatal(err)
+	}
+	if len(i.errs) != 0 {
+		t.Fatal(i.errs)
+	}
+	if len(i.Crl) != 1 {
+		t.Fatalf("wanted 1 crl, got %d", len(i.Crl))
+	}
+}
+
+const good = `{
+	"crl": ["http://google.com/crl", "http://google.com/crl"],
 	"serial": "0123456789abcdef",
 	"revocationDate": "2019/12/13",
 	"revocationReason": "(10) aACompromise"
@@ -23,6 +43,9 @@ func TestInput_UnmarshalJSON(t *testing.T) {
 	}
 	if len(i.errs) != 0 {
 		t.Fatal(i.errs)
+	}
+	if len(i.Crl) != 2 {
+		t.Fatalf("wanted 2 crls, got %d", len(i.Crl))
 	}
 }
 
@@ -40,8 +63,8 @@ func TestInput_UnmarshalJSON_MissingCRL(t *testing.T) {
 	if len(i.errs) != 0 {
 		t.Fatal(i.errs)
 	}
-	if i.Crl != nil {
-		t.Fatalf("wanted nil CRL, got %v", i.Crl)
+	if len(i.Crl) != 0 {
+		t.Fatalf("wanted 0 CRLs, got %d", len(i.Crl))
 	}
 }
 
