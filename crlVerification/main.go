@@ -20,7 +20,7 @@ import (
 )
 
 type Input struct {
-	Crl    *string
+	Crls   []string
 	Serial *big.Int
 	Date   time.Time
 	Reason utils.RevocationReason
@@ -29,7 +29,7 @@ type Input struct {
 
 func NewInput() Input {
 	return Input{
-		Crl:    nil,
+		Crls:   make([]string, 0),
 		Serial: nil,
 		Date:   time.Time{},
 		Reason: utils.NOT_GIVEN,
@@ -38,43 +38,75 @@ func NewInput() Input {
 }
 
 func (i *Input) UnmarshalJSON(data []byte) error {
-	intermediate := make(map[string]string)
+	intermediate := make(map[string]interface{})
 	err := json.Unmarshal(data, &intermediate)
 	if err != nil {
 		i.errs = append(i.errs, err)
 		return nil
 	}
 	if c, ok := intermediate["crl"]; ok {
-		i.Crl = &c
-	} else {
-		i.Crl = nil
+		switch t := c.(type) {
+		case []interface{}:
+			for _, crlInterface := range t {
+				switch crl := crlInterface.(type) {
+				case string:
+					i.Crls = append(i.Crls, crl)
+				default:
+					i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "crl", got %T from value "%v"`, crl, crl)))
+				}
+			}
+		case string:
+			// The old interface was built for
+			// only one CRL, so let's honor that just in case
+			i.Crls = append(i.Crls, t)
+		case nil:
+			// The old interface allowed for a null entry
+			// so let's leave that in place by leaving the array empty.
+		default:
+			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "crl", got %T from value "%v"`, t, t)))
+		}
 	}
 	if s, ok := intermediate["serial"]; ok {
-		serial, err := utils.BigIntFromHexString(s)
-		if err != nil {
-			i.errs = append(i.errs, err)
-		} else {
-			i.Serial = serial
+		switch t := s.(type) {
+		case string:
+			serial, err := utils.BigIntFromHexString(t)
+			if err != nil {
+				i.errs = append(i.errs, err)
+			} else {
+				i.Serial = serial
+			}
+		default:
+			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "serial", got %T from value "%v"`, t, t)))
 		}
 	} else {
 		i.errs = append(i.errs, errors.New(`"serial" is a required field`))
 	}
 	if d, ok := intermediate["revocationDate"]; ok {
-		t, err := utils.TimeFromString(d)
-		if err != nil {
-			i.errs = append(i.errs, err)
-		} else {
-			i.Date = t
+		switch t := d.(type) {
+		case string:
+			date, err := utils.TimeFromString(t)
+			if err != nil {
+				i.errs = append(i.errs, err)
+			} else {
+				i.Date = date
+			}
+		default:
+			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "revocationData", got %T from value "%v"`, t, t)))
 		}
 	} else {
 		i.errs = append(i.errs, errors.New(`"revocationDate" is a required field`))
 	}
 	if r, ok := intermediate["revocationReason"]; ok {
-		reason, err := utils.FromString(&r)
-		if err != nil {
-			i.errs = append(i.errs, err)
-		} else {
-			i.Reason = reason
+		switch t := r.(type) {
+		case string:
+			reason, err := utils.FromString(&t)
+			if err != nil {
+				i.errs = append(i.errs, err)
+			} else {
+				i.Reason = reason
+			}
+		default:
+			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "revocationReason", got %T from value "%v"`, t, t)))
 		}
 	} else {
 		i.Reason = utils.NOT_GIVEN
@@ -114,13 +146,25 @@ func NewReturn() Return {
 }
 
 func Validate(i Input) Return {
-	crl, err := utils.CRLFromURL(i.Crl)
-	if err != nil {
+	if len(i.Crls) == 0 {
 		ret := NewReturn()
-		ret.Errors = append(ret.Errors, err)
+		ret.Errors = append(ret.Errors, utils.CRLNotGiven{})
 		return ret
 	}
-	return validate(i, crl)
+	allErrors := make([]error, 0)
+	for _, c := range i.Crls {
+		crl, err := utils.CRLFromURL(c)
+		switch err == nil {
+		case true:
+			return validate(i, crl)
+		case false:
+			log.Printf("failed to retrieve CRL from %s, err: %s", c, err)
+			allErrors = append(allErrors, err)
+		}
+	}
+	ret := NewReturn()
+	ret.Errors = append(ret.Errors, allErrors...)
+	return ret
 }
 
 func validate(i Input, crl *pkix.CertificateList) Return {

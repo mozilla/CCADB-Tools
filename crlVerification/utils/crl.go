@@ -40,16 +40,13 @@ func (c CRLFailedToParse) Error() string {
 	return fmt.Sprintf("%s failed to parse. error: %v", c.url, c.err)
 }
 
-func CRLFromURL(crlUrl *string) (*pkix.CertificateList, error) {
-	if crlUrl == nil {
-		return nil, CRLNotGiven{}
-	}
-	resp, err := http.Get(*crlUrl)
+func CRLFromURL(crlUrl string) (*pkix.CertificateList, error) {
+	resp, err := http.Get(crlUrl)
 	if err != nil {
-		return nil, CRLDownloadFailed{*crlUrl, err}
+		return nil, CRLDownloadFailed{crlUrl, err}
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, CRLDownloadFailed{*crlUrl, errors.New(fmt.Sprintf("recieved  status code %v", resp.StatusCode))}
+		return nil, CRLDownloadFailed{crlUrl, errors.New(fmt.Sprintf("recieved  status code %v", resp.StatusCode))}
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -58,11 +55,11 @@ func CRLFromURL(crlUrl *string) (*pkix.CertificateList, error) {
 	}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, CRLDownloadFailed{*crlUrl, err}
+		return nil, CRLDownloadFailed{crlUrl, err}
 	}
 	crl, err := x509.ParseCRL(body)
 	if err != nil {
-		return nil, CRLFailedToParse{*crlUrl, err}
+		return nil, CRLFailedToParse{crlUrl, err}
 	}
 	return crl, nil
 }
