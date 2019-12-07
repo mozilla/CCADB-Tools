@@ -52,15 +52,18 @@ func (i *Input) UnmarshalJSON(data []byte) error {
 				case string:
 					i.Crl = append(i.Crl, crl)
 				default:
-					i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "crl", got %T from value "%s"`, crl, crl)))
+					i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "crl", got %T from value "%v"`, crl, crl)))
 				}
 			}
 		case string:
-			// The old interface allowed was built for
+			// The old interface was built for
 			// only one CRL, so let's honor that just in case
 			i.Crl = append(i.Crl, t)
+		case nil:
+			// The old interface allowed for a null entry
+			// so let's leave that in place by leaving the array empty.
 		default:
-			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "crl", got %T from value "%s"`, t, t)))
+			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "crl", got %T from value "%v"`, t, t)))
 		}
 	}
 	if s, ok := intermediate["serial"]; ok {
@@ -73,7 +76,7 @@ func (i *Input) UnmarshalJSON(data []byte) error {
 				i.Serial = serial
 			}
 		default:
-			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "serial", got %T from value "%s"`, t, t)))
+			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "serial", got %T from value "%v"`, t, t)))
 		}
 	} else {
 		i.errs = append(i.errs, errors.New(`"serial" is a required field`))
@@ -88,7 +91,7 @@ func (i *Input) UnmarshalJSON(data []byte) error {
 				i.Date = date
 			}
 		default:
-			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "revocationData", got %T from value "%s"`, t, t)))
+			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "revocationData", got %T from value "%v"`, t, t)))
 		}
 	} else {
 		i.errs = append(i.errs, errors.New(`"revocationDate" is a required field`))
@@ -103,7 +106,7 @@ func (i *Input) UnmarshalJSON(data []byte) error {
 				i.Reason = reason
 			}
 		default:
-			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "revocationReason", got %T from value "%s"`, t, t)))
+			i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "revocationReason", got %T from value "%v"`, t, t)))
 		}
 	} else {
 		i.Reason = utils.NOT_GIVEN
