@@ -20,7 +20,7 @@ import (
 )
 
 type Input struct {
-	Crl    []string
+	Crls   []string
 	Serial *big.Int
 	Date   time.Time
 	Reason utils.RevocationReason
@@ -29,7 +29,7 @@ type Input struct {
 
 func NewInput() Input {
 	return Input{
-		Crl:    make([]string, 0),
+		Crls:   make([]string, 0),
 		Serial: nil,
 		Date:   time.Time{},
 		Reason: utils.NOT_GIVEN,
@@ -50,7 +50,7 @@ func (i *Input) UnmarshalJSON(data []byte) error {
 			for _, crlInterface := range t {
 				switch crl := crlInterface.(type) {
 				case string:
-					i.Crl = append(i.Crl, crl)
+					i.Crls = append(i.Crls, crl)
 				default:
 					i.errs = append(i.errs, errors.New(fmt.Sprintf(`unexpected type for "crl", got %T from value "%v"`, crl, crl)))
 				}
@@ -58,7 +58,7 @@ func (i *Input) UnmarshalJSON(data []byte) error {
 		case string:
 			// The old interface was built for
 			// only one CRL, so let's honor that just in case
-			i.Crl = append(i.Crl, t)
+			i.Crls = append(i.Crls, t)
 		case nil:
 			// The old interface allowed for a null entry
 			// so let's leave that in place by leaving the array empty.
@@ -146,13 +146,13 @@ func NewReturn() Return {
 }
 
 func Validate(i Input) Return {
-	if len(i.Crl) == 0 {
+	if len(i.Crls) == 0 {
 		ret := NewReturn()
 		ret.Errors = append(ret.Errors, utils.CRLNotGiven{})
 		return ret
 	}
 	allErrors := make([]error, 0)
-	for _, c := range i.Crl {
+	for _, c := range i.Crls {
 		crl, err := utils.CRLFromURL(c)
 		switch err == nil {
 		case true:
