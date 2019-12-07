@@ -24,8 +24,8 @@ func TestInput_UnmarshalJSON_Single(t *testing.T) {
 	if len(i.errs) != 0 {
 		t.Fatal(i.errs)
 	}
-	if len(i.Crl) != 1 {
-		t.Fatalf("wanted 1 crl, got %d", len(i.Crl))
+	if len(i.Crls) != 1 {
+		t.Fatalf("wanted 1 crl, got %d", len(i.Crls))
 	}
 }
 
@@ -44,8 +44,8 @@ func TestInput_UnmarshalJSON(t *testing.T) {
 	if len(i.errs) != 0 {
 		t.Fatal(i.errs)
 	}
-	if len(i.Crl) != 2 {
-		t.Fatalf("wanted 2 crls, got %d", len(i.Crl))
+	if len(i.Crls) != 2 {
+		t.Fatalf("wanted 2 crls, got %d", len(i.Crls))
 	}
 }
 
@@ -63,8 +63,8 @@ func TestInput_UnmarshalJSON_MissingCRL(t *testing.T) {
 	if len(i.errs) != 0 {
 		t.Fatal(i.errs)
 	}
-	if len(i.Crl) != 0 {
-		t.Fatalf("wanted 0 CRLs, got %d", len(i.Crl))
+	if len(i.Crls) != 0 {
+		t.Fatalf("wanted 0 CRLs, got %d", len(i.Crls))
 	}
 }
 
