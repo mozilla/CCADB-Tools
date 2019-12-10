@@ -145,26 +145,13 @@ func NewReturn() Return {
 	}
 }
 
-func Validate(i Input) Return {
-	if len(i.Crls) == 0 {
+func Validate(i Input, crlURL string) Return {
+	crl, err := utils.CRLFromURL(crlURL)
+	if err != nil {
 		ret := NewReturn()
-		ret.Errors = append(ret.Errors, utils.CRLNotGiven{})
-		return ret
+		ret.Errors = append(ret.Errors, err)
 	}
-	allErrors := make([]error, 0)
-	for _, c := range i.Crls {
-		crl, err := utils.CRLFromURL(c)
-		switch err == nil {
-		case true:
-			return validate(i, crl)
-		case false:
-			log.Printf("failed to retrieve CRL from %s, err: %s", c, err)
-			allErrors = append(allErrors, err)
-		}
-	}
-	ret := NewReturn()
-	ret.Errors = append(ret.Errors, allErrors...)
-	return ret
+	return validate(i, crl)
 }
 
 func validate(i Input, crl *pkix.CertificateList) Return {
@@ -227,8 +214,23 @@ func endpoint(resp http.ResponseWriter, req *http.Request) {
 		}
 		return
 	}
+	if len(i.Crls) == 0 {
+		ret = NewReturn()
+		ret.Errors = append(ret.Errors, utils.CRLNotGiven{})
+		return
+	}
 	code = 200
-	ret = Validate(i)
+	allErrors := make([]error, 0)
+	for _, crl := range i.Crls {
+		result := Validate(i, crl)
+		if len(result.Errors) == 0 {
+			ret = result
+			return
+		}
+		allErrors = append(allErrors, result.Errors...)
+	}
+	ret = NewReturn()
+	ret.Errors = allErrors
 }
 
 func main() {
