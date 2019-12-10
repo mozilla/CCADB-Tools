@@ -150,6 +150,7 @@ func Validate(i Input, crlURL string) Return {
 	if err != nil {
 		ret := NewReturn()
 		ret.Errors = append(ret.Errors, err)
+		return ret
 	}
 	return validate(i, crl)
 }
