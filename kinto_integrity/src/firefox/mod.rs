@@ -367,10 +367,8 @@ impl TryFrom<Response> for Firefox {
         let profile = Profile::new()?;
         let release = if url.as_str().contains("nightly") {
             Release::Nightly
-        } else if url.as_str().contains("beta") {
-            Release::Beta
         } else {
-            panic!("Unknown Firefox release URL, got {}", url.as_str());
+            Release::Beta
         };
         let ff = Firefox {
             _home,
