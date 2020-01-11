@@ -38,76 +38,155 @@ use kinto::*;
 use model::*;
 use revocations_txt::*;
 
-#[get("/")]
-fn default() -> Result<String> {
-    let revocations: Revocations = Revocations::default()?;
-    let kinto: Kinto = Kinto::default()?;
-    let cert_storage = Firefox::default()?;
-    let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string_pretty(&result)?)
-}
+mod nightly {
+    use super::*;
+    #[get("/")]
+    pub fn default() -> Result<String> {
+        let revocations: Revocations = Revocations::default()?;
+        let kinto: Kinto = Kinto::default()?;
+        let cert_storage = Firefox::nightly()?;
+        let result: Return = (cert_storage, kinto, revocations).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
 
-#[get("/with_revocations?<url>")]
-fn with_revocations(url: &RawStr) -> Result<String> {
-    // https://docs.rs/url/2.1.0/url/form_urlencoded/fn.parse.html expects that you are going
-    // to give it a bunch of key,value pairs such as a=b&c=d&e=f ... however we are only giving it
-    // the right-hand side of url=<revocations_url> which makes it think that <revocations_url>
-    // is actually the key and not the pair, hence why in the mapper function we take pair.0
-    // and throw away pair.1 which is just the empty string.
-    let revocations_url: String = url_decode(url.as_bytes())
-        .into_owned()
-        .into_iter()
-        .map(|pair| format!("{}", pair.0))
-        .collect::<Vec<String>>()
-        .join("");
-    let revocations: Revocations = match revocations_url.as_str().parse::<Url>() {
-        Ok(url) => url.try_into()?,
-        Err(err) => Err(format!("{:?}", err))?,
-    };
-    let kinto: Kinto = Kinto::default()?;
-    let cert_storage = Firefox::default()?;
-    let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string_pretty(&result)?)
-}
+    #[get("/with_revocations?<url>")]
+    pub fn with_revocations(url: &RawStr) -> Result<String> {
+        // https://docs.rs/url/2.1.0/url/form_urlencoded/fn.parse.html expects that you are going
+        // to give it a bunch of key,value pairs such as a=b&c=d&e=f ... however we are only giving it
+        // the right-hand side of url=<revocations_url> which makes it think that <revocations_url>
+        // is actually the key and not the pair, hence why in the mapper function we take pair.0
+        // and throw away pair.1 which is just the empty string.
+        let revocations_url: String = url_decode(url.as_bytes())
+            .into_owned()
+            .into_iter()
+            .map(|pair| format!("{}", pair.0))
+            .collect::<Vec<String>>()
+            .join("");
+        let revocations: Revocations = match revocations_url.as_str().parse::<Url>() {
+            Ok(url) => url.try_into()?,
+            Err(err) => Err(format!("{:?}", err))?,
+        };
+        let kinto: Kinto = Kinto::default()?;
+        let cert_storage = Firefox::nightly()?;
+        let result: Return = (cert_storage, kinto, revocations).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
 
-#[post("/with_revocations", format = "text/plain", data = "<revocations_txt>")]
-fn post_revocations(revocations_txt: Data) -> Result<String> {
-    let revocations = Revocations::parse(revocations_txt.open())?;
-    let kinto: Kinto = Kinto::default()?;
-    let cert_storage = Firefox::default()?;
-    let result: Return = (cert_storage, kinto, revocations).into();
-    Ok(serde_json::to_string_pretty(&result)?)
-}
+    #[post("/with_revocations", format = "text/plain", data = "<revocations_txt>")]
+    pub fn post_revocations(revocations_txt: Data) -> Result<String> {
+        let revocations = Revocations::parse(revocations_txt.open())?;
+        let kinto: Kinto = Kinto::default()?;
+        let cert_storage = Firefox::nightly()?;
+        let result: Return = (cert_storage, kinto, revocations).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
 
-#[get("/without_revocations")]
-fn without_revocations() -> Result<String> {
-    let kinto: Kinto = Kinto::default()?;
-    let cert_storage = Firefox::default()?;
-    let result: Return = (cert_storage, kinto).into();
-    Ok(serde_json::to_string_pretty(&result)?)
-}
+    #[get("/without_revocations")]
+    pub fn without_revocations() -> Result<String> {
+        let kinto: Kinto = Kinto::default()?;
+        let cert_storage = Firefox::nightly()?;
+        let result: Return = (cert_storage, kinto).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
 
-#[get("/ccadb_cert_storage")]
-fn ccadb_cert_storage() -> Result<String> {
-    let ccadb: CCADBReport = CCADBReport::default()?;
-    let cert_storage = Firefox::default()?;
-    let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
-    Ok(serde_json::to_string_pretty(&result)?)
-}
+    #[get("/ccadb_cert_storage")]
+    pub fn ccadb_cert_storage() -> Result<String> {
+        let ccadb: CCADBReport = CCADBReport::default()?;
+        let cert_storage = Firefox::nightly()?;
+        let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
 
-#[patch("/update_cert_storage")]
-fn update_cert_storage() -> Result<()> {
-    match FIREFOX.write() {
-        Ok(mut ff) => ff.update_cert_storage(),
-        Err(err) => Err(Error::from(format!("{}", err))),
+    #[patch("/update_cert_storage")]
+    pub fn update_cert_storage() -> Result<()> {
+        match FIREFOX_NIGHTLY.write() {
+            Ok(mut ff) => ff.update_cert_storage(),
+            Err(err) => Err(Error::from(format!("{}", err))),
+        }
+    }
+
+    #[patch("/update_firefox")]
+    pub fn update_firefox() -> Result<()> {
+        match FIREFOX_NIGHTLY.write() {
+            Ok(mut ff) => ff.force_update(),
+            Err(err) => Err(Error::from(format!("{}", err))),
+        }
     }
 }
 
-#[patch("/update_firefox_nightly")]
-fn update_firefox_nightly() -> Result<()> {
-    match FIREFOX.write() {
-        Ok(mut ff) => ff.force_update(),
-        Err(err) => Err(Error::from(format!("{}", err))),
+mod beta {
+    use super::*;
+    #[get("/beta")]
+    pub fn default() -> Result<String> {
+        let revocations: Revocations = Revocations::default()?;
+        let kinto: Kinto = Kinto::default()?;
+        let cert_storage = Firefox::beta()?;
+        let result: Return = (cert_storage, kinto, revocations).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
+
+    #[get("/beta/with_revocations?<url>")]
+    pub fn with_revocations(url: &RawStr) -> Result<String> {
+        // https://docs.rs/url/2.1.0/url/form_urlencoded/fn.parse.html expects that you are going
+        // to give it a bunch of key,value pairs such as a=b&c=d&e=f ... however we are only giving it
+        // the right-hand side of url=<revocations_url> which makes it think that <revocations_url>
+        // is actually the key and not the pair, hence why in the mapper function we take pair.0
+        // and throw away pair.1 which is just the empty string.
+        let revocations_url: String = url_decode(url.as_bytes())
+            .into_owned()
+            .into_iter()
+            .map(|pair| format!("{}", pair.0))
+            .collect::<Vec<String>>()
+            .join("");
+        let revocations: Revocations = match revocations_url.as_str().parse::<Url>() {
+            Ok(url) => url.try_into()?,
+            Err(err) => Err(format!("{:?}", err))?,
+        };
+        let kinto: Kinto = Kinto::default()?;
+        let cert_storage = Firefox::beta()?;
+        let result: Return = (cert_storage, kinto, revocations).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
+
+    #[post("/beta/with_revocations", format = "text/plain", data = "<revocations_txt>")]
+    pub fn post_revocations(revocations_txt: Data) -> Result<String> {
+        let revocations = Revocations::parse(revocations_txt.open())?;
+        let kinto: Kinto = Kinto::default()?;
+        let cert_storage = Firefox::beta()?;
+        let result: Return = (cert_storage, kinto, revocations).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
+
+    #[get("/beta/without_revocations")]
+    pub fn without_revocations() -> Result<String> {
+        let kinto: Kinto = Kinto::default()?;
+        let cert_storage = Firefox::beta()?;
+        let result: Return = (cert_storage, kinto).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
+
+    #[get("/beta/ccadb_cert_storage")]
+    pub fn ccadb_cert_storage() -> Result<String> {
+        let ccadb: CCADBReport = CCADBReport::default()?;
+        let cert_storage = Firefox::beta()?;
+        let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
+
+    #[patch("/beta/update_cert_storage")]
+    pub fn update_cert_storage() -> Result<()> {
+        match FIREFOX_BETA.write() {
+            Ok(mut ff) => ff.update_cert_storage(),
+            Err(err) => Err(Error::from(format!("{}", err))),
+        }
+    }
+
+    #[patch("/beta/update_firefox")]
+    pub fn update_firefox() -> Result<()> {
+        match FIREFOX_BETA.write() {
+            Ok(mut ff) => ff.force_update(),
+            Err(err) => Err(Error::from(format!("{}", err))),
+        }
     }
 }
 
@@ -152,13 +231,21 @@ fn main() -> Result<()> {
         .mount(
             "/",
             routes![
-                default,
-                with_revocations,
-                post_revocations,
-                without_revocations,
-                ccadb_cert_storage,
-                update_cert_storage,
-                update_firefox_nightly
+                nightly::default,
+                nightly::with_revocations,
+                nightly::post_revocations,
+                nightly::without_revocations,
+                nightly::ccadb_cert_storage,
+                nightly::update_cert_storage,
+                nightly::update_firefox,
+
+                beta::default,
+                beta::with_revocations,
+                beta::post_revocations,
+                beta::without_revocations,
+                beta::ccadb_cert_storage,
+                beta::update_cert_storage,
+                beta::update_firefox,
             ],
         )
         .launch();

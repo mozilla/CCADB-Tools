@@ -154,7 +154,7 @@ pub(crate) mod tests {
             let int = Intermediary {
                 issuer_name: entry.issuer_name.clone(),
                 serial: entry.serial_number.clone(),
-                sha_256: None
+                sha_256: None,
             };
             match set.contains(&int) {
                 true => eprintln!("entry = {:#?}", entry),
