@@ -2,7 +2,7 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use reqwest::{Response, Url};
+use reqwest::Url;
 use std::convert::{TryFrom, TryInto};
 
 use tempdir::TempDir;
@@ -35,9 +35,8 @@ lazy_static! {
         "https://download.mozilla.org/?product=firefox-beta-latest-ssl&os=linux64&lang=en-US"
             .parse()
             .unwrap();
-    pub static ref FIREFOX_NIGHTLY: RwLock<Firefox> =
-        RwLock::new((*NIGHTLY).clone().try_into().unwrap());
-    pub static ref FIREFOX_BETA: RwLock<Firefox> = RwLock::new((*BETA).clone().try_into().unwrap());
+    static ref FIREFOX_NIGHTLY: RwLock<Option<Firefox>> = RwLock::new(None);
+    static ref FIREFOX_BETA: RwLock<Option<Firefox>> = RwLock::new(None);
     static ref XVFB: Xvfb = Xvfb::new().unwrap();
 }
 
@@ -58,40 +57,75 @@ const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
 const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
 
 pub fn init() {
+    let nightly_downloader = || {
+        info!("Initializing {}", Release::Nightly);
+        let result: Result<Firefox> = Release::Nightly.try_into();
+        match result {
+            Ok(ff) => match FIREFOX_NIGHTLY.write() {
+                Ok(mut guard) => *guard = Some(ff),
+                Err(err) => error!("{:?}", err),
+            },
+            Err(err) => error!("{:?}", err),
+        };
+    };
+    let beta_downloader = || {
+        info!("Initializing {}", Release::Beta);
+        let result: Result<Firefox> = Release::Beta.try_into();
+        match result {
+            Ok(ff) => match FIREFOX_BETA.write() {
+                Ok(mut guard) => *guard = Some(ff),
+                Err(err) => error!("{:?}", err),
+            },
+            Err(err) => error!("{:?}", err),
+        };
+    };
+    let nightly_handle = std::thread::spawn(nightly_downloader);
+    let beta_handle = std::thread::spawn(beta_downloader);
+    match nightly_handle.join() {
+        Ok(_) => (),
+        Err(err) => error!("{:?}", err),
+    };
+    match beta_handle.join() {
+        Ok(_) => (),
+        Err(err) => error!("{:?}", err),
+    };
+    let nightly_updater = move || loop {
+        std::thread::sleep(Duration::from_secs(60 * 60));
+        info!("Scheduled {} update triggered.", Release::Nightly);
+        match FIREFOX_NIGHTLY.write() {
+            Ok(mut guard) => {
+                match guard.as_mut() {
+                    Some(ff) => match ff.update() {
+                        Ok(_) => (),
+                        Err(err) => error!("{}", err),
+                    },
+                    None => nightly_downloader(),
+                };
+            }
+            Err(err) => error!("{}", err),
+        };
+    };
+    let beta_updater = move || loop {
+        std::thread::sleep(Duration::from_secs(60 * 60));
+        info!("Scheduled {} update triggered.", Release::Beta);
+        match FIREFOX_BETA.write() {
+            Ok(mut guard) => match guard.as_mut() {
+                Some(ff) => match ff.update() {
+                    Ok(_) => (),
+                    Err(err) => error!("{}", err),
+                },
+                None => beta_downloader(),
+            },
+            Err(err) => error!("{}", err),
+        };
+    };
     info!(
         "Starting the X Virtual Frame Buffer on DISPLAY={}",
         xvfb::DISPLAY_PORT
     );
     let _ = *XVFB;
-    info!("Initializing Firefox Nightly");
-    let _ = *FIREFOX_NIGHTLY;
-    info!("Starting the Firefox Nightly updater thread");
-    std::thread::spawn(|| {
-        std::thread::sleep(Duration::from_secs(60 * 60));
-        info!("Scheduled Firefox update triggered.");
-        match FIREFOX_NIGHTLY.write() {
-            Ok(mut ff) => match ff.update() {
-                Ok(_) => (),
-                Err(err) => error!("{:?}", err),
-            },
-            Err(err) => error!("{:?}", err),
-        }
-    });
-
-    info!("Initializing Firefox Beta");
-    let _ = *FIREFOX_BETA;
-    info!("Starting the Firefox Beta updater thread");
-    std::thread::spawn(|| {
-        std::thread::sleep(Duration::from_secs(60 * 60));
-        info!("Scheduled Firefox update triggered.");
-        match FIREFOX_BETA.write() {
-            Ok(mut ff) => match ff.update() {
-                Ok(_) => (),
-                Err(err) => error!("{:?}", err),
-            },
-            Err(err) => error!("{:?}", err),
-        }
-    });
+    std::thread::spawn(nightly_updater);
+    std::thread::spawn(beta_updater);
 }
 
 /// std::process::Child does not implement drop in a meaningful way.
@@ -106,9 +140,52 @@ impl Drop for DroppableChild {
     }
 }
 
+#[derive(Copy, Clone)]
 enum Release {
     Nightly,
-    Beta
+    Beta,
+}
+
+impl Into<Url> for Release {
+    fn into(self) -> Url {
+        match self {
+            Release::Nightly => NIGHTLY.clone(),
+            Release::Beta => BETA.clone(),
+        }
+    }
+}
+
+impl std::fmt::Display for Release {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Release::Beta => f.write_str("Firefox Beta"),
+            Release::Nightly => f.write_str("Firefox Nightly"),
+        }
+    }
+}
+
+impl std::fmt::Debug for Release {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Release::Beta => f.write_str("firefox_beta"),
+            Release::Nightly => f.write_str("firefox_nightly"),
+        }
+    }
+}
+
+impl Release {
+    pub fn update_message(&self) -> String {
+        match self {
+            Release::Nightly => format!(
+                "{} is not properly initialized. Maybe call -X PATCH /update_firefox",
+                Release::Nightly
+            ),
+            Release::Beta => format!(
+                "{} is not properly initialized. Maybe call -X PATCH /beta/update_firefox",
+                Release::Beta
+            ),
+        }
+    }
 }
 
 pub struct Firefox {
@@ -116,7 +193,7 @@ pub struct Firefox {
     executable: OsString,
     profile: Profile,
     etag: String,
-    release: Release
+    release: Release,
 }
 
 impl Drop for Firefox {
@@ -129,24 +206,64 @@ impl Drop for Firefox {
 }
 
 impl Firefox {
-    pub fn nightly() -> Result<CertStorage> {
-        match FIREFOX_NIGHTLY.read() {
-            Err(err) => Err(format!("{:?}", err))?,
-            Ok(ff) => ff
-                .profile
-                .cert_storage()
-                .chain_err(|| "failed to parse cert_storage"),
+    fn try_run_mut<T, FN>(
+        target: &RwLock<Option<Firefox>>,
+        function: FN,
+        release: Release,
+    ) -> Result<T>
+    where
+        FN: Fn(&mut Firefox) -> Result<T>,
+    {
+        match target.write() {
+            Ok(mut guard) => function(guard.as_mut().ok_or(release.update_message())?),
+            Err(err) => Err(format!("{}", err))?,
         }
     }
 
-    pub fn beta() -> Result<CertStorage> {
-        match FIREFOX_BETA.read() {
-            Err(err) => Err(format!("{:?}", err))?,
-            Ok(ff) => ff
-                .profile
-                .cert_storage()
-                .chain_err(|| "failed to parse cert_storage"),
+    fn try_run<T, FN>(target: &RwLock<Option<Firefox>>, function: FN, release: Release) -> Result<T>
+    where
+        FN: Fn(&Firefox) -> Result<T>,
+    {
+        match target.read() {
+            Ok(guard) => function(guard.as_ref().ok_or(release.update_message())?),
+            Err(err) => Err(format!("{}", err))?,
         }
+    }
+
+    pub fn update_firefox_nightly() -> Result<()> {
+        Firefox::try_run_mut(&*FIREFOX_NIGHTLY, Firefox::force_update, Release::Nightly)
+    }
+
+    pub fn update_firefox_beta() -> Result<()> {
+        Firefox::try_run_mut(&*FIREFOX_BETA, Firefox::force_update, Release::Beta)
+    }
+
+    pub fn update_cert_storage_nightly() -> Result<()> {
+        Firefox::try_run_mut(
+            &*FIREFOX_NIGHTLY,
+            Firefox::update_cert_storage,
+            Release::Nightly,
+        )
+    }
+
+    pub fn update_cert_storage_beta() -> Result<()> {
+        Firefox::try_run_mut(&*FIREFOX_BETA, Firefox::update_cert_storage, Release::Beta)
+    }
+
+    pub fn nightly_cert_storage() -> Result<CertStorage> {
+        Firefox::try_run(
+            &*FIREFOX_NIGHTLY,
+            Firefox::get_cert_storage,
+            Release::Nightly,
+        )
+    }
+
+    pub fn beta_cert_storage() -> Result<CertStorage> {
+        Firefox::try_run(&*FIREFOX_BETA, Firefox::get_cert_storage, Release::Beta)
+    }
+
+    fn get_cert_storage(&self) -> Result<CertStorage> {
+        self.profile.cert_storage()
     }
 
     /// Creates and initializes a new profile managed by this instance of Firefox.
@@ -177,8 +294,8 @@ impl Firefox {
                 .spawn()
                 .chain_err(|| {
                     format!(
-                        "failed to start Firefox in the context of the profile at {}",
-                        self.profile.home
+                        "failed to start {} in the context of the profile at {}",
+                        self.release, self.profile.home
                     )
                 })?,
         };
@@ -198,7 +315,11 @@ impl Firefox {
         loop {
             std::thread::sleep(Duration::from_millis(100));
             if start.elapsed() == Duration::from_secs(PROFILE_CREATION_TIMEOUT) {
-                return Err(format!("Firefox Nightly timed out by taking more than ten seconds to initialize the profile at {}", self.profile.home).into());
+                return Err(format!(
+                    "{} timed out by taking more than ten seconds to initialize the profile at {}",
+                    self.release, self.profile.home
+                )
+                .into());
             }
             match database() {
                 Err(_) => (),
@@ -212,7 +333,7 @@ impl Firefox {
         loop {
             std::thread::sleep(Duration::from_millis(100));
             if start.elapsed() == Duration::from_secs(CERT_STORAGE_POPULATION_TIMEOUT) {
-                return Err(format!("Firefox Nightly timed out by taking more than ten seconds to begin population cert_storage at {}", cert_storage_name).into());
+                return Err(format!("{} timed out by taking more than ten seconds to begin population cert_storage at {}", self.release, cert_storage_name).into());
             }
             let size = database()?.len();
             if size != initial_size {
@@ -247,31 +368,22 @@ impl Firefox {
     /// Under the condition that no change has been made on the remote, then this method
     /// returns self.
     pub fn update(&mut self) -> Result<()> {
-        let target: &Url = match self.release {
-            Release::Nightly => &*NIGHTLY,
-            Release::Beta => &*BETA
-        };
-        let resp = http::new_get_request(target.clone())
+        let resp = http::new_get_request(self.release.into())
             .header("If-None-Match", self.etag.clone())
             .send()?;
         if resp.status() == 304 {
-            info!("{} reported no changes to Firefox", target.clone());
+            info!("{} reported no changes to Firefox", self.release);
             return Ok(());
         }
-        info!("{} claims an update to Firefox", target.clone());
-        let new_ff = resp.try_into()?;
+        info!("{} claims an update to Firefox", self.release);
+        let new_ff = self.release.try_into()?;
         std::mem::replace(self, new_ff);
         Ok(())
     }
 
     /// Completely ignores the etag header and forces and download of Firefox.
     pub fn force_update(&mut self) -> Result<()> {
-        let target: &Url = match self.release {
-            Release::Nightly => &*NIGHTLY,
-            Release::Beta => &*BETA
-        };
-        let resp = http::new_get_request(target.clone()).send()?;
-        let new_ff = resp.try_into()?;
+        let new_ff = self.release.try_into()?;
         std::mem::replace(self, new_ff);
         Ok(())
     }
@@ -315,34 +427,12 @@ impl Firefox {
     }
 }
 
-/// Attempts to parse the given str into a Url and then defers to TryFrom<Url> for Firefox
-impl TryFrom<&str> for Firefox {
+impl TryFrom<Release> for Firefox {
     type Error = Error;
 
-    fn try_from(value: &str) -> Result<Self> {
-        match value.parse::<Url>() {
-            Ok(url) => url.try_into(),
-            Err(err) => Err(Error::from(err.to_string())),
-        }
-    }
-}
-
-/// Creates a Firefox instance from the given Url.
-impl TryFrom<Url> for Firefox {
-    type Error = Error;
-
-    fn try_from(value: Url) -> Result<Self> {
-        http::new_get_request(value).send()?.try_into()
-    }
-}
-
-/// Response is expected to be a stream of tar.bzip archive of Firefox.
-impl TryFrom<Response> for Firefox {
-    type Error = Error;
-
-    fn try_from(resp: Response) -> Result<Self> {
-        let url = resp.url().clone();
-        let _home = TempDir::new("kinto_integrity_firefox")?;
+    fn try_from(release: Release) -> Result<Self> {
+        let resp = http::new_get_request(release.into()).send()?;
+        let _home = TempDir::new(format!("kinto_integrity_{:?}", release).as_str())?;
         let executable = _home
             .path()
             .join("firefox")
@@ -365,17 +455,12 @@ impl TryFrom<Response> for Firefox {
         )))
         .unpack(&_home)?;
         let profile = Profile::new()?;
-        let release = if url.as_str().contains("nightly") {
-            Release::Nightly
-        } else {
-            Release::Beta
-        };
         let ff = Firefox {
             _home,
             executable,
             profile,
             etag,
-            release
+            release,
         };
         ff.create_profile()?;
         Ok(ff)
