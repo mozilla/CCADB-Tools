@@ -11,8 +11,8 @@ const USER_AGENT_VALUE: &str =
 const X_AUTOMATED_TOOL_KEY: &str = "X-Automated-Tool";
 const X_AUTOMATED_TOOL_VALUE: &str = "github.com/mozilla/CCADB-Tools/kinto_integrity";
 
-pub fn new_get_request(url: Url) -> reqwest::RequestBuilder {
-    reqwest::Client::new()
+pub fn new_get_request(url: Url) -> reqwest::blocking::RequestBuilder {
+    reqwest::blocking::Client::new()
         .get(url)
         .header(reqwest::header::USER_AGENT, USER_AGENT_VALUE)
         .header(X_AUTOMATED_TOOL_KEY, X_AUTOMATED_TOOL_VALUE)

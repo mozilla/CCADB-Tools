@@ -46,7 +46,7 @@ mod nightly {
     pub fn default() -> Result<String> {
         let revocations: Revocations = Revocations::default()?;
         let kinto: Kinto = Kinto::default()?;
-        let cert_storage = Firefox::nightly_cert_storage()?;
+        let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
@@ -69,7 +69,7 @@ mod nightly {
             Err(err) => Err(format!("{:?}", err))?,
         };
         let kinto: Kinto = Kinto::default()?;
-        let cert_storage = Firefox::nightly_cert_storage()?;
+        let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
@@ -78,7 +78,7 @@ mod nightly {
     pub fn post_revocations(revocations_txt: Data) -> Result<String> {
         let revocations = Revocations::parse(revocations_txt.open())?;
         let kinto: Kinto = Kinto::default()?;
-        let cert_storage = Firefox::nightly_cert_storage()?;
+        let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
@@ -86,7 +86,7 @@ mod nightly {
     #[get("/without_revocations")]
     pub fn without_revocations() -> Result<String> {
         let kinto: Kinto = Kinto::default()?;
-        let cert_storage = Firefox::nightly_cert_storage()?;
+        let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: Return = (cert_storage, kinto).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
@@ -94,19 +94,19 @@ mod nightly {
     #[get("/ccadb_cert_storage")]
     pub fn ccadb_cert_storage() -> Result<String> {
         let ccadb: CCADBReport = CCADBReport::default()?;
-        let cert_storage = Firefox::nightly_cert_storage()?;
+        let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
 
     #[patch("/update_cert_storage")]
     pub fn update_cert_storage() -> Result<()> {
-        firefox::Firefox::update_cert_storage_nightly()
+        FIREFOX_NIGHTLY.update_cert_storage()
     }
 
     #[patch("/update_firefox")]
     pub fn update_firefox() -> Result<()> {
-        firefox::Firefox::update_firefox_nightly()
+        FIREFOX_NIGHTLY.force_update()
     }
 }
 
@@ -116,7 +116,7 @@ mod beta {
     pub fn default() -> Result<String> {
         let revocations: Revocations = Revocations::default()?;
         let kinto: Kinto = Kinto::default()?;
-        let cert_storage = Firefox::beta_cert_storage()?;
+        let cert_storage = FIREFOX_BETA.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
@@ -139,7 +139,7 @@ mod beta {
             Err(err) => Err(format!("{:?}", err))?,
         };
         let kinto: Kinto = Kinto::default()?;
-        let cert_storage = Firefox::beta_cert_storage()?;
+        let cert_storage = FIREFOX_BETA.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
@@ -152,7 +152,7 @@ mod beta {
     pub fn post_revocations(revocations_txt: Data) -> Result<String> {
         let revocations = Revocations::parse(revocations_txt.open())?;
         let kinto: Kinto = Kinto::default()?;
-        let cert_storage = Firefox::beta_cert_storage()?;
+        let cert_storage = FIREFOX_BETA.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
@@ -160,7 +160,7 @@ mod beta {
     #[get("/beta/without_revocations")]
     pub fn without_revocations() -> Result<String> {
         let kinto: Kinto = Kinto::default()?;
-        let cert_storage = Firefox::beta_cert_storage()?;
+        let cert_storage = FIREFOX_BETA.cert_storage()?;
         let result: Return = (cert_storage, kinto).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
@@ -168,19 +168,19 @@ mod beta {
     #[get("/beta/ccadb_cert_storage")]
     pub fn ccadb_cert_storage() -> Result<String> {
         let ccadb: CCADBReport = CCADBReport::default()?;
-        let cert_storage = Firefox::beta_cert_storage()?;
+        let cert_storage = FIREFOX_BETA.cert_storage()?;
         let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
         Ok(serde_json::to_string_pretty(&result)?)
     }
 
     #[patch("/beta/update_cert_storage")]
     pub fn update_cert_storage() -> Result<()> {
-        firefox::Firefox::update_cert_storage_beta()
+        FIREFOX_BETA.update_cert_storage()
     }
 
     #[patch("/beta/update_firefox")]
     pub fn update_firefox() -> Result<()> {
-        firefox::Firefox::update_firefox_beta()
+        FIREFOX_BETA.force_update()
     }
 }
 
