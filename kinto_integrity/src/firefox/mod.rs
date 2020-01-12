@@ -26,20 +26,6 @@ pub mod profile;
 
 mod xvfb;
 
-lazy_static! {
-    pub static ref NIGHTLY: Url =
-        "https://download.mozilla.org/?product=firefox-nightly-latest-ssl&os=linux64&lang=en-US"
-            .parse()
-            .unwrap();
-    pub static ref BETA: Url =
-        "https://download.mozilla.org/?product=firefox-beta-latest-ssl&os=linux64&lang=en-US"
-            .parse()
-            .unwrap();
-    static ref FIREFOX_NIGHTLY: RwLock<Option<Firefox>> = RwLock::new(None);
-    static ref FIREFOX_BETA: RwLock<Option<Firefox>> = RwLock::new(None);
-    static ref XVFB: Xvfb = Xvfb::new().unwrap();
-}
-
 const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
 const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
@@ -55,6 +41,78 @@ const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
                                                  // Note that, of course, this is only a heuristic. Meaning that if we improperly move on
                                                  // without getting the full database, that firefox::cert_storage parsing is likely to fail.
 const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
+
+lazy_static! {
+    pub static ref NIGHTLY: Url =
+        "https://download.mozilla.org/?product=firefox-nightly-latest-ssl&os=linux64&lang=en-US"
+            .parse()
+            .unwrap();
+    pub static ref BETA: Url =
+        "https://download.mozilla.org/?product=firefox-beta-latest-ssl&os=linux64&lang=en-US"
+            .parse()
+            .unwrap();
+    static ref FIREFOX_NIGHTLY: RwLock<Option<Firefox>> = RwLock::new(None);
+    static ref FIREFOX_BETA: RwLock<Option<Firefox>> = RwLock::new(None);
+    static ref XVFB: Xvfb = Xvfb::new().unwrap();
+}
+
+impl FIREFOX_NIGHTLY {
+    const release: Release = Release::Nightly;
+
+    pub fn update_loop(&mut self) {
+        loop {
+            self.update();
+            std::thread::sleep(Duration::from_secs(60 * 60));
+        }
+    }
+
+    pub fn update(&self) {
+        info!("Scheduled {} update triggered.", Self::release);
+        match self.write() {
+            Ok(mut guard) => match guard.as_mut() {
+                Some(ff) => match ff.update() {
+                    Ok(_) => (),
+                    Err(err) => error!("{}", err),
+                },
+                None => {
+                    let result: Result<Firefox> = Self::release.try_into();
+                    match result {
+                        Ok(ff) => *guard = Some(ff),
+                        Err(err) => error!("{:?}", err),
+                    };
+                }
+            },
+            Err(err) => error!("{}", err),
+        }
+    }
+}
+
+impl FIREFOX_BETA {
+    const release: Release = Release::Beta;
+
+    pub fn update_loop(&mut self) {
+        loop {
+            info!("Scheduled {} update triggered.", Self::release);
+            match self.write() {
+                Ok(mut guard) => match guard.as_mut() {
+                    Some(ff) => match ff.update() {
+                        Ok(_) => (),
+                        Err(err) => error!("{}", err),
+                    },
+                    None => {
+                        let result: Result<Firefox> = Self::release.try_into();
+                        match result {
+                            Ok(ff) => *guard = Some(ff),
+                            Err(err) => error!("{:?}", err),
+                        };
+                    }
+                },
+                Err(err) => error!("{}", err),
+            }
+            std::thread::sleep(Duration::from_secs(60 * 60));
+        }
+    }
+}
 
 pub fn init() {
     let nightly_downloader = || {
@@ -372,10 +430,10 @@ impl Firefox {
             .header("If-None-Match", self.etag.clone())
             .send()?;
         if resp.status() == 304 {
-            info!("{} reported no changes to Firefox", self.release);
+            info!("{} reported no changes.", self.release);
             return Ok(());
         }
-        info!("{} claims an update to Firefox", self.release);
+        info!("{} claims an update.", self.release);
         let new_ff = self.release.try_into()?;
         std::mem::replace(self, new_ff);
         Ok(())
