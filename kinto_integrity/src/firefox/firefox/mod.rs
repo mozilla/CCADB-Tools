@@ -1,14 +1,14 @@
-use std::time::Duration;
-use crate::http;
-use crate::firefox::profile::Profile;
 use crate::errors::*;
-use std::process::{Stdio, Command, Child};
-use std::convert::TryFrom;
-use tempdir::TempDir;
-use std::io::BufReader;
-use std::ffi::OsString;
-use reqwest::Url;
 use crate::firefox::cert_storage::CertStorage;
+use crate::firefox::profile::Profile;
+use crate::http;
+use reqwest::Url;
+use std::convert::TryFrom;
+use std::ffi::OsString;
+use std::io::BufReader;
+use std::process::{Child, Command, Stdio};
+use std::time::Duration;
+use tempdir::TempDir;
 
 const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
@@ -59,7 +59,6 @@ impl Drop for Firefox {
 }
 
 impl Firefox {
-
     pub fn cert_storage(&self) -> Result<CertStorage> {
         self.profile
             .as_ref()

@@ -10,15 +10,14 @@ use std::time::Duration;
 use xvfb::Xvfb;
 
 pub mod cert_storage;
-pub mod profile;
 pub mod firefox;
+pub mod profile;
 
 mod xvfb;
 
 #[macro_use]
 mod singleton;
 pub use singleton::*;
-
 
 lazy_static! {
     static ref XVFB: Xvfb = Xvfb::new().unwrap();
@@ -45,13 +44,17 @@ pub fn init() {
     );
     let _ = *XVFB;
     std::thread::spawn(|| loop {
-        FIREFOX_NIGHTLY.update();
+        match FIREFOX_NIGHTLY.update() {
+            Ok(_) => (),
+            Err(err) => error!("{}", err.to_string()),
+        };
         std::thread::sleep(Duration::from_secs(60 * 60));
     });
     std::thread::spawn(|| loop {
-        FIREFOX_BETA.update();
+        match FIREFOX_BETA.update() {
+            Ok(_) => (),
+            Err(err) => error!("{}", err.to_string()),
+        };
         std::thread::sleep(Duration::from_secs(60 * 60));
     });
 }
-
-

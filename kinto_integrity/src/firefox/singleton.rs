@@ -1,6 +1,6 @@
-use std::sync::{RwLockWriteGuard, RwLockReadGuard};
 use crate::errors::*;
 use crate::firefox::cert_storage::CertStorage;
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 pub trait FirefoxRelease {
     const DISPLAY: &'static str;
@@ -13,20 +13,15 @@ pub trait FirefoxRelease {
     fn update(&self) -> Result<()> {
         let mut inner = self.get_mut()?;
         match inner.update(Self::URL.parse().unwrap()) {
-            Ok(None) => (),
-            Ok(Some(_)) => (),
-            Err(_) => (),
+            Ok(None) => info!("No updates published to {}", Self::DISPLAY),
+            Ok(Some(_)) => info!("Downloaded an update to {}", Self::DISPLAY),
+            Err(err) => error!("{}", err.to_string()),
         }
         Ok(())
     }
 
     fn force_update(&self) -> Result<()> {
-        let mut inner = self.get_mut()?;
-        match inner.force_update(Self::URL.parse().unwrap()) {
-            Ok(_) => (),
-            Err(_) => (),
-        }
-        Ok(())
+        self.get_mut()?.force_update(Self::URL.parse().unwrap())
     }
 
     fn cert_storage(&self) -> Result<CertStorage> {
@@ -41,9 +36,10 @@ pub trait FirefoxRelease {
 #[macro_export]
 macro_rules! firefox_release {
     ($release:ident, $display:expr, $debug:expr, $url:expr) => {
-        lazy_static!(
-            pub static ref $release: RwLock<crate::firefox::firefox::Firefox> = RwLock::new(crate::firefox::firefox::Firefox::default());
-        );
+        lazy_static! {
+            pub static ref $release: RwLock<crate::firefox::firefox::Firefox> =
+                RwLock::new(crate::firefox::firefox::Firefox::default());
+        }
 
         impl FirefoxRelease for $release {
             const DISPLAY: &'static str = $display;
