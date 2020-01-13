@@ -34,7 +34,7 @@ impl TryFrom<PathBuf> for CertStorage {
         builder.set_map_size(16777216);
         let env = match Rkv::from_builder(&db_path, builder) {
             Err(err) => Err(format!("{}", err))?,
-            Ok(env) => env
+            Ok(env) => env,
         };
         let store = env.open_single("cert_storage", StoreOptions::default())?;
         let reader = env.read()?;
