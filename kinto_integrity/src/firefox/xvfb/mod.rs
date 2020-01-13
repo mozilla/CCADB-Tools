@@ -14,6 +14,7 @@ pub struct Xvfb {
 
 impl Xvfb {
     pub fn new() -> Result<Self> {
+        std::fs::remove_file("/tmp/.X99-lock");
         Ok(Xvfb {
             process: std::process::Command::new(XVFB_EXECUTABLE)
                 .arg(DISPLAY_PORT)
