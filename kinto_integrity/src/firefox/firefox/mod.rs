@@ -26,6 +26,10 @@ const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
                                                  // without getting the full database, that firefox::cert_storage parsing is likely to fail.
 const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
 
+lazy_static!(
+    static ref FF_LOCK: std::sync::Mutex<bool> = std::sync::Mutex::default();
+);
+
 /// std::process::Child does not implement drop in a meaningful way.
 /// In our use case we just want to kill the process.
 struct DroppableChild {
@@ -155,6 +159,10 @@ impl Firefox {
     }
 
     pub fn update(&mut self, url: Url) -> Result<Option<()>> {
+        let _lock = match FF_LOCK.lock() {
+            Ok(lock) => lock,
+            Err(err) => return Err(Error::from(err.to_string()))
+        };
         let resp = http::new_get_request(url)
             .header("If-None-Match", self.etag.clone())
             .send()
@@ -167,6 +175,10 @@ impl Firefox {
     }
 
     pub fn force_update(&mut self, url: Url) -> Result<()> {
+        let _lock = match FF_LOCK.lock() {
+            Ok(lock) => lock,
+            Err(err) => return Err(Error::from(err.to_string()))
+        };
         let resp = http::new_get_request(url)
             .header("If-None-Match", self.etag.clone())
             .send()
@@ -176,6 +188,10 @@ impl Firefox {
     }
 
     pub fn update_cert_storage(&mut self) -> Result<()> {
+        let _lock = match FF_LOCK.lock() {
+            Ok(lock) => lock,
+            Err(err) => return Err(Error::from(err.to_string()))
+        };
         self.profile = Some(Profile::new()?);
         self.create_profile()
     }
