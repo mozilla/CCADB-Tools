@@ -159,6 +159,10 @@ impl Firefox {
     }
 
     pub fn update(&mut self, url: Url) -> Result<Option<()>> {
+        let _ = match FF_LOCK.lock() {
+            Ok(lock) => lock,
+            Err(err) => return Err(Error::from(err.to_string()))
+        };
         let resp = http::new_get_request(url)
             .header("If-None-Match", self.etag.clone())
             .send()
@@ -166,23 +170,19 @@ impl Firefox {
         if resp.status() == 304 {
             return Ok(None);
         }
-        let _ = match FF_LOCK.lock() {
-            Ok(lock) => lock,
-            Err(err) => return Err(Error::from(err.to_string()))
-        };
         std::mem::replace(self, Self::try_from(resp)?);
         Ok(Some(()))
     }
 
     pub fn force_update(&mut self, url: Url) -> Result<()> {
-        let resp = http::new_get_request(url)
-            .header("If-None-Match", self.etag.clone())
-            .send()
-            .chain_err(|| "")?;
         let _ = match FF_LOCK.lock() {
             Ok(lock) => lock,
             Err(err) => return Err(Error::from(err.to_string()))
         };
+        let resp = http::new_get_request(url)
+            .header("If-None-Match", self.etag.clone())
+            .send()
+            .chain_err(|| "")?;
         std::mem::replace(self, Self::try_from(resp)?);
         Ok(())
     }
