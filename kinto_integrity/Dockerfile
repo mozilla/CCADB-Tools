@@ -6,7 +6,7 @@ FROM rustlang/rust@sha256:fdac35b8baebbc8bf1b99919271443688e9ef5656aeda52961edc2
 
 WORKDIR /opt
 COPY . .
-RUN cargo build --release
+RUN cargo build
 RUN wget https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz
 RUN tar zxf go1.13.4.linux-amd64.tar.gz
 RUN go/bin/go build -o consultant consultant.go

@@ -26,6 +26,10 @@ const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
                                                  // without getting the full database, that firefox::cert_storage parsing is likely to fail.
 const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
 
+lazy_static!(
+    static ref FF_LOCK: std::sync::Mutex<bool> = std::sync::Mutex::default();
+);
+
 /// std::process::Child does not implement drop in a meaningful way.
 /// In our use case we just want to kill the process.
 struct DroppableChild {
@@ -176,6 +180,10 @@ impl Firefox {
     }
 
     pub fn update_cert_storage(&mut self) -> Result<()> {
+        let _ = match FF_LOCK.lock() {
+            Ok(lock) => lock,
+            Err(err) => return Err(Error::from(err.to_string()))
+        };
         self.profile = Some(Profile::new()?);
         self.create_profile()
     }
@@ -224,6 +232,10 @@ impl TryFrom<reqwest::blocking::Response> for Firefox {
     type Error = Error;
 
     fn try_from(resp: reqwest::blocking::Response) -> Result<Self> {
+        let _ = match FF_LOCK.lock() {
+            Ok(lock) => lock,
+            Err(err) => return Err(Error::from(err.to_string()))
+        };
         let home = TempDir::new("kinto_integrity").chain_err(|| "")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let etag = resp
