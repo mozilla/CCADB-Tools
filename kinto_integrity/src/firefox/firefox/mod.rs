@@ -159,7 +159,7 @@ impl Firefox {
     }
 
     pub fn update(&mut self, url: Url) -> Result<Option<()>> {
-        let _ = match FF_LOCK.lock() {
+        let _lock = match FF_LOCK.lock() {
             Ok(lock) => lock,
             Err(err) => return Err(Error::from(err.to_string()))
         };
@@ -175,7 +175,7 @@ impl Firefox {
     }
 
     pub fn force_update(&mut self, url: Url) -> Result<()> {
-        let _ = match FF_LOCK.lock() {
+        let _lock = match FF_LOCK.lock() {
             Ok(lock) => lock,
             Err(err) => return Err(Error::from(err.to_string()))
         };
@@ -188,7 +188,7 @@ impl Firefox {
     }
 
     pub fn update_cert_storage(&mut self) -> Result<()> {
-        let _ = match FF_LOCK.lock() {
+        let _lock = match FF_LOCK.lock() {
             Ok(lock) => lock,
             Err(err) => return Err(Error::from(err.to_string()))
         };
