@@ -166,6 +166,10 @@ impl Firefox {
         if resp.status() == 304 {
             return Ok(None);
         }
+        let _ = match FF_LOCK.lock() {
+            Ok(lock) => lock,
+            Err(err) => return Err(Error::from(err.to_string()))
+        };
         std::mem::replace(self, Self::try_from(resp)?);
         Ok(Some(()))
     }
@@ -175,6 +179,10 @@ impl Firefox {
             .header("If-None-Match", self.etag.clone())
             .send()
             .chain_err(|| "")?;
+        let _ = match FF_LOCK.lock() {
+            Ok(lock) => lock,
+            Err(err) => return Err(Error::from(err.to_string()))
+        };
         std::mem::replace(self, Self::try_from(resp)?);
         Ok(())
     }
@@ -232,10 +240,6 @@ impl TryFrom<reqwest::blocking::Response> for Firefox {
     type Error = Error;
 
     fn try_from(resp: reqwest::blocking::Response) -> Result<Self> {
-        let _ = match FF_LOCK.lock() {
-            Ok(lock) => lock,
-            Err(err) => return Err(Error::from(err.to_string()))
-        };
         let home = TempDir::new("kinto_integrity").chain_err(|| "")?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let etag = resp
