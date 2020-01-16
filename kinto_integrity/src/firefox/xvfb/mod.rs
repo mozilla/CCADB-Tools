@@ -14,7 +14,7 @@ pub struct Xvfb {
 
 impl Xvfb {
     pub fn new() -> Result<Self> {
-        std::fs::remove_file("/tmp/.X99-lock");
+        let _ = std::fs::remove_file("/tmp/.X99-lock");
         Ok(Xvfb {
             process: std::process::Command::new(XVFB_EXECUTABLE)
                 .arg(DISPLAY_PORT)
@@ -31,5 +31,6 @@ impl Drop for Xvfb {
             Ok(_) => (),
             Err(err) => error!("{:?}", err),
         };
+        let _ = std::fs::remove_file("/tmp/.X99-lock");
     }
 }
