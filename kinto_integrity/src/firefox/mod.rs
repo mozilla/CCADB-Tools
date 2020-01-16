@@ -30,13 +30,6 @@ firefox_release!(
     "https://download.mozilla.org/?product=firefox-nightly-latest-ssl&os=linux64&lang=en-US"
 );
 
-firefox_release!(
-    FIREFOX_BETA,
-    "Firefox Beta",
-    "firefox_beta",
-    "https://download.mozilla.org/?product=firefox-beta-latest-ssl&os=linux64&lang=en-US"
-);
-
 pub fn init() {
     info!(
         "Starting the X Virtual Frame Buffer on DISPLAY={}",
@@ -45,13 +38,6 @@ pub fn init() {
     let _ = *XVFB;
     std::thread::spawn(|| loop {
         match FIREFOX_NIGHTLY.update() {
-            Ok(_) => (),
-            Err(err) => error!("{}", err.to_string()),
-        };
-        std::thread::sleep(Duration::from_secs(60 * 60));
-    });
-    std::thread::spawn(|| loop {
-        match FIREFOX_BETA.update() {
             Ok(_) => (),
             Err(err) => error!("{}", err.to_string()),
         };
