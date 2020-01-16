@@ -39,6 +39,7 @@ struct DroppableChild {
 impl Drop for DroppableChild {
     fn drop(&mut self) {
         let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
 
