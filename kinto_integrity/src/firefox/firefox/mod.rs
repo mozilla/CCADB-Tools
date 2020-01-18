@@ -109,9 +109,10 @@ impl Firefox {
         let start = std::time::Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(100));
-            if start.elapsed() == Duration::from_secs(PROFILE_CREATION_TIMEOUT) {
+            if start.elapsed() >= Duration::from_secs(PROFILE_CREATION_TIMEOUT) {
                 return Err(format!(
-                        "Firefox timed out by taking more than ten seconds to initialize the profile at {}",
+                        "Firefox timed out by taking more than {} seconds to initialize the profile at {}",
+                        PROFILE_CREATION_TIMEOUT,
                         profile.home
                     )
                     .into());
@@ -127,8 +128,8 @@ impl Firefox {
         let start = std::time::Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(100));
-            if start.elapsed() == Duration::from_secs(CERT_STORAGE_POPULATION_TIMEOUT) {
-                return Err(format!("Firefox timed out by taking more than ten seconds to begin population cert_storage at {}", cert_storage_name).into());
+            if start.elapsed() >= Duration::from_secs(CERT_STORAGE_POPULATION_TIMEOUT) {
+                return Err(format!("Firefox timed out by taking more than {} seconds to begin population cert_storage at {}", CERT_STORAGE_POPULATION_TIMEOUT, cert_storage_name).into());
             }
             let size = database()?.len();
             if size != initial_size {
@@ -230,8 +231,6 @@ impl Firefox {
     fn cmd(&self) -> Command {
         let mut cmd = Command::new(&self.executable);
         cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
-        cmd.stdout(Stdio::null());
-        cmd.stderr(Stdio::null());
         cmd
     }
 }
