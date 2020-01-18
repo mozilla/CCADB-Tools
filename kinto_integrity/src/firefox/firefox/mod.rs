@@ -85,6 +85,9 @@ impl Firefox {
     /// we have to simply watch the file and wait for it to stop growing in size.
     fn create_profile(&self) -> Result<()> {
         let profile = self.profile.as_ref().ok_or("not initialized")?;
+
+        info!("{}", self.create_profile_args());
+        info!("{}", self.init_profile_args());
         // Register the profile with Firefox.
         info!("Creating profile {} at {}", profile.name, profile.home);
         self.cmd()
@@ -106,8 +109,6 @@ impl Firefox {
                     )
                 })?,
         };
-        info!("{}", self.init_profile_args());
-        info!("{}", self.create_profile_args());
         // Unfortunately, it's not like Firefox is giving us update progress over stdout,
         // so in order to be notified if cert storage is done being populate we gotta
         // listen in on the file and check up on its size.
@@ -212,7 +213,7 @@ impl Firefox {
     /// See https://developer.mozilla.org/en-US/docs/Mozilla/Command_Line_Options#-CreateProfile_.22profile_name_profile_dir.22
     fn create_profile_args(&self) -> String {
         format!(r#""{}""#, vec![
-            format!("{}={}", NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1),
+            format!("export {}={};", NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1),
             self.executable.clone().into_string().unwrap(),
             CREATE_PROFILE.to_string(),
             format!(
@@ -233,7 +234,7 @@ impl Firefox {
     /// is finished populating.
     fn init_profile_args(&self) -> String {
         format!(r#""{}""#, vec![
-            format!("{}={}", NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1),
+            format!("export {}={};", NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1),
             self.executable.clone().into_string().unwrap(),
             WITH_PROFILE.to_string(),
             self.profile.as_ref().unwrap().home.clone(),
