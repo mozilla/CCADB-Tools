@@ -212,6 +212,7 @@ impl Firefox {
     /// See https://developer.mozilla.org/en-US/docs/Mozilla/Command_Line_Options#-CreateProfile_.22profile_name_profile_dir.22
     fn create_profile_args(&self) -> String {
         format!(r#""{}""#, vec![
+            format!("{}={}", NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1),
             self.executable.clone().into_string().unwrap(),
             CREATE_PROFILE.to_string(),
             format!(
@@ -232,6 +233,7 @@ impl Firefox {
     /// is finished populating.
     fn init_profile_args(&self) -> String {
         format!(r#""{}""#, vec![
+            format!("{}={}", NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1),
             self.executable.clone().into_string().unwrap(),
             WITH_PROFILE.to_string(),
             self.profile.as_ref().unwrap().home.clone(),
@@ -241,7 +243,6 @@ impl Firefox {
     /// Returns a Command which is partially pre-built with the more fiddly bits of
     /// starting a headlesss Firefox. E.G. predeclaring the DISPLAY environment variable.
     fn cmd(&self) -> Command {
-        std::env::set_var(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
         let mut cmd = Command::new("bash");
         cmd.arg("-c");
         cmd.stdout(Stdio::null());
