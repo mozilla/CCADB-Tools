@@ -7,6 +7,7 @@ use crate::firefox::cert_storage::CertStorage;
 use std::convert::TryInto;
 use std::path::{Path, PathBuf};
 use tempdir::TempDir;
+use std::process::Command;
 
 const TMP_PREFIX: &str = "kinto_integrity_profile";
 const CERT_STORAGE_DIR: &str = "security_state";
@@ -37,6 +38,7 @@ impl Profile {
                 "failed get the &str representation of a temp directory created for a profile",
             ))?,
         };
+        Command::new("chmod").arg("-R").arg("0777").arg(&_tmp);
         Ok(Profile { name, home, _tmp })
     }
 
