@@ -106,6 +106,8 @@ impl Firefox {
                     )
                 })?,
         };
+        info!("{}", self.init_profile_args());
+        info!("{}", self.create_profile_args());
         // Unfortunately, it's not like Firefox is giving us update progress over stdout,
         // so in order to be notified if cert storage is done being populate we gotta
         // listen in on the file and check up on its size.
