@@ -39,7 +39,14 @@ struct DroppableChild {
 impl Drop for DroppableChild {
     fn drop(&mut self) {
         let _ = self.child.kill();
-        let _ = Command::new("wait").arg(self.child.id()).output();
+    }
+}
+
+impl DroppableChild {
+    fn new(cmd: String) -> Result<DroppableChild> {
+        Ok(DroppableChild{
+            child: Command::new("bash").arg("-c").arg(format!(r#""{}""#, cmd)).spawn()?
+        })
     }
 }
 
@@ -81,7 +88,7 @@ impl Firefox {
         // Register the profile with Firefox.
         info!("Creating profile {} at {}", profile.name, profile.home);
         self.cmd()
-            .args(self.create_profile_args())
+            .arg(self.create_profile_args())
             .output()
             .chain_err(|| "failed to create a profile for Firefox")?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
@@ -90,7 +97,7 @@ impl Firefox {
         let _cmd = DroppableChild {
             child: self
                 .cmd()
-                .args(self.init_profile_args())
+                .arg(self.init_profile_args())
                 .spawn()
                 .chain_err(|| {
                     format!(
@@ -201,15 +208,16 @@ impl Firefox {
     /// Generates the arguments to fulfill:
     ///     ./firefox -CreateProfile "profile_name profile_dir"
     /// See https://developer.mozilla.org/en-US/docs/Mozilla/Command_Line_Options#-CreateProfile_.22profile_name_profile_dir.22
-    fn create_profile_args(&self) -> Vec<String> {
-        vec![
+    fn create_profile_args(&self) -> String {
+        format!(r#""{}""#, vec![
+            self.executable.clone().into_string().unwrap(),
             CREATE_PROFILE.to_string(),
             format!(
                 r#"{} {}"#,
                 self.profile.as_ref().unwrap().name,
                 self.profile.as_ref().unwrap().home
             ),
-        ]
+        ].join(" "))
     }
 
     /// Generates the arguments to start Firefox with a particular profile.
@@ -220,17 +228,19 @@ impl Firefox {
     /// to Kinto. The result being that you can startup, and initialize, the profile but
     /// you have to wait around and watch the profile for changes to see if cert_storage
     /// is finished populating.
-    fn init_profile_args(&self) -> Vec<String> {
-        vec![
+    fn init_profile_args(&self) -> String {
+        format!(r#""{}""#, vec![
+            self.executable.clone().into_string().unwrap(),
             WITH_PROFILE.to_string(),
             self.profile.as_ref().unwrap().home.clone(),
-        ]
+        ].join(" "))
     }
 
     /// Returns a Command which is partially pre-built with the more fiddly bits of
     /// starting a headlesss Firefox. E.G. predeclaring the DISPLAY environment variable.
     fn cmd(&self) -> Command {
-        let mut cmd = Command::new(&self.executable);
+        let mut cmd = Command::new("bash");
+        cmd.arg("-c");
         cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
         cmd.stdout(Stdio::null());
         cmd.stderr(Stdio::null());
