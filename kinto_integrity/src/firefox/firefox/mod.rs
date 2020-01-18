@@ -6,7 +6,7 @@ use reqwest::Url;
 use std::convert::TryFrom;
 use std::ffi::OsString;
 use std::io::BufReader;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command};
 use std::time::Duration;
 use tempdir::TempDir;
 
