@@ -38,7 +38,7 @@ impl Profile {
                 "failed get the &str representation of a temp directory created for a profile",
             ))?,
         };
-        Command::new("chmod").arg("-R").arg("0777").arg(&_tmp);
+        Command::new("chmod").arg("-R").arg("0777").arg(_tmp.path());
         Ok(Profile { name, home, _tmp })
     }
 
