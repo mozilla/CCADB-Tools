@@ -241,9 +241,9 @@ impl Firefox {
     /// Returns a Command which is partially pre-built with the more fiddly bits of
     /// starting a headlesss Firefox. E.G. predeclaring the DISPLAY environment variable.
     fn cmd(&self) -> Command {
+        std::env::set_var(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
         let mut cmd = Command::new("bash");
         cmd.arg("-c");
-        cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
         cmd.stdout(Stdio::null());
         cmd.stderr(Stdio::null());
         cmd
