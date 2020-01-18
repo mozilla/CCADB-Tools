@@ -245,8 +245,6 @@ impl Firefox {
     fn cmd(&self) -> Command {
         let mut cmd = Command::new("bash");
         cmd.arg("-c");
-        cmd.stdout(Stdio::null());
-        cmd.stderr(Stdio::null());
         cmd
     }
 }
