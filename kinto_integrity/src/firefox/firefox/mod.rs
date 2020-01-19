@@ -14,8 +14,8 @@ const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
 const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
 
-const PROFILE_CREATION_TIMEOUT: u64 = 10; // seconds
-const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 30; // seconds
+const PROFILE_CREATION_TIMEOUT: u64 = 60; // seconds
+const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 60; // seconds
                                                  // Once cert_storage is created we make note of its original size.
                                                  // The moment we notice that the size of the file has increased we
                                                  // assume that population of the database has begun. This heuristic
@@ -109,9 +109,10 @@ impl Firefox {
         let start = std::time::Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(100));
-            if start.elapsed() == Duration::from_secs(PROFILE_CREATION_TIMEOUT) {
+            if start.elapsed() >= Duration::from_secs(PROFILE_CREATION_TIMEOUT) {
                 return Err(format!(
-                        "Firefox timed out by taking more than ten seconds to initialize the profile at {}",
+                        "Firefox timed out by taking more than {} seconds to initialize the profile at {}",
+                        PROFILE_CREATION_TIMEOUT,
                         profile.home
                     )
                     .into());
@@ -127,8 +128,8 @@ impl Firefox {
         let start = std::time::Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(100));
-            if start.elapsed() == Duration::from_secs(CERT_STORAGE_POPULATION_TIMEOUT) {
-                return Err(format!("Firefox timed out by taking more than ten seconds to begin population cert_storage at {}", cert_storage_name).into());
+            if start.elapsed() >= Duration::from_secs(CERT_STORAGE_POPULATION_TIMEOUT) {
+                return Err(format!("Firefox timed out by taking more than {} seconds to begin population cert_storage at {}", CERT_STORAGE_POPULATION_TIMEOUT, cert_storage_name).into());
             }
             let size = database()?.len();
             if size != initial_size {
@@ -230,8 +231,8 @@ impl Firefox {
     fn cmd(&self) -> Command {
         let mut cmd = Command::new(&self.executable);
         cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
-        cmd.stdout(Stdio::null());
-        cmd.stderr(Stdio::null());
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
         cmd
     }
 }
