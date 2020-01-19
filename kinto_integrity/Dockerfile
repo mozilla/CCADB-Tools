@@ -13,7 +13,7 @@ RUN go/bin/go build -o consultant consultant.go
 
 FROM ubuntu:latest
 RUN apt-get update
-RUN apt-get install xvfb libssl-dev ca-certificates libgtk-3-0 libdbus-glib-1-2 libnvidia-compute-418 libnvidia-gl-418  -y
+RUN apt-get install xvfb libssl-dev ca-certificates libgtk-3-0 libdbus-glib-1-2 -y
 RUN apt-get clean
 
 COPY --from=buildStage /opt/target/debug/kinto_integrity /opt/
