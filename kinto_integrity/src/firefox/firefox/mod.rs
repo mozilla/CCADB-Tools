@@ -87,7 +87,7 @@ impl Firefox {
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
         info!("Initializing profile {} at {}", profile.name, profile.home);
-        let _cmd = DroppableChild {
+        let mut _cmd = DroppableChild {
             child: self
                 .cmd()
                 .args(self.init_profile_args())
@@ -99,6 +99,7 @@ impl Firefox {
                     )
                 })?,
         };
+
         // Unfortunately, it's not like Firefox is giving us update progress over stdout,
         // so in order to be notified if cert storage is done being populate we gotta
         // listen in on the file and check up on its size.
@@ -109,6 +110,11 @@ impl Firefox {
         let mut initial_size;
         let start = std::time::Instant::now();
         loop {
+            match _cmd.child.try_wait() {
+                Ok(Some(status)) => return Err(format!("Firefox died: {:?}", status.code()).into()),
+                Ok(None) => return Err("Firefox died".into()),
+                Err(err) => ()
+            };
             std::thread::sleep(Duration::from_millis(100));
             if start.elapsed() >= Duration::from_secs(PROFILE_CREATION_TIMEOUT) {
                 return Err(format!(
