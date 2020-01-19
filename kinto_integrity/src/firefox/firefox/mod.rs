@@ -112,8 +112,8 @@ impl Firefox {
         loop {
             match _cmd.child.try_wait() {
                 Ok(Some(status)) => return Err(format!("Firefox died: {:?}", status.code()).into()),
-                Ok(None) => return Err("Firefox died".into()),
-                Err(err) => ()
+                Ok(None) => (),
+                Err(err) => return Err(err.to_string().into())
             };
             std::thread::sleep(Duration::from_millis(100));
             if start.elapsed() >= Duration::from_secs(PROFILE_CREATION_TIMEOUT) {
