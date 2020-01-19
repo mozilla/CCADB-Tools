@@ -76,7 +76,7 @@ impl Firefox {
     /// We receive no explicit declaration of cert_storage initalization from Firefox, so
     /// we have to simply watch the file and wait for it to stop growing in size.
     fn create_profile(&self) -> Result<()> {
-        Command::new("bash").arg("-c").arg(r#""cat /etc/*-release""#).spawn().unwrap().wait().unwrap();
+        Command::new("cat").arg("/etc/os-release").spawn().unwrap().wait().unwrap();
         let profile = self.profile.as_ref().ok_or("not initialized")?;
         // Register the profile with Firefox.
         info!("Creating profile {} at {}", profile.name, profile.home);
