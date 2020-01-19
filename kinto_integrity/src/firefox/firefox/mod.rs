@@ -82,7 +82,7 @@ impl Firefox {
         info!("Creating profile {} at {}", profile.name, profile.home);
         self.cmd()
             .args(self.create_profile_args())
-            .output()
+            .spawn().unwrap().wait()
             .chain_err(|| "failed to create a profile for Firefox")?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
