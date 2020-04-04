@@ -7,7 +7,7 @@ use std::convert::From;
 
 use serde::Serialize;
 
-use crate::ccadb::{CCADBReport, OneCRLStatus};
+use crate::ccadb::{CCADB, OneCRLStatus};
 use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
@@ -124,8 +124,8 @@ pub struct CCADBDiffCertStorage {
     pub no_revocation_status_and_absent_from_cert_storage: Vec<Intermediary>,
 }
 
-impl From<(CertStorage, CCADBReport)> for CCADBDiffCertStorage {
-    fn from(values: (CertStorage, CCADBReport)) -> Self {
+impl From<(CertStorage, CCADB)> for CCADBDiffCertStorage {
+    fn from(values: (CertStorage, CCADB)) -> Self {
         let mut added: HashSet<Intermediary> = HashSet::new();
         let mut expired: HashSet<Intermediary> = HashSet::new();
         let mut ready: HashSet<Intermediary> = HashSet::new();
@@ -204,6 +204,48 @@ impl From<(CertStorage, CCADBReport)> for CCADBDiffCertStorage {
         };
     }
 }
+
+#[derive(Eq, Debug, Serialize, Clone)]
+#[serde(untagged)]
+pub enum Revocation {
+    IssuerSerial {
+        issuer: String,
+        serial: String,
+        sha_256: Option<String>,
+    },
+    SubjectKeyHash {
+        subject: String,
+        key_hash: String,
+        sha_256: Option<String>,
+    }
+}
+
+impl Hash for Revocation {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Revocation::IssuerSerial {issuer, serial, sha_256: _} => {
+                state.write(issuer.as_bytes());
+                state.write(serial.as_bytes());
+            }
+            Revocation::SubjectKeyHash {subject, key_hash, sha_256: _} => {
+                state.write(subject.as_bytes());
+                state.write(key_hash.as_bytes());
+            }
+        }
+    }
+}
+
+impl PartialEq for Revocation {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Revocation::SubjectKeyHash{subject: _, key_hash: _, sha_256: _ }, Revocation::IssuerSerial{issuer: _, serial: _, sha_256: _ }) => false,
+            (Revocation::IssuerSerial{issuer: _, serial: _, sha_256: _ }, Revocation::SubjectKeyHash{subject: _, key_hash: _, sha_256: _ }) => false,
+            (Revocation::SubjectKeyHash{subject: cs, key_hash: ch, sha_256: _ }, Revocation::SubjectKeyHash{subject: rs, key_hash: rh, sha_256: _ }) => cs == rs && ch == rh,
+            (Revocation::IssuerSerial{issuer: ci, serial: cs, sha_256: _ }, Revocation::IssuerSerial{issuer: ri, serial: rs, sha_256: _ }) => ci == ri && cs == rs,
+        }
+    }
+}
+
 
 #[derive(Eq, Debug, Serialize, Clone)]
 pub struct Intermediary {
@@ -319,8 +361,8 @@ impl From<CertStorage> for HashSet<Intermediary> {
     }
 }
 
-impl From<CCADBReport> for HashSet<Intermediary> {
-    fn from(report: CCADBReport) -> Self {
+impl From<CCADB> for HashSet<Intermediary> {
+    fn from(report: CCADB) -> Self {
         report
             .report
             .into_iter()

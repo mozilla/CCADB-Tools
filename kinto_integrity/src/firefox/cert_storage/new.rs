@@ -1,36 +1,27 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-
-// The core logic of this module was shamelessly plucked from
-// https://github.com/mozkeeler/cert-storage-inspector
-
 use crate::errors::*;
-use rkv::backend::{BackendEnvironmentBuilder, SafeMode};
-use rkv::{Rkv, StoreOptions, Value};
-use std::collections::HashSet;
+use rkv::{Value, Rkv, StoreOptions};
 use std::convert::TryFrom;
 use std::path::PathBuf;
-
-mod new;
+use rkv::backend::{SafeMode, BackendEnvironmentBuilder};
+use std::collections::HashSet;
+use std::collections::hash_map::RandomState;
+use crate::model::Revocation;
 
 pub struct CertStorage {
-    pub data: HashSet<IssuerSerial>,
+    pub data: Vec<Entry>,
 }
 
-#[derive(Eq, PartialEq, Hash)]
-pub struct IssuerSerial {
-    pub issuer_name: String,
-    pub serial: String,
+impl Into<HashSet<crate::model::Revocation>> for CertStorage {
+    fn into(self) -> HashSet<Revocation> {
+        self.data.into_iter().map(|entry| entry.into()).collect()
+    }
 }
 
 impl TryFrom<PathBuf> for CertStorage {
     type Error = Error;
 
     fn try_from(db_path: PathBuf) -> Result<Self> {
-        let mut revocations = CertStorage {
-            data: HashSet::new(),
-        };
+        let mut revocations = CertStorage { data: vec![] };
         let mut builder = Rkv::environment_builder::<SafeMode>();
         builder.set_max_dbs(2);
         builder.set_map_size(16777216);
@@ -42,25 +33,27 @@ impl TryFrom<PathBuf> for CertStorage {
         let reader = env.read()?;
         for item in store.iter_start(&reader)? {
             let (key, value) = item?;
-            let is = match key {
-                [b'i', b's', entry @ ..] => decode_revocation(entry, &value),
-                [b's', b'p', b'k', entry @ ..] => decode_revocation(entry, &value),
-                _ => None
-            };
-            match is {
-                Some(Ok(issuer_serial)) => {
-                    revocations.data.insert(issuer_serial);
-                }
-                Some(Err(err)) => {
-                    Err(err).chain_err(|| "failed to build set from cert_storage")?;
-                }
-                None => {
-                    ();
-                }
+            match decode(key, value)? {
+                Some(entry) => revocations.data.push(entry),
+                None => ()
             };
         }
         Ok(revocations)
     }
+}
+
+fn decode(key: &[u8], value: Option<Value>) -> Result<Option<Entry>> {
+    match value {
+        Some(Value::I64(1)) => (),
+        Some(Value::I64(0)) => return Ok(None),
+        None => return Ok(None),
+        Some(_) => return Ok(None),
+    };
+    Ok(match key {
+        [b'i', b's', entry @ ..] => Some(Entry::issuer_serial_from(split_der_key(entry)?)),
+        [b's', b'p', b'k', entry @ ..] => Some(Entry::subject_key_hash_from(split_der_key(entry)?)),
+        _ => None
+    })
 }
 
 pub enum Entry {
@@ -90,34 +83,19 @@ impl Entry {
     }
 }
 
-fn decode(key: &[u8], value: Option<Value>) -> Result<Option<Entry>> {
-    match value {
-        Some(Value::I64(1)) => (),
-        Some(Value::I64(0)) => return Ok(None),
-        None => return Ok(None),
-        Some(_) => return Ok(None),
-    };
-    Ok(match key {
-        [b'i', b's', entry @ ..] => Some(Entry::issuer_serial_from(split_der_key(entry)?)),
-        [b's', b'p', b'k', entry @ ..] => Some(Entry::subject_key_hash_from(split_der_key(entry)?)),
-        _ => None
-    })
-}
-
-fn decode_revocation(key: &[u8], value: &Option<Value>) -> Option<Result<IssuerSerial>> {
-    match *value {
-        Some(Value::I64(i)) if i == 1 => {}
-        Some(Value::I64(i)) if i == 0 => return None,
-        None => return None,
-        Some(_) => return None,
+impl Into<crate::model::Revocation> for Entry {
+    fn into(self) -> Revocation {
+        match self {
+            Entry::IssuerSerial {
+                issuer_name: issuer,
+                serial: serial
+            } => Revocation::IssuerSerial{issuer, serial, sha_256: None},
+            Entry::SubjectKeyHash {
+                subject: subject,
+                key_hash: key_hash
+            } => Revocation::SubjectKeyHash {subject, key_hash, sha_256: None}
+        }
     }
-    Some(match split_der_key(key) {
-        Ok((part1, part2)) => Ok(IssuerSerial {
-            issuer_name: base64::encode(part1),
-            serial: base64::encode(part2),
-        }),
-        Err(e) => Err(e),
-    })
 }
 
 fn split_der_key(key: &[u8]) -> Result<(&[u8], &[u8])> {
@@ -161,18 +139,4 @@ fn split_der_key(key: &[u8]) -> Result<(&[u8], &[u8])> {
         return Ok(key.split_at(len + 4));
     }
     Err("key too long".into())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::convert::TryInto;
-
-    #[test]
-    fn asdasd() {
-        let c: CertStorage = PathBuf::from("/home/chris/security_state").try_into().unwrap();
-        for e in c.data {
-            println!("{}", e.issuer_name)
-        }
-    }
 }

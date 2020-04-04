@@ -9,6 +9,9 @@ use std::convert::TryInto;
 
 use crate::errors::*;
 use crate::http;
+use std::collections::HashSet;
+use std::collections::hash_map::RandomState;
+use crate::model::Revocation;
 
 #[derive(Deserialize, Debug)]
 pub struct Kinto {
@@ -37,6 +40,76 @@ pub struct KintoDetails {
     pub created: String,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct NewKinto {
+    pub data: Vec<Entry>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum Entry {
+    Serial{
+        schema: u64,
+        details: KintoDetails,
+        enabled: bool,
+        #[serde(rename = "issuerName")]
+        issuer_name: String,
+        #[serde(rename = "serialNumber")]
+        serial_number: String,
+        id: String,
+        last_modified: u64,
+    },
+    KeyHash{
+        schema: u64,
+        details: KintoDetails,
+        enabled: bool,
+        #[serde(rename = "subject")]
+        subject: String,
+        #[serde(rename = "pubKeyHash")]
+        pub_key_hash: String,
+        id: String,
+        last_modified: u64,
+    }
+}
+
+impl Into<crate::model::Revocation> for Entry {
+    fn into(self) -> Revocation {
+        match self {
+            Entry::Serial {
+                schema: _,
+                details: _,
+                enabled: _,
+                issuer_name: issuer,
+                serial_number: serial,
+                id: _,
+                last_modified: _,
+            } => Revocation::IssuerSerial { issuer, serial, sha_256: None },
+            Entry::KeyHash {
+                schema: _,
+                details: _,
+                enabled: _,
+                subject: subject,
+                pub_key_hash: key_hash,
+                id: _,
+                last_modified: _,
+            } => Revocation::SubjectKeyHash { subject, key_hash, sha_256: None }
+        }
+    }
+}
+
+impl TryFrom<Url> for NewKinto {
+    type Error = Error;
+
+    fn try_from(url: Url) -> Result<Self> {
+        let url_str = url.to_string();
+        http::new_get_request(url)
+            .send()
+            .chain_err(|| format!("failed to download {}", url_str))?
+            .json()
+            .chain_err(|| format!("failed to deserialize Kinto"))
+    }
+}
+
 impl Kinto {
     pub fn default() -> Result<Kinto> {
         "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
@@ -60,6 +133,12 @@ impl TryFrom<Url> for Kinto {
     }
 }
 
+impl Into<HashSet<crate::model::Revocation>> for NewKinto {
+    fn into(self) -> HashSet<Revocation> {
+        self.data.into_iter().map(|entry| entry.into()).collect()
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -73,7 +152,7 @@ pub(crate) mod tests {
 
     #[test]
     fn smoke() -> Result<()> {
-        let _: Kinto = KINTO
+        let _: NewKinto = KINTO
             .parse::<Url>()
             .chain_err(|| "bad Kinto URL")?
             .try_into()?;

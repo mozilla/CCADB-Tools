@@ -2,7 +2,6 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(slice_patterns)]
 #![feature(proc_macro_hygiene, decl_macro)]
 
 extern crate proc_macro;
@@ -31,7 +30,7 @@ mod kinto;
 mod model;
 mod revocations_txt;
 
-use crate::ccadb::CCADBReport;
+use crate::ccadb::CCADB;
 use errors::*;
 use firefox::*;
 use kinto::*;
@@ -93,7 +92,7 @@ mod nightly {
 
     #[get("/ccadb_cert_storage")]
     pub fn ccadb_cert_storage() -> Result<String> {
-        let ccadb: CCADBReport = CCADBReport::default()?;
+        let ccadb: CCADB = CCADB::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
         Ok(serde_json::to_string_pretty(&result)?)

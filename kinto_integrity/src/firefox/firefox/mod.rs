@@ -14,8 +14,8 @@ const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
 const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
 
-const PROFILE_CREATION_TIMEOUT: u64 = 60; // seconds
-const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 60; // seconds
+const PROFILE_CREATION_TIMEOUT: u64 = 600000000000; // seconds
+const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 60000000; // seconds
                                                  // Once cert_storage is created we make note of its original size.
                                                  // The moment we notice that the size of the file has increased we
                                                  // assume that population of the database has begun. This heuristic

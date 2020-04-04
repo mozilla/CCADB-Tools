@@ -15,6 +15,7 @@ use base64;
 use simple_asn1::ASN1Block::*;
 use simple_asn1::*;
 use x509_parser;
+use sha2::Digest;
 
 // These certitifcates are too large to fit into the CCADB's varchar field for PEMs, so
 // we gotta just store them in this binary and associate them with their fingerprint so that
@@ -47,6 +48,14 @@ const BAD_CERT_FP: &str = "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD
 lazy_static! {
     static ref BAD_CERT_VALUE: Intermediary = Intermediary {
         issuer_name: "CN=Certum CA,O=Unizeto Sp. z o.o.,C=PL".to_string(),
+        serial: "00:BC:72:66:66:FF:58:BF:F0:02:E5:22:3C:AE:68:2B:F8".to_string(),
+        sha_256: Some(BAD_CERT_FP.to_string()),
+    };
+}
+
+lazy_static! {
+    static ref BAD_CERT_VALUE2: crate::model::Revocation = crate::model::Revocation::IssuerSerial {
+        issuer: "CN=Certum CA,O=Unizeto Sp. z o.o.,C=PL".to_string(),
         serial: "00:BC:72:66:66:FF:58:BF:F0:02:E5:22:3C:AE:68:2B:F8".to_string(),
         sha_256: Some(BAD_CERT_FP.to_string()),
     };
@@ -87,36 +96,36 @@ lazy_static! {
 const CCADB_URL: &str =
     "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
 
-pub struct CCADBReport {
-    pub report: Vec<CCADBEntry>,
+pub struct CCADB {
+    pub report: Vec<Entry>,
 }
 
-impl CCADBReport {
-    pub fn default() -> Result<CCADBReport> {
+impl CCADB {
+    pub fn default() -> Result<CCADB> {
         CCADB_URL.parse::<Url>().unwrap().try_into()
     }
 
-    pub fn from_reader<R: Read>(r: R) -> Result<CCADBReport> {
-        let mut report: Vec<CCADBEntry> = vec![];
+    pub fn from_reader<R: Read>(r: R) -> Result<CCADB> {
+        let mut report: Vec<Entry> = vec![];
         let mut rdr = csv::Reader::from_reader(r);
         for entry in rdr.deserialize() {
-            let record: CCADBEntry =
+            let record: Entry =
                 entry.chain_err(|| "failed to deserialize a record from the CCADB")?;
             report.push(record)
         }
-        Ok(CCADBReport { report })
+        Ok(CCADB { report })
     }
 }
 
-impl TryFrom<Url> for CCADBReport {
+impl TryFrom<Url> for CCADB {
     type Error = Error;
 
     fn try_from(value: Url) -> Result<Self> {
-        CCADBReport::from_reader(crate::http::new_get_request(value).send()?)
+        CCADB::from_reader(crate::http::new_get_request(value).send()?)
     }
 }
 
-impl TryFrom<&str> for CCADBReport {
+impl TryFrom<&str> for CCADB {
     type Error = Error;
 
     fn try_from(url: &str) -> Result<Self> {
@@ -127,7 +136,7 @@ impl TryFrom<&str> for CCADBReport {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CCADBEntry {
+pub struct Entry {
     #[serde(alias = "CA Owner")]
     pub ca_owner: String,
     #[serde(alias = "Revocation Status")]
@@ -192,7 +201,7 @@ impl OneCRLStatus {
     }
 }
 
-impl Into<Option<Intermediary>> for CCADBEntry {
+impl Into<Option<Intermediary>> for Entry {
     fn into(self) -> Option<Intermediary> {
         let mut pem = self.pem_info.clone();
         match VENDORED_CERTS.get(&self.sha_256_fingerprint) {
@@ -232,6 +241,9 @@ impl Into<Option<Intermediary>> for CCADBEntry {
             }
         };
         let mut rdn: Vec<ASN1Block> = vec![];
+        let mut hasher = sha2::Sha256::new();
+        hasher.input(res.tbs_certificate.subject_pki.subject_public_key);
+        let hash = base64::encode(&hasher.result().to_vec());
         for block in res.tbs_certificate.issuer.rdn_seq {
             for attr in block.set {
                 let oid = ObjectIdentifier(
@@ -282,6 +294,99 @@ impl Into<Option<Intermediary>> for CCADBEntry {
     }
 }
 
+impl Into<Option<crate::model::Revocation>> for Entry {
+    fn into(self) -> Option<crate::model::Revocation> {
+        let mut pem = self.pem_info.clone();
+        match VENDORED_CERTS.get(&self.sha_256_fingerprint) {
+            None => (),
+            Some(cert) => {
+                pem = String::from_utf8(Vec::from(*cert)).unwrap();
+            }
+        }
+        if self.sha_256_fingerprint == BAD_CERT_FP {
+            return Some(BAD_CERT_VALUE2.clone());
+        }
+        if pem.len() == 0 {
+            error!(
+                "No PEM attached to certificate with serial {:?}",
+                self.sha_256_fingerprint
+            );
+            return None;
+        }
+        let p = match x509_parser::pem::pem_to_der(pem.trim_matches('\'').as_bytes()) {
+            Ok(thing) => thing,
+            Err(err) => {
+                error!(
+                    "The following PEM failed to decode. err = {:?}, serial = {:?}",
+                    err, self.sha_256_fingerprint
+                );
+                return None;
+            }
+        };
+        let res = match p.1.parse_x509() {
+            Ok(thing) => thing,
+            Err(err) => {
+                error!(
+                    "The following x509 certificate failed to parse. err = {:?}, serial = {:?}",
+                    err, self.sha_256_fingerprint
+                );
+                return None;
+            }
+        };
+        let mut rdn: Vec<ASN1Block> = vec![];
+        let mut hasher = sha2::Sha256::new();
+        hasher.input(res.tbs_certificate.subject_pki.subject_public_key);
+        let hash = base64::encode(&hasher.result().to_vec());
+        for block in res.tbs_certificate.issuer.rdn_seq {
+            for attr in block.set {
+                let oid = ObjectIdentifier(
+                    1,
+                    OID::new(
+                        attr.attr_type
+                            .iter()
+                            .map(|val| BigUint::from(val.clone()))
+                            .collect(),
+                    ),
+                );
+                let content = match attr.attr_value.content {
+                    der_parser::ber::BerObjectContent::PrintableString(s) => {
+                        let s = std::str::from_utf8(s).unwrap();
+                        PrintableString(s.len(), s.to_string())
+                    }
+                    der_parser::ber::BerObjectContent::UTF8String(s) => {
+                        let s = std::str::from_utf8(s).unwrap();
+                        UTF8String(s.len(), s.to_string())
+                    }
+                    der_parser::ber::BerObjectContent::IA5String(s) => {
+                        let s = std::str::from_utf8(s).unwrap();
+                        IA5String(s.len(), s.to_string())
+                    }
+                    der_parser::ber::BerObjectContent::T61String(s) => {
+                        let s = std::str::from_utf8(s).unwrap();
+                        TeletexString(s.len(), s.to_string())
+                    }
+                    val => {
+                        error!(
+                            "An unexpected BER content type was encountered when iterating \
+                             of the issuer RDN of the certificate with serial {}. \
+                             It's raw content is {:?}",
+                            self.certificate_serial_number, val
+                        );
+                        return None;
+                    }
+                };
+                rdn.append(&mut vec![Set(1, vec![Sequence(1, vec![oid, content])])]);
+            }
+        }
+        let seq = Sequence(1, rdn);
+        Some(crate::model::Revocation::IssuerSerial{
+            issuer: base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
+            serial: base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
+            sha_256: Some(self.sha_256_fingerprint),
+        })
+    }
+}
+
 struct RDN {
     rdn: Vec<ASN1Block>,
 }
@@ -300,7 +405,7 @@ mod tests {
 
     #[test]
     fn smoke() {
-        let c: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
+        let c: CCADB = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
         let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
     }
 
@@ -309,7 +414,7 @@ mod tests {
         let want = "MIGsMQswCQYDVQQGEwJFVTFDMEEGA1UEBxM6TWFkcmlkIChzZWUgY3VycmVudCBhZGRyZXNzI\
         GF0IHd3dy5jYW1lcmZpcm1hLmNvbS9hZGRyZXNzKTESMBAGA1UEBRMJQTgyNzQzMjg3MRswGQYDVQQKExJBQyBDYW1l\
         cmZpcm1hIFMuQS4xJzAlBgNVBAMTHkdsb2JhbCBDaGFtYmVyc2lnbiBSb290IC0gMjAwOA==";
-        let entry = CCADBEntry {
+        let entry = Entry {
             ca_owner: "".to_string(),
             revocation_status: "".to_string(),
             rfc_5280_revocation_reason_code: "".to_string(),
@@ -335,6 +440,34 @@ mod tests {
         let entry: Option<Intermediary> = entry.into();
         let entry = entry.unwrap();
         assert_eq!(want.to_string(), entry.issuer_name)
+    }
+
+    const hash: &str = "qQOvjAe7kbDZ4/OjDG1TM5/FvUfl1r20dlmIYMBooCQ=";
+
+    fn btoh(input: &str) -> String {
+        let mut s = String::new();
+        for b in base64::decode(input).unwrap() {
+            s.push_str(&format!("{:X}", b))
+        }
+        for _ in (0..64 - s.len()) {
+            s.insert(0, '0')
+        }
+        s
+    }
+
+    #[test]
+    fn hashes() {
+        // let c: CCADBReport = CCAD_URL.parse::<Url>().unwrap().try_into().unwrap();
+        // let report: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
+        // let want = btoh(hash);
+        println!("{}", btoh(hash));
+        // for entry in report {
+        //     match entry {
+        //         None => (),
+        //         Some(e) =>
+        //         }
+        //     }
+        // }
     }
 
     const EXAMPLE: &str = r#"-----BEGIN CERTIFICATE-----
