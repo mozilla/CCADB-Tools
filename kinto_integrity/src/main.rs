@@ -29,6 +29,7 @@ mod http;
 mod kinto;
 mod model;
 mod revocations_txt;
+mod x509;
 
 use crate::ccadb::CCADB;
 use errors::*;
@@ -75,7 +76,8 @@ mod nightly {
 
     #[post("/with_revocations", format = "text/plain", data = "<revocations_txt>")]
     pub fn post_revocations(revocations_txt: Data) -> Result<String> {
-        let revocations = Revocations::parse(revocations_txt.open())?;
+        let revocations: Revocations = revocations_txt.open().try_into()?;
+        // let revocations = Revocations::parse(revocations_txt.open())?;
         let kinto: Kinto = Kinto::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
@@ -135,13 +137,19 @@ fn init_logging() {
         .unwrap();
 }
 
-fn main() -> Result<()> {
-    init_logging();
-    firefox::init();
-    let port = match std::env::var("PORT") {
+pub fn get_port() -> Result<u16> {
+    Ok(match std::env::var("PORT") {
         Ok(port) => port.parse().unwrap(),
         Err(_) => 8080,
-    } as u16;
+    } as u16)
+}
+
+
+fn main() -> Result<()> {
+    init_logging();
+    let _c = firefox::firefox::DroppableChild{child:x509::init()?};
+    firefox::init();
+    let port = get_port()?;
     let config = rocket::Config::build(rocket::config::Environment::Production)
         .port(port)
         .finalize()

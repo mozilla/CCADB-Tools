@@ -1,0 +1,5 @@
+app.yaml
+runtime: custom
+env: flex
+service: kintointegrity 
+

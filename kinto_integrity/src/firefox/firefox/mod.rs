@@ -32,8 +32,8 @@ lazy_static!(
 
 /// std::process::Child does not implement drop in a meaningful way.
 /// In our use case we just want to kill the process.
-struct DroppableChild {
-    child: Child,
+pub struct DroppableChild {
+    pub(crate) child: Child,
 }
 
 impl Drop for DroppableChild {
