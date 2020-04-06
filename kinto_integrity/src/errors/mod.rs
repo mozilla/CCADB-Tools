@@ -7,6 +7,7 @@ use rocket::response::{Responder, ResponseBuilder};
 use rocket::{Request, Response};
 use std::convert::From;
 use std::io::Cursor;
+use std::string::FromUtf8Error;
 
 error_chain! {
     foreign_links {
@@ -16,6 +17,12 @@ error_chain! {
         Infallible(std::convert::Infallible);
         Json(serde_json::error::Error);
         ASN1(simple_asn1::ASN1EncodeErr);
+    }
+}
+
+impl std::convert::From<std::string::FromUtf8Error> for Error {
+    fn from(err: FromUtf8Error) -> Self {
+        format!("{:?}", err).into()
     }
 }
 

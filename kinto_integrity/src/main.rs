@@ -2,7 +2,6 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(slice_patterns)]
 #![feature(proc_macro_hygiene, decl_macro)]
 
 extern crate proc_macro;
@@ -30,8 +29,9 @@ mod http;
 mod kinto;
 mod model;
 mod revocations_txt;
+mod x509;
 
-use crate::ccadb::CCADBReport;
+use crate::ccadb::CCADB;
 use errors::*;
 use firefox::*;
 use kinto::*;
@@ -76,7 +76,8 @@ mod nightly {
 
     #[post("/with_revocations", format = "text/plain", data = "<revocations_txt>")]
     pub fn post_revocations(revocations_txt: Data) -> Result<String> {
-        let revocations = Revocations::parse(revocations_txt.open())?;
+        let revocations: Revocations = revocations_txt.open().try_into()?;
+        // let revocations = Revocations::parse(revocations_txt.open())?;
         let kinto: Kinto = Kinto::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
@@ -93,7 +94,7 @@ mod nightly {
 
     #[get("/ccadb_cert_storage")]
     pub fn ccadb_cert_storage() -> Result<String> {
-        let ccadb: CCADBReport = CCADBReport::default()?;
+        let ccadb: CCADB = CCADB::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
         Ok(serde_json::to_string_pretty(&result)?)
@@ -136,13 +137,19 @@ fn init_logging() {
         .unwrap();
 }
 
-fn main() -> Result<()> {
-    init_logging();
-    firefox::init();
-    let port = match std::env::var("PORT") {
+pub fn get_port() -> Result<u16> {
+    Ok(match std::env::var("PORT") {
         Ok(port) => port.parse().unwrap(),
         Err(_) => 8080,
-    } as u16;
+    } as u16)
+}
+
+
+fn main() -> Result<()> {
+    init_logging();
+    let _c = firefox::firefox::DroppableChild{child:x509::init()?};
+    firefox::init();
+    let port = get_port()?;
     let config = rocket::Config::build(rocket::config::Environment::Production)
         .port(port)
         .finalize()

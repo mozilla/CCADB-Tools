@@ -14,8 +14,8 @@ const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
 const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
 
-const PROFILE_CREATION_TIMEOUT: u64 = 60; // seconds
-const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 60; // seconds
+const PROFILE_CREATION_TIMEOUT: u64 = 600000000000; // seconds
+const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 60000000; // seconds
                                                  // Once cert_storage is created we make note of its original size.
                                                  // The moment we notice that the size of the file has increased we
                                                  // assume that population of the database has begun. This heuristic
@@ -32,8 +32,8 @@ lazy_static!(
 
 /// std::process::Child does not implement drop in a meaningful way.
 /// In our use case we just want to kill the process.
-struct DroppableChild {
-    child: Child,
+pub struct DroppableChild {
+    pub(crate) child: Child,
 }
 
 impl Drop for DroppableChild {

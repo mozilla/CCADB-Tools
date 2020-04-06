@@ -9,32 +9,15 @@ use std::convert::TryInto;
 
 use crate::errors::*;
 use crate::http;
+use std::collections::HashSet;
+use crate::model::Revocation;
+use std::collections::hash_map::RandomState;
+use rayon::prelude::*;
+
 
 #[derive(Deserialize, Debug)]
 pub struct Kinto {
-    pub data: Vec<KintoEntry>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct KintoEntry {
-    pub schema: u64,
-    pub details: KintoDetails,
-    pub enabled: bool,
-    #[serde(rename = "issuerName")]
-    pub issuer_name: String,
-    #[serde(rename = "serialNumber")]
-    pub serial_number: String,
-    pub id: String,
-    pub last_modified: u64,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct KintoDetails {
-    pub bug: String,
-    pub who: String,
-    pub why: String,
-    pub name: String,
-    pub created: String,
+    pub data: Vec<Entry>,
 }
 
 impl Kinto {
@@ -60,12 +43,77 @@ impl TryFrom<Url> for Kinto {
     }
 }
 
+impl Into<HashSet<Revocation>> for Kinto {
+    fn into(self) -> HashSet<Revocation, RandomState> {
+        self.data.into_par_iter().map(|entry| entry.into()).collect()
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Details {
+    pub bug: String,
+    pub who: String,
+    pub why: String,
+    pub name: String,
+    pub created: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum Entry {
+    Serial{
+        schema: u64,
+        details: Details,
+        enabled: bool,
+        #[serde(rename = "issuerName")]
+        issuer_name: String,
+        #[serde(rename = "serialNumber")]
+        serial_number: String,
+        id: String,
+        last_modified: u64,
+    },
+    KeyHash{
+        schema: u64,
+        details: Details,
+        enabled: bool,
+        #[serde(rename = "subject")]
+        subject: String,
+        #[serde(rename = "pubKeyHash")]
+        pub_key_hash: String,
+        id: String,
+        last_modified: u64,
+    }
+}
+
+impl Into<Revocation> for Entry {
+    fn into(self) -> Revocation {
+        match self {
+            Entry::Serial {
+                schema: _,
+                details: _,
+                enabled: _,
+                issuer_name: issuer,
+                serial_number: serial,
+                id: _,
+                last_modified: _,
+            } => Revocation::new_issuer_serial(issuer, serial, None),
+            Entry::KeyHash {
+                schema: _,
+                details: _,
+                enabled: _,
+                subject,
+                pub_key_hash: key_hash,
+                id: _,
+                last_modified: _,
+            } => Revocation::new_subject_key_hash(subject, key_hash, None )
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::model::Intermediary;
     use reqwest::Url;
-    use std::collections::HashSet;
     use std::convert::TryInto;
 
     pub const KINTO: &str =
@@ -145,24 +193,24 @@ pub(crate) mod tests {
     ///	    last_modified: 1511530740428,
     ///	}
     fn find_duplicates() -> Result<()> {
-        let kinto: Kinto = KINTO
-            .parse::<Url>()
-            .chain_err(|| "bad Kinto URL")?
-            .try_into()?;
-        let mut set = HashSet::new();
-        for entry in kinto.data.into_iter() {
-            let int = Intermediary {
-                issuer_name: entry.issuer_name.clone(),
-                serial: entry.serial_number.clone(),
-                sha_256: None,
-            };
-            match set.contains(&int) {
-                true => eprintln!("entry = {:#?}", entry),
-                false => {
-                    set.insert(int);
-                }
-            };
-        }
+        // let kinto: Kinto = KINTO
+        //     .parse::<Url>()
+        //     .chain_err(|| "bad Kinto URL")?
+        //     .try_into()?;
+        // let mut set = HashSet::new();
+        // for entry in kinto.data.into_iter() {
+        //     let int = Revocation::IssuerSerial {
+        //         issuer: entry.issuer_name.clone(),
+        //         serial: entry.serial_number.clone(),
+        //         sha_256: None,
+        //     };
+        //     match set.contains(&int) {
+        //         true => eprintln!("entry = {:#?}", entry),
+        //         false => {
+        //             set.insert(int);
+        //         }
+        //     };
+        // }
         Ok(())
     }
 }

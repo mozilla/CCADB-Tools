@@ -3,18 +3,19 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
 use crate::errors::*;
 use reqwest::Url;
 use std::convert::{TryFrom, TryInto};
 
-use crate::model::Intermediary;
+use crate::model::Revocation;
 use base64;
 use simple_asn1::ASN1Block::*;
 use simple_asn1::*;
 use x509_parser;
+use rayon::prelude::*;
 
 // These certitifcates are too large to fit into the CCADB's varchar field for PEMs, so
 // we gotta just store them in this binary and associate them with their fingerprint so that
@@ -45,8 +46,8 @@ const _01F8971121F4103D30BE4235CD7DC0EEE6C6AE12FCA7750848EA0E2E13FC2428: &[u8] =
 const BAD_CERT_FP: &str = "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD0B8A3A50E6C";
 
 lazy_static! {
-    static ref BAD_CERT_VALUE: Intermediary = Intermediary {
-        issuer_name: "CN=Certum CA,O=Unizeto Sp. z o.o.,C=PL".to_string(),
+    static ref BAD_CERT_VALUE: Revocation = Revocation::IssuerSerial {
+        issuer: "CN=Certum CA,O=Unizeto Sp. z o.o.,C=PL".to_string(),
         serial: "00:BC:72:66:66:FF:58:BF:F0:02:E5:22:3C:AE:68:2B:F8".to_string(),
         sha_256: Some(BAD_CERT_FP.to_string()),
     };
@@ -87,36 +88,48 @@ lazy_static! {
 const CCADB_URL: &str =
     "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
 
-pub struct CCADBReport {
-    pub report: Vec<CCADBEntry>,
+pub struct CCADB {
+    pub report: Vec<Entry>,
 }
 
-impl CCADBReport {
-    pub fn default() -> Result<CCADBReport> {
+impl Into<HashSet<Revocation>> for CCADB {
+    fn into(self) -> HashSet<Revocation> {
+        self
+            .report
+            .into_par_iter()
+            .map(|entry| entry.into())
+            .filter(|entry: &Option<Revocation>| entry.is_some())
+            .map(|entry| entry.unwrap())
+            .collect()
+    }
+}
+
+impl CCADB {
+    pub fn default() -> Result<CCADB> {
         CCADB_URL.parse::<Url>().unwrap().try_into()
     }
 
-    pub fn from_reader<R: Read>(r: R) -> Result<CCADBReport> {
-        let mut report: Vec<CCADBEntry> = vec![];
+    pub fn from_reader<R: Read>(r: R) -> Result<CCADB> {
+        let mut report: Vec<Entry> = vec![];
         let mut rdr = csv::Reader::from_reader(r);
         for entry in rdr.deserialize() {
-            let record: CCADBEntry =
+            let record: Entry =
                 entry.chain_err(|| "failed to deserialize a record from the CCADB")?;
             report.push(record)
         }
-        Ok(CCADBReport { report })
+        Ok(CCADB { report })
     }
 }
 
-impl TryFrom<Url> for CCADBReport {
+impl TryFrom<Url> for CCADB {
     type Error = Error;
 
     fn try_from(value: Url) -> Result<Self> {
-        CCADBReport::from_reader(crate::http::new_get_request(value).send()?)
+        CCADB::from_reader(crate::http::new_get_request(value).send()?)
     }
 }
 
-impl TryFrom<&str> for CCADBReport {
+impl TryFrom<&str> for CCADB {
     type Error = Error;
 
     fn try_from(url: &str) -> Result<Self> {
@@ -127,7 +140,7 @@ impl TryFrom<&str> for CCADBReport {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CCADBEntry {
+pub struct Entry {
     #[serde(alias = "CA Owner")]
     pub ca_owner: String,
     #[serde(alias = "Revocation Status")]
@@ -192,8 +205,9 @@ impl OneCRLStatus {
     }
 }
 
-impl Into<Option<Intermediary>> for CCADBEntry {
-    fn into(self) -> Option<Intermediary> {
+
+impl Into<Option<crate::model::Revocation>> for Entry {
+    fn into(self) -> Option<crate::model::Revocation> {
         let mut pem = self.pem_info.clone();
         match VENDORED_CERTS.get(&self.sha_256_fingerprint) {
             None => (),
@@ -274,7 +288,7 @@ impl Into<Option<Intermediary>> for CCADBEntry {
             }
         }
         let seq = Sequence(1, rdn);
-        Some(Intermediary::new(
+        Some(crate::model::Revocation::new_issuer_serial(
             base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
             base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
             Some(self.sha_256_fingerprint),
@@ -300,8 +314,8 @@ mod tests {
 
     #[test]
     fn smoke() {
-        let c: CCADBReport = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
-        let _: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
+        let c: CCADB = CCADB_URL.parse::<Url>().unwrap().try_into().unwrap();
+        let _: Vec<Option<Revocation>> = c.report.into_iter().map(|e| e.into()).collect();
     }
 
     #[test]
@@ -309,7 +323,7 @@ mod tests {
         let want = "MIGsMQswCQYDVQQGEwJFVTFDMEEGA1UEBxM6TWFkcmlkIChzZWUgY3VycmVudCBhZGRyZXNzI\
         GF0IHd3dy5jYW1lcmZpcm1hLmNvbS9hZGRyZXNzKTESMBAGA1UEBRMJQTgyNzQzMjg3MRswGQYDVQQKExJBQyBDYW1l\
         cmZpcm1hIFMuQS4xJzAlBgNVBAMTHkdsb2JhbCBDaGFtYmVyc2lnbiBSb290IC0gMjAwOA==";
-        let entry = CCADBEntry {
+        let entry = Entry {
             ca_owner: "".to_string(),
             revocation_status: "".to_string(),
             rfc_5280_revocation_reason_code: "".to_string(),
@@ -332,9 +346,42 @@ mod tests {
             comments: "".to_string(),
             pem_info: EXAMPLE.to_string(), // This is the relevant data member that we are testing.
         };
-        let entry: Option<Intermediary> = entry.into();
+        let entry: Option<Revocation> = entry.into();
         let entry = entry.unwrap();
-        assert_eq!(want.to_string(), entry.issuer_name)
+        match entry {
+            Revocation::IssuerSerial{issuer, serial: _, sha_256: _} => {
+                assert_eq!(want.to_string(), issuer)
+            }
+            _ => ()
+        }
+    }
+
+    const HASH: &str = "qQOvjAe7kbDZ4/OjDG1TM5/FvUfl1r20dlmIYMBooCQ=";
+
+    fn btoh(input: &str) -> String {
+        let mut s = String::new();
+        for b in base64::decode(input).unwrap() {
+            s.push_str(&format!("{:X}", b))
+        }
+        for _ in 0..64 - s.len() {
+            s.insert(0, '0')
+        }
+        s
+    }
+
+    #[test]
+    fn hashes() {
+        // let c: CCADBReport = CCAD_URL.parse::<Url>().unwrap().try_into().unwrap();
+        // let report: Vec<Option<Intermediary>> = c.report.into_iter().map(|e| e.into()).collect();
+        // let want = btoh(hash);
+        println!("{}", btoh(HASH));
+        // for entry in report {
+        //     match entry {
+        //         None => (),
+        //         Some(e) =>
+        //         }
+        //     }
+        // }
     }
 
     const EXAMPLE: &str = r#"-----BEGIN CERTIFICATE-----
