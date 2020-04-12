@@ -63,7 +63,7 @@ impl Drop for Firefox {
 }
 
 impl Firefox {
-    pub fn cert_storage(&self) -> Result<CertStorage> {
+    pub fn cert_storage(&self) -> IntegrityResult<CertStorage> {
         self.profile
             .as_ref()
             .ok_or("not initalized")?
@@ -75,14 +75,16 @@ impl Firefox {
     /// Note that profile creation entails the spinning of a file watcher for cert_storage.
     /// We receive no explicit declaration of cert_storage initalization from Firefox, so
     /// we have to simply watch the file and wait for it to stop growing in size.
-    fn create_profile(&self) -> Result<()> {
+    fn create_profile(&self) -> IntegrityResult<()> {
         let profile = self.profile.as_ref().ok_or("not initialized")?;
         // Register the profile with Firefox.
         info!("Creating profile {} at {}", profile.name, profile.home);
         self.cmd()
             .args(self.create_profile_args())
             .output()
-            .chain_err(|| "failed to create a profile for Firefox")?;
+            .map_err(|err| {
+                IntegrityError::new("failed to create a profile for Firefox", rocket::http::Status::BadGateway)
+            })?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
         info!("Initializing profile {} at {}", profile.name, profile.home);
@@ -91,17 +93,19 @@ impl Firefox {
                 .cmd()
                 .args(self.init_profile_args())
                 .spawn()
-                .chain_err(|| {
-                    format!(
-                        "failed to start Firefox in the context of the profile at {}",
-                        profile.home
+                .map_err(|err| {
+                    IntegrityError::new(
+                        format!("failed to start Firefox in the context of the profile at {}", profile.home),
+                        rocket::http::Status::BadGateway
                     )
                 })?,
         };
         // Unfortunately, it's not like Firefox is giving us update progress over stdout,
         // so in order to be notified if cert storage is done being populate we gotta
         // listen in on the file and check up on its size.
-        let database = || std::fs::metadata(profile.cert_storage_path());
+        let database = || std::fs::metadata(profile.cert_storage_path()).map_err(|err| {
+            IntegrityError::new("asdasd", rocket::http::Status::BadGateway).raw(err)
+        });
         // Spin until it's created.
         let cert_storage_name = profile.cert_storage_path().to_string_lossy().into_owned();
         info!("Waiting for {} to be created.", cert_storage_name);
@@ -159,15 +163,15 @@ impl Firefox {
         Ok(())
     }
 
-    pub fn update(&mut self, url: Url) -> Result<Option<()>> {
+    pub fn update(&mut self, url: Url) -> IntegrityResult<Option<()>> {
         let _lock = match FF_LOCK.lock() {
             Ok(lock) => lock,
-            Err(err) => return Err(Error::from(err.to_string()))
+            Err(err) => return Err(IntegrityError::nnew(err))
         };
         let resp = http::new_get_request(url)
             .header("If-None-Match", self.etag.clone())
             .send()
-            .chain_err(|| "")?;
+            .map_err(|err| IntegrityError::nnew(err))?;
         if resp.status() == 304 {
             return Ok(None);
         }
@@ -175,23 +179,25 @@ impl Firefox {
         Ok(Some(()))
     }
 
-    pub fn force_update(&mut self, url: Url) -> Result<()> {
+    pub fn force_update(&mut self, url: Url) -> IntegrityResult<()> {
         let _lock = match FF_LOCK.lock() {
             Ok(lock) => lock,
-            Err(err) => return Err(Error::from(err.to_string()))
+            Err(err) => return Err(IntegrityError::nnew(err))
         };
         let resp = http::new_get_request(url)
             .header("If-None-Match", self.etag.clone())
             .send()
-            .chain_err(|| "")?;
+            .map_err(|err| {
+                IntegrityError::nnew(err)
+            })?;
         std::mem::replace(self, Self::try_from(resp)?);
         Ok(())
     }
 
-    pub fn update_cert_storage(&mut self) -> Result<()> {
+    pub fn update_cert_storage(&mut self) -> IntegrityResult<()> {
         let _lock = match FF_LOCK.lock() {
             Ok(lock) => lock,
-            Err(err) => return Err(Error::from(err.to_string()))
+            Err(err) => return Err(IntegrityError::nnew(err))
         };
         self.profile = Some(Profile::new()?);
         self.create_profile()
@@ -236,28 +242,40 @@ impl Firefox {
 }
 
 impl TryFrom<reqwest::blocking::Response> for Firefox {
-    type Error = Error;
+    type Error = IntegrityError;
 
-    fn try_from(resp: reqwest::blocking::Response) -> Result<Self> {
-        let home = TempDir::new("kinto_integrity").chain_err(|| "")?;
+    fn try_from(resp: reqwest::blocking::Response) -> IntegrityResult<Self> {
+        let url = resp.url().to_string();
+        let home = TempDir::new("kinto_integrity").map_err(|err| IntegrityError::nnew(err))?;
         let executable = home.path().join("firefox").join("firefox").into_os_string();
         let etag = resp
             .headers()
             .get("etag")
-            .chain_err(|| format!("No etag header was present in a request to {}", resp.url()))?
+            .ok_or(
+                IntegrityError::nnew("No etag header was present in a request")
+                    .context(ctx!(("url", &url)))
+            )?
             .to_str()
-            .chain_err(|| format!("The etag header from {} could not be parsed", resp.url()))?
-            .to_string();
+            .map_err(|err| {
+                IntegrityError::nnew("The etag header could not be parsed").raw(err)
+                    .context(ctx!(("url", &url)))
+            })?.to_string();
         info!("Expanding to {}", home.as_ref().to_string_lossy());
         let content_length = resp
             .content_length()
-            .chain_err(|| format!("Could not get a content length from {}", resp.url()))?;
+            .ok_or(
+                IntegrityError::nnew("Could not get the content length")
+                    .context(ctx!(("url", &url)))
+            )?;
         let bar = indicatif::ProgressBar::new(content_length);
         tar::Archive::new(bzip2::bufread::BzDecoder::new(BufReader::new(
             bar.wrap_read(resp),
         )))
         .unpack(&home)
-        .chain_err(|| "")?;
+        .map_err(|err| {
+            IntegrityError::nnew("Could not unzip that tar archive").raw(err)
+                .context(ctx!(("url", &url)))
+        })?;
         let profile = Profile::new()?;
         let ff = Firefox {
             home: Some(home),

@@ -18,9 +18,9 @@ impl Into<HashSet<Revocation>> for CertStorage {
 }
 
 impl TryFrom<PathBuf> for CertStorage {
-    type Error = Error;
+    type Error = IntegrityError;
 
-    fn try_from(db_path: PathBuf) -> Result<Self> {
+    fn try_from(db_path: PathBuf) -> IntegrityResult<Self> {
         let mut revocations = CertStorage { data: vec![] };
         let mut builder = Rkv::environment_builder::<SafeMode>();
         builder.set_max_dbs(2);
@@ -29,10 +29,19 @@ impl TryFrom<PathBuf> for CertStorage {
             Err(err) => Err(format!("{}", err))?,
             Ok(env) => env,
         };
-        let store = env.open_single("cert_storage", StoreOptions::default())?;
-        let reader = env.read()?;
-        for item in store.iter_start(&reader)? {
-            let (key, value) = item?;
+        let store = env.open_single("cert_storage", StoreOptions::default()).map_err(|err| {
+           IntegrityError::new("failed to open cert_storage", rocket::http::Status::BadGateway).raw(err)
+        })?;
+        let reader = env.read().map_err(|err| {
+            IntegrityError::new("failed to read cert_storage", rocket::http::Status::BadGateway).raw(err)
+        })?;
+        let iter = store.iter_start(&reader).map_err(|err| {
+            IntegrityError::new("failed to iter cert_storage", rocket::http::Status::BadGateway).raw(err)
+        })?;
+        for item in iter {
+            let (key, value) = item.map_err(|err| {
+                IntegrityError::new("failed to read cert_storage", rocket::http::Status::BadGateway).raw(err)
+            })?;
             match decode(key, value)? {
                 Some(entry) => revocations.data.push(entry),
                 None => ()
@@ -42,7 +51,7 @@ impl TryFrom<PathBuf> for CertStorage {
     }
 }
 
-fn decode(key: &[u8], value: Option<Value>) -> Result<Option<Entry>> {
+fn decode(key: &[u8], value: Option<Value>) -> IntegrityResult<Option<Entry>> {
     match value {
         Some(Value::I64(1)) => (),
         Some(Value::I64(0)) => return Ok(None),
@@ -98,7 +107,7 @@ impl Into<crate::model::Revocation> for Entry {
     }
 }
 
-fn split_der_key(key: &[u8]) -> Result<(&[u8], &[u8])> {
+fn split_der_key(key: &[u8]) -> IntegrityResult<(&[u8], &[u8])> {
     if key.len() < 2 {
         return Err("key too short to be DER".into());
     }

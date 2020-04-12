@@ -28,19 +28,21 @@ impl Drop for Profile {
 }
 
 impl Profile {
-    pub fn new() -> Result<Profile> {
+    pub fn new() -> IntegrityResult<Profile> {
         let name = format!("{:x}", rand::random::<u64>());
-        let _tmp = TempDir::new(TMP_PREFIX)?;
+        let _tmp = TempDir::new(TMP_PREFIX).map_err(|err| {
+            IntegrityError::nnew("could not create a temporary directory for a Firefox profile").raw(err)
+        })?;
         let home = match _tmp.as_ref().to_str() {
             Some(string) => string.to_string(),
-            None => Err(Error::from(
+            None => Err(IntegrityError::nnew(
                 "failed get the &str representation of a temp directory created for a profile",
             ))?,
         };
         Ok(Profile { name, home, _tmp })
     }
 
-    pub fn cert_storage(&self) -> Result<CertStorage> {
+    pub fn cert_storage(&self) -> IntegrityResult<CertStorage> {
         self.security_state().try_into()
     }
 

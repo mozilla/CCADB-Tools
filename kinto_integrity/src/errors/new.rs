@@ -9,35 +9,69 @@ use std::io::Cursor;
 use serde::export::fmt::Display;
 use serde::Serialize;
 
-type MozillaMessage = &'static str;
+type MozillaMessage = String;
 type ExternalMessage = Option<String>;
 
 pub type IntegrityResult<T> = Result<T, IntegrityError>;
 
+#[derive(Serialize)]
 pub struct IntegrityError {
-    pub mozilla: MozillaMessage,
-    pub _raw: ExternalMessage,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub err: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub context: Option<HashMap<&'static str, String>>,
+    #[serde(skip)]
     pub status: Status,
 }
 
 
 impl IntegrityError {
-    pub fn new(msg: &'static str, status: Status) -> Self {
+    pub fn nnew<T: Display>(msg: T) -> Self {
+        Self {
+            message: format!("{}", msg),
+            err: None,
+            context: None,
+            status: rocket::http::Status::BadGateway
+        }
+    }
+    pub fn new<T: Display>(msg: T, status: Status) -> Self {
         IntegrityError{
-            mozilla: msg,
-            _raw: None,
+            message: format!("{}", msg),
+            err: None,
             context: None,
             status
         }
     }
     pub fn raw<T: Display>(mut self, raw: T) -> Self {
-        self._raw = Some(format!("{}", raw));
+        self.err = Some(format!("{}", raw));
         self
     }
     pub fn context(mut self, context: HashMap<&'static str, String>) -> Self {
         self.context = Some(context);
         self
+    }
+}
+
+impl From<&'static str> for IntegrityError {
+    fn from(msg: &'static str) -> Self {
+        Self{
+            message: msg.to_string(),
+            err: None,
+            context: None,
+            status: Status::BadGateway
+        }
+    }
+}
+
+impl From<String> for IntegrityError {
+    fn from(msg: String) -> Self {
+        Self{
+            message: msg,
+            err: None,
+            context: None,
+            status: Status::BadGateway
+        }
     }
 }
 
@@ -51,13 +85,7 @@ impl std::error::Error for IntegrityError {}
 
 impl std::fmt::Display for IntegrityError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        let s = Serializable{
-            message: self.mozilla,
-            raw: &self._raw,
-            context: &self.context,
-            status: self.status.to_string()
-        };
-        f.write_str(serde_json::to_string_pretty(&s).unwrap().as_str())
+        f.write_str(serde_json::to_string_pretty(self).unwrap().as_str())
     }
 }
 
@@ -76,7 +104,6 @@ impl std::fmt::Debug for IntegrityError {
         f.write_str(format!("{}", self).as_str())
     }
 }
-
 
 #[macro_export]
 macro_rules! ctx {

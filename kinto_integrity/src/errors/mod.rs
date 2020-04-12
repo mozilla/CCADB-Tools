@@ -9,6 +9,7 @@ use std::convert::From;
 use std::io::Cursor;
 use std::string::FromUtf8Error;
 
+#[macro_use]
 pub mod new;
 
 pub use new::*;
@@ -77,6 +78,12 @@ impl From<serde_json::error::Error> for FinalError {
 impl From<String> for FinalError {
     fn from(err: String) -> Self {
         Self { inner: err.into() }
+    }
+}
+
+impl From<IntegrityError> for FinalError {
+    fn from(err: IntegrityError) -> Self {
+        Self { inner: format!("{}", err).into() }
     }
 }
 

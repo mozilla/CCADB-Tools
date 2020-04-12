@@ -7,10 +7,10 @@ pub trait FirefoxRelease {
     const DEBUG: &'static str;
     const URL: &'static str;
 
-    fn get_mut(&self) -> Result<RwLockWriteGuard<crate::firefox::firefox::Firefox>>;
-    fn get(&self) -> Result<RwLockReadGuard<crate::firefox::firefox::Firefox>>;
+    fn get_mut(&self) -> IntegrityResult<RwLockWriteGuard<crate::firefox::firefox::Firefox>>;
+    fn get(&self) -> IntegrityResult<RwLockReadGuard<crate::firefox::firefox::Firefox>>;
 
-    fn update(&self) -> Result<()> {
+    fn update(&self) -> IntegrityResult<()> {
         let mut inner = self.get_mut()?;
         match inner.update(Self::URL.parse().unwrap()) {
             Ok(None) => info!("No updates published to {}", Self::DISPLAY),
@@ -20,15 +20,15 @@ pub trait FirefoxRelease {
         Ok(())
     }
 
-    fn force_update(&self) -> Result<()> {
+    fn force_update(&self) -> IntegrityResult<()> {
         self.get_mut()?.force_update(Self::URL.parse().unwrap())
     }
 
-    fn cert_storage(&self) -> Result<CertStorage> {
+    fn cert_storage(&self) -> IntegrityResult<CertStorage> {
         self.get()?.cert_storage()
     }
 
-    fn update_cert_storage(&self) -> Result<()> {
+    fn update_cert_storage(&self) -> IntegrityResult<()> {
         self.get_mut()?.update_cert_storage()
     }
 }
@@ -46,14 +46,14 @@ macro_rules! firefox_release {
             const DEBUG: &'static str = $debug;
             const URL: &'static str = $url;
 
-            fn get_mut(&self) -> Result<RwLockWriteGuard<crate::firefox::firefox::Firefox>> {
+            fn get_mut(&self) -> IntegrityResult<RwLockWriteGuard<crate::firefox::firefox::Firefox>> {
                 match self.write() {
                     Ok(guard) => Ok(guard),
                     Err(err) => Err(err.to_string())?,
                 }
             }
 
-            fn get(&self) -> Result<RwLockReadGuard<crate::firefox::firefox::Firefox>> {
+            fn get(&self) -> IntegrityResult<RwLockReadGuard<crate::firefox::firefox::Firefox>> {
                 match self.try_read() {
                     Ok(guard) => Ok(guard),
                     Err(err) => Err(err.to_string())?,
