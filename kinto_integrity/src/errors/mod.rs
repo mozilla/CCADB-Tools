@@ -9,6 +9,10 @@ use std::convert::From;
 use std::io::Cursor;
 use std::string::FromUtf8Error;
 
+pub mod new;
+
+pub use new::*;
+
 error_chain! {
     foreign_links {
         Fmt(::std::fmt::Error);
@@ -38,5 +42,50 @@ impl<'a> Responder<'a> for Error {
             .sized_body(Cursor::new(self.to_string()))
             .status(Status::InternalServerError)
             .finalize())
+    }
+}
+
+use std::fmt::Formatter;
+
+use error_chain::ChainedError;
+
+pub struct FinalError { inner: Error }
+impl std::error::Error for FinalError {}
+impl std::fmt::Display for FinalError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.inner.display_chain().to_string().as_str())
+    }
+}
+impl std::fmt::Debug for FinalError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.inner.display_chain().to_string().as_str())
+    }
+}
+
+impl From<Error> for FinalError {
+    fn from(err: Error) -> Self {
+        Self { inner: err }
+    }
+}
+
+impl From<serde_json::error::Error> for FinalError {
+    fn from(err: serde_json::error::Error) -> Self {
+        Self { inner: (err.to_string().into()) }
+    }
+}
+
+impl From<String> for FinalError {
+    fn from(err: String) -> Self {
+        Self { inner: err.into() }
+    }
+}
+
+pub type FinalResult<T> = std::result::Result<T, FinalError>;
+
+
+
+impl <'r> Responder<'r> for FinalError {
+    fn respond_to(self, request: &Request) -> rocket::response::Result<'r> {
+        Response::build().sized_body(Cursor::new(self.to_string())).status(Status::Locked).ok()
     }
 }

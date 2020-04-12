@@ -54,7 +54,7 @@ macro_rules! firefox_release {
             }
 
             fn get(&self) -> Result<RwLockReadGuard<crate::firefox::firefox::Firefox>> {
-                match self.read() {
+                match self.try_read() {
                     Ok(guard) => Ok(guard),
                     Err(err) => Err(err.to_string())?,
                 }
