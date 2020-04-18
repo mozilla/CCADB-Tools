@@ -14,8 +14,14 @@ extern crate lazy_static;
 extern crate rocket;
 
 #[macro_use]
-mod errors;
+extern crate der_parser;
+#[macro_use]
+extern crate nom;
+#[macro_use]
+extern crate rusticata_macros;
 
+#[macro_use]
+mod errors;
 
 use reqwest::Url;
 use rocket::http::RawStr;
@@ -25,7 +31,6 @@ use std::convert::TryInto;
 // A fairly hefty import for only one function. If you find something lighter weight
 // but just as well liked then please do replace this.
 use url::form_urlencoded::parse as url_decode;
-
 
 mod ccadb;
 mod firefox;
@@ -48,7 +53,10 @@ mod nightly {
 
     #[get("/new")]
     pub fn newdefault() -> IntegrityResult<String> {
-        Err(IntegrityError::new("bad", rocket::http::Status::NotFound).context(ctx!(("url", "http://oncrl.wahte"), ("rretries", 5))))
+        Err(
+            IntegrityError::deprecated("bad", rocket::http::Status::NotFound)
+                .with_context(ctx!(("url", "http://oncrl.wahte"), ("retries", 5))),
+        )
         // let revocations: Revocations = Revocations::default()?;
         // let kinto: Kinto = Kinto::default()?;
         // let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
@@ -158,10 +166,11 @@ pub fn get_port() -> Result<u16> {
     } as u16)
 }
 
-
 fn main() -> Result<()> {
     init_logging();
-    let _c = firefox::firefox::DroppableChild{child:x509::init()?};
+    let _c = firefox::firefox::DroppableChild {
+        child: x509::init()?,
+    };
     firefox::init();
     let port = get_port()?;
     let config = rocket::Config::build(rocket::config::Environment::Production)

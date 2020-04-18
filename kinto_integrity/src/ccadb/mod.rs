@@ -12,10 +12,10 @@ use std::convert::{TryFrom, TryInto};
 
 use crate::model::Revocation;
 use base64;
+use rayon::prelude::*;
 use simple_asn1::ASN1Block::*;
 use simple_asn1::*;
 use x509_parser;
-use rayon::prelude::*;
 
 // These certitifcates are too large to fit into the CCADB's varchar field for PEMs, so
 // we gotta just store them in this binary and associate them with their fingerprint so that
@@ -94,8 +94,7 @@ pub struct CCADB {
 
 impl Into<HashSet<Revocation>> for CCADB {
     fn into(self) -> HashSet<Revocation> {
-        self
-            .report
+        self.report
             .into_par_iter()
             .map(|entry| entry.into())
             .filter(|entry: &Option<Revocation>| entry.is_some())
@@ -204,7 +203,6 @@ impl OneCRLStatus {
         }
     }
 }
-
 
 impl Into<Option<crate::model::Revocation>> for Entry {
     fn into(self) -> Option<crate::model::Revocation> {
@@ -349,10 +347,12 @@ mod tests {
         let entry: Option<Revocation> = entry.into();
         let entry = entry.unwrap();
         match entry {
-            Revocation::IssuerSerial{issuer, serial: _, sha_256: _} => {
-                assert_eq!(want.to_string(), issuer)
-            }
-            _ => ()
+            Revocation::IssuerSerial {
+                issuer,
+                serial: _,
+                sha_256: _,
+            } => assert_eq!(want.to_string(), issuer),
+            _ => (),
         }
     }
 

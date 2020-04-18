@@ -31,11 +31,12 @@ impl Profile {
     pub fn new() -> IntegrityResult<Profile> {
         let name = format!("{:x}", rand::random::<u64>());
         let _tmp = TempDir::new(TMP_PREFIX).map_err(|err| {
-            IntegrityError::nnew("could not create a temporary directory for a Firefox profile").raw(err)
+            IntegrityError::new("could not create a temporary directory for a Firefox profile")
+                .with_err(err)
         })?;
         let home = match _tmp.as_ref().to_str() {
             Some(string) => string.to_string(),
-            None => Err(IntegrityError::nnew(
+            None => Err(IntegrityError::new(
                 "failed get the &str representation of a temp directory created for a profile",
             ))?,
         };

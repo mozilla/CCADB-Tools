@@ -46,7 +46,9 @@ macro_rules! firefox_release {
             const DEBUG: &'static str = $debug;
             const URL: &'static str = $url;
 
-            fn get_mut(&self) -> IntegrityResult<RwLockWriteGuard<crate::firefox::firefox::Firefox>> {
+            fn get_mut(
+                &self,
+            ) -> IntegrityResult<RwLockWriteGuard<crate::firefox::firefox::Firefox>> {
                 match self.write() {
                     Ok(guard) => Ok(guard),
                     Err(err) => Err(err.to_string())?,

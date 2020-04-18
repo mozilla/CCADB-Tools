@@ -1,13 +1,11 @@
-
-
-use std::fmt::{Error, Formatter, Debug};
+pub use rocket::http::Status;
 use rocket::response::{Responder, ResponseBuilder};
-use rocket::{Response, Request};
-use rocket::http::Status;
-use std::collections::HashMap;
-use std::io::Cursor;
+use rocket::{Request, Response};
 use serde::export::fmt::Display;
 use serde::Serialize;
+use std::collections::HashMap;
+use std::fmt::{Debug, Error, Formatter};
+use std::io::Cursor;
 
 type MozillaMessage = String;
 type ExternalMessage = Option<String>;
@@ -25,29 +23,32 @@ pub struct IntegrityError {
     pub status: Status,
 }
 
-
 impl IntegrityError {
-    pub fn nnew<T: Display>(msg: T) -> Self {
+    pub fn new<T: Display>(msg: T) -> Self {
         Self {
             message: format!("{}", msg),
             err: None,
             context: None,
-            status: rocket::http::Status::BadGateway
+            status: Status::BadGateway,
         }
     }
-    pub fn new<T: Display>(msg: T, status: Status) -> Self {
-        IntegrityError{
+    pub fn deprecated<T: Display>(msg: T, status: Status) -> Self {
+        IntegrityError {
             message: format!("{}", msg),
             err: None,
             context: None,
-            status
+            status,
         }
     }
-    pub fn raw<T: Display>(mut self, raw: T) -> Self {
+    pub fn with_status(mut self, status: Status) -> Self {
+        self.status = status;
+        self
+    }
+    pub fn with_err<T: Display>(mut self, raw: T) -> Self {
         self.err = Some(format!("{}", raw));
         self
     }
-    pub fn context(mut self, context: HashMap<&'static str, String>) -> Self {
+    pub fn with_context(mut self, context: HashMap<&'static str, String>) -> Self {
         self.context = Some(context);
         self
     }
@@ -55,29 +56,32 @@ impl IntegrityError {
 
 impl From<&'static str> for IntegrityError {
     fn from(msg: &'static str) -> Self {
-        Self{
+        Self {
             message: msg.to_string(),
             err: None,
             context: None,
-            status: Status::BadGateway
+            status: Status::BadGateway,
         }
     }
 }
 
 impl From<String> for IntegrityError {
     fn from(msg: String) -> Self {
-        Self{
+        Self {
             message: msg,
             err: None,
             context: None,
-            status: Status::BadGateway
+            status: Status::BadGateway,
         }
     }
 }
 
-impl <'r> Responder<'r> for IntegrityError {
+impl<'r> Responder<'r> for IntegrityError {
     fn respond_to(self, _: &Request) -> rocket::response::Result<'r> {
-        ResponseBuilder::new(Response::new()).status(self.status).sized_body(Cursor::new(format!("{}", self))).ok()
+        ResponseBuilder::new(Response::new())
+            .status(self.status)
+            .sized_body(Cursor::new(format!("{}", self)))
+            .ok()
     }
 }
 
@@ -116,13 +120,14 @@ macro_rules! ctx {
     }};
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn smoke() -> IntegrityResult<()> {
-        Err(IntegrityError::new("balls", Status::NotFound).context(ctx!(("1", 1), ("got", "error"))).raw("badddd mojo"))
+        Err(IntegrityError::deprecated("balls", Status::NotFound)
+            .with_context(ctx!(("1", 1), ("got", "error")))
+            .with_err("badddd mojo"))
     }
 }

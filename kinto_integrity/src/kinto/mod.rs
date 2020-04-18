@@ -9,11 +9,10 @@ use std::convert::TryInto;
 
 use crate::errors::*;
 use crate::http;
-use std::collections::HashSet;
 use crate::model::Revocation;
-use std::collections::hash_map::RandomState;
 use rayon::prelude::*;
-
+use std::collections::hash_map::RandomState;
+use std::collections::HashSet;
 
 #[derive(Deserialize, Debug)]
 pub struct Kinto {
@@ -45,7 +44,10 @@ impl TryFrom<Url> for Kinto {
 
 impl Into<HashSet<Revocation>> for Kinto {
     fn into(self) -> HashSet<Revocation, RandomState> {
-        self.data.into_par_iter().map(|entry| entry.into()).collect()
+        self.data
+            .into_par_iter()
+            .map(|entry| entry.into())
+            .collect()
     }
 }
 
@@ -61,7 +63,7 @@ pub struct Details {
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 pub enum Entry {
-    Serial{
+    Serial {
         schema: u64,
         details: Details,
         enabled: bool,
@@ -72,7 +74,7 @@ pub enum Entry {
         id: String,
         last_modified: u64,
     },
-    KeyHash{
+    KeyHash {
         schema: u64,
         details: Details,
         enabled: bool,
@@ -82,7 +84,7 @@ pub enum Entry {
         pub_key_hash: String,
         id: String,
         last_modified: u64,
-    }
+    },
 }
 
 impl Into<Revocation> for Entry {
@@ -105,7 +107,7 @@ impl Into<Revocation> for Entry {
                 pub_key_hash: key_hash,
                 id: _,
                 last_modified: _,
-            } => Revocation::new_subject_key_hash(subject, key_hash, None )
+            } => Revocation::new_subject_key_hash(subject, key_hash, None),
         }
     }
 }

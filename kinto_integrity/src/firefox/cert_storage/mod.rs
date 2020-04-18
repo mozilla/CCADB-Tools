@@ -1,11 +1,11 @@
 use crate::errors::*;
-use rkv::{Value, Rkv, StoreOptions};
+use crate::model::Revocation;
+use rayon::prelude::*;
+use rkv::backend::{BackendEnvironmentBuilder, SafeMode};
+use rkv::{Rkv, StoreOptions, Value};
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::path::PathBuf;
-use rkv::backend::{SafeMode, BackendEnvironmentBuilder};
-use std::collections::HashSet;
-use rayon::prelude::*;
-use crate::model::Revocation;
 
 pub struct CertStorage {
     pub data: Vec<Entry>,
@@ -13,7 +13,10 @@ pub struct CertStorage {
 
 impl Into<HashSet<Revocation>> for CertStorage {
     fn into(self) -> HashSet<Revocation> {
-        self.data.into_par_iter().map(|entry| entry.into()).collect()
+        self.data
+            .into_par_iter()
+            .map(|entry| entry.into())
+            .collect()
     }
 }
 
@@ -29,22 +32,40 @@ impl TryFrom<PathBuf> for CertStorage {
             Err(err) => Err(format!("{}", err))?,
             Ok(env) => env,
         };
-        let store = env.open_single("cert_storage", StoreOptions::default()).map_err(|err| {
-           IntegrityError::new("failed to open cert_storage", rocket::http::Status::BadGateway).raw(err)
-        })?;
+        let store = env
+            .open_single("cert_storage", StoreOptions::default())
+            .map_err(|err| {
+                IntegrityError::deprecated(
+                    "failed to open cert_storage",
+                    rocket::http::Status::BadGateway,
+                )
+                .with_err(err)
+            })?;
         let reader = env.read().map_err(|err| {
-            IntegrityError::new("failed to read cert_storage", rocket::http::Status::BadGateway).raw(err)
+            IntegrityError::deprecated(
+                "failed to read cert_storage",
+                rocket::http::Status::BadGateway,
+            )
+            .with_err(err)
         })?;
         let iter = store.iter_start(&reader).map_err(|err| {
-            IntegrityError::new("failed to iter cert_storage", rocket::http::Status::BadGateway).raw(err)
+            IntegrityError::deprecated(
+                "failed to iter cert_storage",
+                rocket::http::Status::BadGateway,
+            )
+            .with_err(err)
         })?;
         for item in iter {
             let (key, value) = item.map_err(|err| {
-                IntegrityError::new("failed to read cert_storage", rocket::http::Status::BadGateway).raw(err)
+                IntegrityError::deprecated(
+                    "failed to read cert_storage",
+                    rocket::http::Status::BadGateway,
+                )
+                .with_err(err)
             })?;
             match decode(key, value)? {
                 Some(entry) => revocations.data.push(entry),
-                None => ()
+                None => (),
             };
         }
         Ok(revocations)
@@ -61,33 +82,27 @@ fn decode(key: &[u8], value: Option<Value>) -> IntegrityResult<Option<Entry>> {
     Ok(match key {
         [b'i', b's', entry @ ..] => Some(Entry::issuer_serial_from(split_der_key(entry)?)),
         [b's', b'p', b'k', entry @ ..] => Some(Entry::subject_key_hash_from(split_der_key(entry)?)),
-        _ => None
+        _ => None,
     })
 }
 
 pub enum Entry {
-    IssuerSerial {
-        issuer: String,
-        serial: String
-    },
-    SubjectKeyHash {
-        subject: String,
-        key_hash: String
-    }
+    IssuerSerial { issuer: String, serial: String },
+    SubjectKeyHash { subject: String, key_hash: String },
 }
 
 impl Entry {
     fn issuer_serial_from(parts: (&[u8], &[u8])) -> Entry {
         Entry::IssuerSerial {
             issuer: base64::encode(parts.0),
-            serial: base64::encode(parts.1)
+            serial: base64::encode(parts.1),
         }
     }
 
     fn subject_key_hash_from(parts: (&[u8], &[u8])) -> Entry {
         Entry::SubjectKeyHash {
             subject: base64::encode(parts.0),
-            key_hash: base64::encode(parts.1)
+            key_hash: base64::encode(parts.1),
         }
     }
 }
@@ -95,14 +110,12 @@ impl Entry {
 impl Into<crate::model::Revocation> for Entry {
     fn into(self) -> Revocation {
         match self {
-            Entry::IssuerSerial {
-                issuer,
-                serial
-            } => Revocation::new_issuer_serial(issuer, serial, None),
-            Entry::SubjectKeyHash {
-                subject,
-                key_hash
-            } => Revocation::new_subject_key_hash(subject, key_hash, None)
+            Entry::IssuerSerial { issuer, serial } => {
+                Revocation::new_issuer_serial(issuer, serial, None)
+            }
+            Entry::SubjectKeyHash { subject, key_hash } => {
+                Revocation::new_subject_key_hash(subject, key_hash, None)
+            }
         }
     }
 }

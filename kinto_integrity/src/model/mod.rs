@@ -7,7 +7,7 @@ use std::convert::From;
 
 use serde::Serialize;
 
-use crate::ccadb::{CCADB, OneCRLStatus};
+use crate::ccadb::{OneCRLStatus, CCADB};
 use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
@@ -217,17 +217,25 @@ pub enum Revocation {
         subject: String,
         key_hash: String,
         sha_256: Option<String>,
-    }
+    },
 }
 
 impl Hash for Revocation {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Revocation::IssuerSerial {issuer, serial, sha_256: _} => {
+            Revocation::IssuerSerial {
+                issuer,
+                serial,
+                sha_256: _,
+            } => {
                 state.write(issuer.as_bytes());
                 state.write(serial.as_bytes());
             }
-            Revocation::SubjectKeyHash {subject, key_hash, sha_256: _} => {
+            Revocation::SubjectKeyHash {
+                subject,
+                key_hash,
+                sha_256: _,
+            } => {
                 state.write(subject.as_bytes());
                 state.write(key_hash.as_bytes());
             }
@@ -238,16 +246,64 @@ impl Hash for Revocation {
 impl PartialEq for Revocation {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Revocation::SubjectKeyHash{subject: _, key_hash: _, sha_256: _ }, Revocation::IssuerSerial{issuer: _, serial: _, sha_256: _ }) => false,
-            (Revocation::IssuerSerial{issuer: _, serial: _, sha_256: _ }, Revocation::SubjectKeyHash{subject: _, key_hash: _, sha_256: _ }) => false,
-            (Revocation::SubjectKeyHash{subject: cs, key_hash: ch, sha_256: _ }, Revocation::SubjectKeyHash{subject: rs, key_hash: rh, sha_256: _ }) => cs == rs && ch == rh,
-            (Revocation::IssuerSerial{issuer: ci, serial: cs, sha_256: _ }, Revocation::IssuerSerial{issuer: ri, serial: rs, sha_256: _ }) => ci == ri && cs == rs,
+            (
+                Revocation::SubjectKeyHash {
+                    subject: _,
+                    key_hash: _,
+                    sha_256: _,
+                },
+                Revocation::IssuerSerial {
+                    issuer: _,
+                    serial: _,
+                    sha_256: _,
+                },
+            ) => false,
+            (
+                Revocation::IssuerSerial {
+                    issuer: _,
+                    serial: _,
+                    sha_256: _,
+                },
+                Revocation::SubjectKeyHash {
+                    subject: _,
+                    key_hash: _,
+                    sha_256: _,
+                },
+            ) => false,
+            (
+                Revocation::SubjectKeyHash {
+                    subject: cs,
+                    key_hash: ch,
+                    sha_256: _,
+                },
+                Revocation::SubjectKeyHash {
+                    subject: rs,
+                    key_hash: rh,
+                    sha_256: _,
+                },
+            ) => cs == rs && ch == rh,
+            (
+                Revocation::IssuerSerial {
+                    issuer: ci,
+                    serial: cs,
+                    sha_256: _,
+                },
+                Revocation::IssuerSerial {
+                    issuer: ri,
+                    serial: rs,
+                    sha_256: _,
+                },
+            ) => ci == ri && cs == rs,
         }
     }
 }
 
 impl Revocation {
-    pub fn new_issuer_serial(mut issuer: String, mut serial: String, sha_256: Option<String>) -> Revocation {
+    pub fn new_issuer_serial(
+        mut issuer: String,
+        mut serial: String,
+        sha_256: Option<String>,
+    ) -> Revocation {
         issuer = crate::x509::b64_to_rdn(issuer.into_bytes()).unwrap();
         serial = match base64::decode(serial.as_bytes()) {
             Ok(s) => Revocation::btoh(&s),
@@ -260,7 +316,11 @@ impl Revocation {
         }
     }
 
-    pub fn new_subject_key_hash(mut subject: String, key_hash: String, sha_256: Option<String>) -> Revocation {
+    pub fn new_subject_key_hash(
+        mut subject: String,
+        key_hash: String,
+        sha_256: Option<String>,
+    ) -> Revocation {
         subject = crate::x509::b64_to_rdn(subject.into_bytes()).unwrap();
         Revocation::SubjectKeyHash {
             subject,
@@ -271,16 +331,60 @@ impl Revocation {
 
     pub fn set_sha_256(&mut self, other: &Self) {
         match (self, other) {
-            (Revocation::IssuerSerial {issuer:_, serial: _, sha_256: l} ,Revocation::IssuerSerial {issuer:_, serial: _, sha_256: Some(val)}) => {
+            (
+                Revocation::IssuerSerial {
+                    issuer: _,
+                    serial: _,
+                    sha_256: l,
+                },
+                Revocation::IssuerSerial {
+                    issuer: _,
+                    serial: _,
+                    sha_256: Some(val),
+                },
+            ) => {
                 l.replace(val.clone());
-            },
-            (Revocation::IssuerSerial {issuer:_, serial: _, sha_256: l} ,Revocation::IssuerSerial {issuer:_, serial: _, sha_256: None}) => {
+            }
+            (
+                Revocation::IssuerSerial {
+                    issuer: _,
+                    serial: _,
+                    sha_256: l,
+                },
+                Revocation::IssuerSerial {
+                    issuer: _,
+                    serial: _,
+                    sha_256: None,
+                },
+            ) => {
                 std::mem::replace(l, None);
-            },
-            (Revocation::SubjectKeyHash {subject: _, key_hash: _, sha_256: l}, Revocation::SubjectKeyHash {subject: _, key_hash: _, sha_256: Some(val)}) => {
+            }
+            (
+                Revocation::SubjectKeyHash {
+                    subject: _,
+                    key_hash: _,
+                    sha_256: l,
+                },
+                Revocation::SubjectKeyHash {
+                    subject: _,
+                    key_hash: _,
+                    sha_256: Some(val),
+                },
+            ) => {
                 l.replace(val.clone());
-            },
-            (Revocation::SubjectKeyHash {subject: _, key_hash: _, sha_256: l}, Revocation::SubjectKeyHash {subject: _, key_hash: _, sha_256: None}) => {
+            }
+            (
+                Revocation::SubjectKeyHash {
+                    subject: _,
+                    key_hash: _,
+                    sha_256: l,
+                },
+                Revocation::SubjectKeyHash {
+                    subject: _,
+                    key_hash: _,
+                    sha_256: None,
+                },
+            ) => {
                 std::mem::replace(l, None);
             }
             _ => {}
@@ -301,8 +405,6 @@ impl Revocation {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,7 +413,6 @@ mod tests {
     use std::convert::TryInto;
 
     use crate::kinto::tests::*;
-
 
     #[test]
     fn smoke_from_revocations() -> Result<()> {

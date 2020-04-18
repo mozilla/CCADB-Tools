@@ -50,7 +50,9 @@ use std::fmt::Formatter;
 
 use error_chain::ChainedError;
 
-pub struct FinalError { inner: Error }
+pub struct FinalError {
+    inner: Error,
+}
 impl std::error::Error for FinalError {}
 impl std::fmt::Display for FinalError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -71,7 +73,9 @@ impl From<Error> for FinalError {
 
 impl From<serde_json::error::Error> for FinalError {
     fn from(err: serde_json::error::Error) -> Self {
-        Self { inner: (err.to_string().into()) }
+        Self {
+            inner: (err.to_string().into()),
+        }
     }
 }
 
@@ -83,16 +87,19 @@ impl From<String> for FinalError {
 
 impl From<IntegrityError> for FinalError {
     fn from(err: IntegrityError) -> Self {
-        Self { inner: format!("{}", err).into() }
+        Self {
+            inner: format!("{}", err).into(),
+        }
     }
 }
 
 pub type FinalResult<T> = std::result::Result<T, FinalError>;
 
-
-
-impl <'r> Responder<'r> for FinalError {
+impl<'r> Responder<'r> for FinalError {
     fn respond_to(self, request: &Request) -> rocket::response::Result<'r> {
-        Response::build().sized_body(Cursor::new(self.to_string())).status(Status::Locked).ok()
+        Response::build()
+            .sized_body(Cursor::new(self.to_string()))
+            .status(Status::Locked)
+            .ok()
     }
 }
