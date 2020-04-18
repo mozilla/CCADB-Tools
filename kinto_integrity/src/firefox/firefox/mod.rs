@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 use crate::errors::*;
 use crate::firefox::cert_storage::CertStorage;
 use crate::firefox::profile::Profile;
@@ -6,7 +10,7 @@ use reqwest::Url;
 use std::convert::TryFrom;
 use std::ffi::OsString;
 use std::io::BufReader;
-use std::process::{Child, Command};
+use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 use tempdir::TempDir;
 
@@ -14,17 +18,15 @@ const CREATE_PROFILE: &str = "-CreateProfile";
 const WITH_PROFILE: &str = "-profile";
 const NULL_DISPLAY_ENV: (&str, &str) = ("DISPLAY", ":99");
 
-// @TODO even bother?
-const PROFILE_CREATION_TIMEOUT: u64 = 600000000000; // seconds
-const CERT_STORAGE_POPULATION_TIMEOUT: u64 = 60000000; // seconds
-                                                       // Once cert_storage is created we make note of its original size.
-                                                       // The moment we notice that the size of the file has increased we
-                                                       // assume that population of the database has begun. This heuristic
-                                                       // is the idea that if we have seen that file has STOPPED increasing in
-                                                       // size for ten ticks of the algorithm, then it is likely completely populated.
-                                                       //
-                                                       // Note that, of course, this is only a heuristic. Meaning that if we improperly move on
-                                                       // without getting the full database, that firefox::cert_storage parsing is likely to fail.
+const CERT_STORAGE_CREATION_TIMEOUT: u64 = 60 * 30; // 30 minutes
+                                                    // Once cert_storage is created we make note of its original size.
+                                                    // The moment we notice that the size of the file has increased we
+                                                    // assume that population of the database has begun. This heuristic
+                                                    // is the idea that if we have seen that file has STOPPED increasing in
+                                                    // size for ten ticks of the algorithm, then it is likely completely populated.
+                                                    //
+                                                    // Note that, of course, this is only a heuristic. Meaning that if we improperly move on
+                                                    // without getting the full database, that firefox::cert_storage parsing is likely to fail.
 const CERT_STORAGE_POPULATION_HEURISTIC: u64 = 10; // ticks
 
 lazy_static! {
@@ -64,11 +66,10 @@ impl Drop for Firefox {
 }
 
 impl Firefox {
-
     pub fn get_profile(&self) -> IntegrityResult<&Profile> {
         match self.profile.as_ref() {
             Some(profile) => Ok(profile),
-            None => Err(IntegrityError::new(PROFILE_NOT_INITIALIZED))
+            None => Err(IntegrityError::new(PROFILE_NOT_INITIALIZED)),
         }
     }
 
@@ -89,12 +90,12 @@ impl Firefox {
             .args(self.create_profile_args())
             .output()
             .map_err(|err| {
-                IntegrityError::new(PROFILE_INIT_ERR).with_err(err).with_context(
-                    ctx!(
+                IntegrityError::new(PROFILE_INIT_ERR)
+                    .with_err(err)
+                    .with_context(ctx!(
                         ("profile_name", &profile.name),
                         ("profile_home", &profile.home)
-                    )
-                )
+                    ))
             })?;
         // Startup Firefox with the given profile. Doing so will initialize the entire
         // profile to a fresh state and begin populating the cert_storage database.
@@ -105,9 +106,9 @@ impl Firefox {
                 .args(self.init_profile_args())
                 .spawn()
                 .map_err(|err| {
-                    IntegrityError::new(FIREFOX_START_ERR).with_err(err).with_context(
-                        ctx!(("invocation", self.init_profile_args().join(" ")))
-                    )
+                    IntegrityError::new(FIREFOX_START_ERR)
+                        .with_err(err)
+                        .with_context(ctx!(("invocation", self.init_profile_args().join(" "))))
                 })?,
         };
         // Unfortunately, it's not like Firefox is giving us update progress over stdout,
@@ -115,11 +116,12 @@ impl Firefox {
         // listen in on the file and check up on its size.
         let database = || {
             std::fs::metadata(profile.cert_storage_path()).map_err(|err| {
-                IntegrityError::new(CERT_STORAGE_DELETED).with_err(err).with_context(
-                    ctx!(
-                        ("path", profile.cert_storage_path().to_str().unwrap_or("unknown"))
-                    )
-                )
+                IntegrityError::new(CERT_STORAGE_DELETED)
+                    .with_err(err)
+                    .with_context(ctx!((
+                        "path",
+                        profile.cert_storage_path().to_str().unwrap_or("unknown")
+                    )))
             })
         };
         // Spin until it's created.
@@ -136,6 +138,14 @@ impl Firefox {
                     break;
                 }
             }
+            if std::time::Instant::now().duration_since(start).as_secs()
+                >= CERT_STORAGE_CREATION_TIMEOUT
+            {
+                return Err(IntegrityError::new(format!(
+                    "Firefox took longer that {} minutes to create a cert_storage file",
+                    CERT_STORAGE_CREATION_TIMEOUT / 60
+                )));
+            }
         }
         let start = std::time::Instant::now();
         loop {
@@ -144,6 +154,14 @@ impl Firefox {
             if size != initial_size {
                 initial_size = size;
                 break;
+            }
+            if std::time::Instant::now().duration_since(start).as_secs()
+                >= CERT_STORAGE_CREATION_TIMEOUT
+            {
+                return Err(IntegrityError::new(format!(
+                    "Firefox took longer that {} minutes to begin populating cert_storage",
+                    CERT_STORAGE_CREATION_TIMEOUT / 60
+                )));
             }
         }
         info!("{} created", cert_storage_name);
@@ -177,7 +195,11 @@ impl Firefox {
         let resp = http::new_get_request(url)
             .header("If-None-Match", self.etag.clone())
             .send()
-            .map_err(|err| IntegrityError::new(FIREFOX_DOWNLOAD_ERR).with_err(err).with_context(ctx!(("url", &url_str))))?;
+            .map_err(|err| {
+                IntegrityError::new(FIREFOX_DOWNLOAD_ERR)
+                    .with_err(err)
+                    .with_context(ctx!(("url", &url_str)))
+            })?;
         if resp.status() == 304 {
             return Ok(None);
         }
@@ -194,7 +216,11 @@ impl Firefox {
         let resp = http::new_get_request(url)
             .header("If-None-Match", self.etag.clone())
             .send()
-            .map_err(|err| IntegrityError::new(FIREFOX_DOWNLOAD_ERR).with_err(err).with_context(ctx!(("url", &url_str))))?;
+            .map_err(|err| {
+                IntegrityError::new(FIREFOX_DOWNLOAD_ERR)
+                    .with_err(err)
+                    .with_context(ctx!(("url", &url_str)))
+            })?;
         std::mem::replace(self, Self::try_from(resp)?);
         Ok(())
     }
@@ -242,6 +268,8 @@ impl Firefox {
     fn cmd(&self) -> Command {
         let mut cmd = Command::new(&self.executable);
         cmd.env(NULL_DISPLAY_ENV.0, NULL_DISPLAY_ENV.1);
+        cmd.stderr(Stdio::null());
+        cmd.stdout(Stdio::null());
         cmd
     }
 }

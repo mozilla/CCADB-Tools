@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 use crate::errors::*;
 use crate::firefox::cert_storage::CertStorage;
 use std::sync::{RwLockReadGuard, RwLockWriteGuard};
@@ -12,6 +16,7 @@ pub trait FirefoxRelease {
 
     fn update(&self) -> IntegrityResult<()> {
         let mut inner = self.get_mut()?;
+        // std::sync::TryLockError::Poisoned(err)
         match inner.update(Self::URL.parse().unwrap()) {
             Ok(None) => info!("No updates published to {}", Self::DISPLAY),
             Ok(Some(_)) => info!("Downloaded an update to {}", Self::DISPLAY),
@@ -58,7 +63,8 @@ macro_rules! firefox_release {
             fn get(&self) -> IntegrityResult<RwLockReadGuard<crate::firefox::firefox::Firefox>> {
                 match self.try_read() {
                     Ok(guard) => Ok(guard),
-                    Err(err) => Err(err.to_string())?,
+                    Err(std::sync::TryLockError::Poisoned(err)) => Err(err.to_string())?,
+                    Err(std::sync::TryLockError::WouldBlock) => Err("Firefox is still in the middle of initializing itself with an up-to-date cert_storage, please try again later.")?,
                 }
             }
         }

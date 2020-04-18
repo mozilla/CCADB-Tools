@@ -11,10 +11,7 @@ use reqwest::Url;
 use std::convert::{TryFrom, TryInto};
 
 use crate::model::Revocation;
-use base64;
 use rayon::prelude::*;
-use simple_asn1::ASN1Block::*;
-use simple_asn1::*;
 use x509_parser;
 
 // These certitifcates are too large to fit into the CCADB's varchar field for PEMs, so
@@ -104,16 +101,16 @@ impl Into<HashSet<Revocation>> for CCADB {
 }
 
 impl CCADB {
-    pub fn default() -> Result<CCADB> {
+    pub fn default() -> IntegrityResult<CCADB> {
         CCADB_URL.parse::<Url>().unwrap().try_into()
     }
 
-    pub fn from_reader<R: Read>(r: R) -> Result<CCADB> {
+    pub fn from_reader<R: Read>(r: R) -> IntegrityResult<CCADB> {
         let mut report: Vec<Entry> = vec![];
         let mut rdr = csv::Reader::from_reader(r);
         for entry in rdr.deserialize() {
             let record: Entry =
-                entry.chain_err(|| "failed to deserialize a record from the CCADB")?;
+                entry.map_err(|err| IntegrityError::new("A row in the CCADB report failed to deserialize into our internal representation").with_err(err))?;
             report.push(record)
         }
         Ok(CCADB { report })
@@ -121,19 +118,31 @@ impl CCADB {
 }
 
 impl TryFrom<Url> for CCADB {
-    type Error = Error;
+    type Error = IntegrityError;
 
-    fn try_from(value: Url) -> Result<Self> {
-        CCADB::from_reader(crate::http::new_get_request(value).send()?)
+    fn try_from(value: Url) -> IntegrityResult<Self> {
+        CCADB::from_reader(
+            crate::http::new_get_request(value.clone())
+                .send()
+                .map_err(|err| {
+                    IntegrityError::new("Failed to connecto the CCADB to download a report")
+                        .with_err(err)
+                        .with_context(ctx!(("url", value.to_string())))
+                })?,
+        )
     }
 }
 
 impl TryFrom<&str> for CCADB {
-    type Error = Error;
+    type Error = IntegrityError;
 
-    fn try_from(url: &str) -> Result<Self> {
+    fn try_from(url: &str) -> IntegrityResult<Self> {
         url.parse::<Url>()
-            .chain_err(|| format!("failed to parse {} to a valid URL", url))?
+            .map_err(|err| {
+                IntegrityError::new("The CCADB report url failed to parse")
+                    .with_err(err)
+                    .with_context(ctx!(("url", url)))
+            })?
             .try_into()
     }
 }
@@ -243,66 +252,15 @@ impl Into<Option<crate::model::Revocation>> for Entry {
                 return None;
             }
         };
-        let mut rdn: Vec<ASN1Block> = vec![];
-        for block in res.tbs_certificate.issuer.rdn_seq {
-            for attr in block.set {
-                let oid = ObjectIdentifier(
-                    1,
-                    OID::new(
-                        attr.attr_type
-                            .iter()
-                            .map(|val| BigUint::from(val.clone()))
-                            .collect(),
-                    ),
-                );
-                let content = match attr.attr_value.content {
-                    der_parser::ber::BerObjectContent::PrintableString(s) => {
-                        let s = std::str::from_utf8(s).unwrap();
-                        PrintableString(s.len(), s.to_string())
-                    }
-                    der_parser::ber::BerObjectContent::UTF8String(s) => {
-                        let s = std::str::from_utf8(s).unwrap();
-                        UTF8String(s.len(), s.to_string())
-                    }
-                    der_parser::ber::BerObjectContent::IA5String(s) => {
-                        let s = std::str::from_utf8(s).unwrap();
-                        IA5String(s.len(), s.to_string())
-                    }
-                    der_parser::ber::BerObjectContent::T61String(s) => {
-                        let s = std::str::from_utf8(s).unwrap();
-                        TeletexString(s.len(), s.to_string())
-                    }
-                    val => {
-                        error!(
-                            "An unexpected BER content type was encountered when iterating \
-                             of the issuer RDN of the certificate with serial {}. \
-                             It's raw content is {:?}",
-                            self.certificate_serial_number, val
-                        );
-                        return None;
-                    }
-                };
-                rdn.append(&mut vec![Set(1, vec![Sequence(1, vec![oid, content])])]);
-            }
-        }
-        let seq = Sequence(1, rdn);
-        Some(crate::model::Revocation::new_issuer_serial(
-            base64::encode(&der_encode(&RDN { rdn: vec![seq] }).unwrap()),
-            base64::encode(&hex::decode(&self.certificate_serial_number).unwrap()),
-            Some(self.sha_256_fingerprint),
-        ))
-    }
-}
-
-struct RDN {
-    rdn: Vec<ASN1Block>,
-}
-
-impl ToASN1 for RDN {
-    type Error = Error;
-
-    fn to_asn1_class(&self, _: ASN1Class) -> Result<Vec<ASN1Block>> {
-        Ok(self.rdn.clone())
+        Some(crate::model::Revocation::IssuerSerial {
+            issuer: res.tbs_certificate.issuer.to_string(),
+            serial: crate::model::Revocation::btoh(
+                hex::decode(&self.certificate_serial_number)
+                    .unwrap()
+                    .as_slice(),
+            ),
+            sha_256: Some(self.sha_256_fingerprint),
+        })
     }
 }
 

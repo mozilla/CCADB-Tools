@@ -8,6 +8,7 @@ use std::convert::From;
 use serde::Serialize;
 
 use crate::ccadb::{OneCRLStatus, CCADB};
+use crate::errors::{IntegrityError, IntegrityResult};
 use crate::firefox::cert_storage::CertStorage;
 use crate::kinto::Kinto;
 use crate::revocations_txt::*;
@@ -298,13 +299,35 @@ impl PartialEq for Revocation {
     }
 }
 
+fn b64_to_rdn<T: AsRef<[u8]>>(name: T) -> IntegrityResult<String> {
+    let decoded = base64::decode(name.as_ref()).map_err(|err| {
+        IntegrityError::new("nope")
+            .with_err(err)
+            .with_context(ctx!((
+                "raw_content",
+                String::from_utf8_lossy(name.as_ref()).to_string()
+            )))
+    })?;
+    Ok(x509_parser::parse_name(decoded.as_slice())
+        .map_err(|err| {
+            IntegrityError::new("nope")
+                .with_err(err)
+                .with_context(ctx!((
+                    "raw_content",
+                    String::from_utf8_lossy(name.as_ref()).to_string()
+                )))
+        })?
+        .1
+        .to_string())
+}
+
 impl Revocation {
     pub fn new_issuer_serial(
         mut issuer: String,
         mut serial: String,
         sha_256: Option<String>,
     ) -> Revocation {
-        issuer = crate::x509::b64_to_rdn(issuer.into_bytes()).unwrap();
+        issuer = b64_to_rdn(issuer.into_bytes()).unwrap();
         serial = match base64::decode(serial.as_bytes()) {
             Ok(s) => Revocation::btoh(&s),
             Err(_) => serial,
@@ -321,7 +344,7 @@ impl Revocation {
         key_hash: String,
         sha_256: Option<String>,
     ) -> Revocation {
-        subject = crate::x509::b64_to_rdn(subject.into_bytes()).unwrap();
+        subject = b64_to_rdn(subject.into_bytes()).unwrap();
         Revocation::SubjectKeyHash {
             subject,
             key_hash,
@@ -415,19 +438,16 @@ mod tests {
     use crate::kinto::tests::*;
 
     #[test]
-    fn smoke_from_revocations() -> Result<()> {
-        let rev: Revocations = REVOCATIONS_TXT
-            .parse::<Url>()
-            .chain_err(|| "bad URL")?
-            .try_into()?;
+    fn smoke_from_revocations() -> IntegrityResult<()> {
+        let rev: Revocations = REVOCATIONS_TXT.parse::<Url>().unwrap().try_into()?;
         let int: HashSet<crate::model::Revocation> = rev.into();
         eprintln!("int = {:#?}", int);
         Ok(())
     }
 
     #[test]
-    fn smoke_from_kinto() -> Result<()> {
-        let kinto: Kinto = KINTO.parse::<Url>().chain_err(|| "bad URL")?.try_into()?;
+    fn smoke_from_kinto() -> IntegrityResult<()> {
+        let kinto: Kinto = KINTO.parse::<Url>().unwrap().try_into()?;
         let int: HashSet<crate::model::Revocation> = kinto.into();
         eprintln!("int = {:#?}", int);
         Ok(())

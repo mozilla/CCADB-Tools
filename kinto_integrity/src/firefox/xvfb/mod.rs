@@ -2,7 +2,7 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use crate::errors::*;
+use crate::errors::{IntegrityError, IntegrityResult};
 use std::process::Child;
 
 const XVFB_EXECUTABLE: &str = "Xvfb";
@@ -13,13 +13,13 @@ pub struct Xvfb {
 }
 
 impl Xvfb {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> IntegrityResult<Self> {
         let _ = std::fs::remove_file("/tmp/.X99-lock");
         Ok(Xvfb {
             process: std::process::Command::new(XVFB_EXECUTABLE)
                 .arg(DISPLAY_PORT)
                 .spawn()
-                .chain_err(|| "failed to start Xvfb")?,
+                .map_err(|err| IntegrityError::new("Failed to start Xvfb").with_err(err))?,
         })
     }
 }
