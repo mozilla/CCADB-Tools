@@ -17,9 +17,9 @@ build:
 update:
 	git checkout master
 	git pull
-	make clean build
 
 deploy:
+	make build
 	docker run --name kintointegrity -d -e "PORT=80" -p 80:80 kintointegrity
 
 run:
