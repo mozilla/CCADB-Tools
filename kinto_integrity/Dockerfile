@@ -6,9 +6,6 @@ FROM rustlang/rust:nightly AS buildStage
 
 WORKDIR /opt
 COPY . .
-RUN wget https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz
-RUN tar zxf go1.13.4.linux-amd64.tar.gz
-RUN ln -s $(pwd)/go/bin/go /usr/local/bin/go
 RUN cargo build
 
 FROM ubuntu:latest

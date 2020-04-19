@@ -1,4 +1,4 @@
 runtime: custom
 env: flex
-service: kintointegrity 
+service: default
 

@@ -7,11 +7,12 @@
 extern crate proc_macro;
 
 #[macro_use]
-extern crate error_chain;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate rocket;
+
+#[macro_use]
+mod errors;
 
 use reqwest::Url;
 use rocket::http::RawStr;
@@ -23,13 +24,11 @@ use std::convert::TryInto;
 use url::form_urlencoded::parse as url_decode;
 
 mod ccadb;
-mod errors;
 mod firefox;
 mod http;
 mod kinto;
 mod model;
 mod revocations_txt;
-mod x509;
 
 use crate::ccadb::CCADB;
 use errors::*;
@@ -43,7 +42,7 @@ mod nightly {
     use super::*;
 
     #[get("/")]
-    pub fn default() -> Result<String> {
+    pub fn default() -> IntegrityResult<String> {
         let revocations: Revocations = Revocations::default()?;
         let kinto: Kinto = Kinto::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
@@ -52,7 +51,7 @@ mod nightly {
     }
 
     #[get("/with_revocations?<url>")]
-    pub fn with_revocations(url: &RawStr) -> Result<String> {
+    pub fn with_revocations(url: &RawStr) -> IntegrityResult<String> {
         // https://docs.rs/url/2.1.0/url/form_urlencoded/fn.parse.html expects that you are going
         // to give it a bunch of key,value pairs such as a=b&c=d&e=f ... however we are only giving it
         // the right-hand side of url=<revocations_url> which makes it think that <revocations_url>
@@ -66,7 +65,7 @@ mod nightly {
             .join("");
         let revocations: Revocations = match revocations_url.as_str().parse::<Url>() {
             Ok(url) => url.try_into()?,
-            Err(err) => Err(format!("{:?}", err))?,
+            Err(err) => Err(err.to_string())?,
         };
         let kinto: Kinto = Kinto::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
@@ -75,9 +74,8 @@ mod nightly {
     }
 
     #[post("/with_revocations", format = "text/plain", data = "<revocations_txt>")]
-    pub fn post_revocations(revocations_txt: Data) -> Result<String> {
+    pub fn post_revocations(revocations_txt: Data) -> IntegrityResult<String> {
         let revocations: Revocations = revocations_txt.open().try_into()?;
-        // let revocations = Revocations::parse(revocations_txt.open())?;
         let kinto: Kinto = Kinto::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: Return = (cert_storage, kinto, revocations).into();
@@ -85,7 +83,7 @@ mod nightly {
     }
 
     #[get("/without_revocations")]
-    pub fn without_revocations() -> Result<String> {
+    pub fn without_revocations() -> IntegrityResult<String> {
         let kinto: Kinto = Kinto::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: Return = (cert_storage, kinto).into();
@@ -93,7 +91,7 @@ mod nightly {
     }
 
     #[get("/ccadb_cert_storage")]
-    pub fn ccadb_cert_storage() -> Result<String> {
+    pub fn ccadb_cert_storage() -> IntegrityResult<String> {
         let ccadb: CCADB = CCADB::default()?;
         let cert_storage = FIREFOX_NIGHTLY.cert_storage()?;
         let result: CCADBDiffCertStorage = (cert_storage, ccadb).into();
@@ -101,13 +99,13 @@ mod nightly {
     }
 
     #[patch("/update_cert_storage")]
-    pub fn update_cert_storage() -> Result<()> {
-        FIREFOX_NIGHTLY.update_cert_storage()
+    pub fn update_cert_storage() -> IntegrityResult<()> {
+        Ok(FIREFOX_NIGHTLY.update_cert_storage()?)
     }
 
     #[patch("/update_firefox")]
-    pub fn update_firefox() -> Result<()> {
-        FIREFOX_NIGHTLY.force_update()
+    pub fn update_firefox() -> IntegrityResult<()> {
+        Ok(FIREFOX_NIGHTLY.force_update()?)
     }
 }
 
@@ -137,17 +135,15 @@ fn init_logging() {
         .unwrap();
 }
 
-pub fn get_port() -> Result<u16> {
+pub fn get_port() -> IntegrityResult<u16> {
     Ok(match std::env::var("PORT") {
         Ok(port) => port.parse().unwrap(),
         Err(_) => 8080,
     } as u16)
 }
 
-
-fn main() -> Result<()> {
+fn main() -> IntegrityResult<()> {
     init_logging();
-    let _c = firefox::firefox::DroppableChild{child:x509::init()?};
     firefox::init();
     let port = get_port()?;
     let config = rocket::Config::build(rocket::config::Environment::Production)

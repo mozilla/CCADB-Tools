@@ -9,11 +9,10 @@ use std::convert::TryInto;
 
 use crate::errors::*;
 use crate::http;
-use std::collections::HashSet;
 use crate::model::Revocation;
-use std::collections::hash_map::RandomState;
 use rayon::prelude::*;
-
+use std::collections::hash_map::RandomState;
+use std::collections::HashSet;
 
 #[derive(Deserialize, Debug)]
 pub struct Kinto {
@@ -21,31 +20,37 @@ pub struct Kinto {
 }
 
 impl Kinto {
-    pub fn default() -> Result<Kinto> {
+    pub fn default() -> IntegrityResult<Kinto> {
         "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records"
             .parse::<Url>()
-            .chain_err(|| "failed to download OneCRL")?
+            .unwrap()
             .try_into()
-            .chain_err(|| "failed to parse OneCRL")
     }
 }
 
 impl TryFrom<Url> for Kinto {
-    type Error = Error;
+    type Error = IntegrityError;
 
-    fn try_from(url: Url) -> Result<Self> {
+    fn try_from(url: Url) -> IntegrityResult<Self> {
         let url_str = url.to_string();
         http::new_get_request(url)
             .send()
-            .chain_err(|| format!("failed to download {}", url_str))?
+            .map_err(|err| IntegrityError::new("Could not establish a connection to Kinto").with_err(err).with_context(
+                ctx!(("url", url_str.clone()))
+            ))?
             .json()
-            .chain_err(|| format!("failed to deserialize Kinto"))
+            .map_err(|err| IntegrityError::new("Could not deserialize the response from Kinto into our internal JSON representation").with_err(err).with_context(
+                ctx!(("url", url_str.clone()))
+            ))
     }
 }
 
 impl Into<HashSet<Revocation>> for Kinto {
     fn into(self) -> HashSet<Revocation, RandomState> {
-        self.data.into_par_iter().map(|entry| entry.into()).collect()
+        self.data
+            .into_par_iter()
+            .map(|entry| entry.into())
+            .collect()
     }
 }
 
@@ -61,7 +66,7 @@ pub struct Details {
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 pub enum Entry {
-    Serial{
+    Serial {
         schema: u64,
         details: Details,
         enabled: bool,
@@ -72,7 +77,7 @@ pub enum Entry {
         id: String,
         last_modified: u64,
     },
-    KeyHash{
+    KeyHash {
         schema: u64,
         details: Details,
         enabled: bool,
@@ -82,7 +87,7 @@ pub enum Entry {
         pub_key_hash: String,
         id: String,
         last_modified: u64,
-    }
+    },
 }
 
 impl Into<Revocation> for Entry {
@@ -105,7 +110,7 @@ impl Into<Revocation> for Entry {
                 pub_key_hash: key_hash,
                 id: _,
                 last_modified: _,
-            } => Revocation::new_subject_key_hash(subject, key_hash, None )
+            } => Revocation::new_subject_key_hash(subject, key_hash, None),
         }
     }
 }
@@ -120,11 +125,8 @@ pub(crate) mod tests {
         "https://settings.prod.mozaws.net/v1/buckets/security-state/collections/onecrl/records";
 
     #[test]
-    fn smoke() -> Result<()> {
-        let _: Kinto = KINTO
-            .parse::<Url>()
-            .chain_err(|| "bad Kinto URL")?
-            .try_into()?;
+    fn smoke() -> IntegrityResult<()> {
+        let _: Kinto = KINTO.parse::<Url>().unwrap().try_into()?;
         Ok(())
     }
 
@@ -192,7 +194,7 @@ pub(crate) mod tests {
     ///	    id: "8a10108d-b91c-49da-9748-72421d965126",
     ///	    last_modified: 1511530740428,
     ///	}
-    fn find_duplicates() -> Result<()> {
+    fn find_duplicates() -> IntegrityResult<()> {
         // let kinto: Kinto = KINTO
         //     .parse::<Url>()
         //     .chain_err(|| "bad Kinto URL")?
