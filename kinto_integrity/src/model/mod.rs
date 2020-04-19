@@ -301,7 +301,7 @@ impl PartialEq for Revocation {
 
 fn b64_to_rdn<T: AsRef<[u8]>>(name: T) -> IntegrityResult<String> {
     let decoded = base64::decode(name.as_ref()).map_err(|err| {
-        IntegrityError::new("nope")
+        IntegrityError::new("there was an attempt to base64 decode non-base64 data")
             .with_err(err)
             .with_context(ctx!((
                 "raw_content",
@@ -310,7 +310,7 @@ fn b64_to_rdn<T: AsRef<[u8]>>(name: T) -> IntegrityResult<String> {
     })?;
     Ok(x509_parser::parse_name(decoded.as_slice())
         .map_err(|err| {
-            IntegrityError::new("nope")
+            IntegrityError::new("an x509Name failed to parse")
                 .with_err(err)
                 .with_context(ctx!((
                     "raw_content",

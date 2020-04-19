@@ -19,7 +19,7 @@ pub trait FirefoxRelease {
         // std::sync::TryLockError::Poisoned(err)
         match inner.update(Self::URL.parse().unwrap()) {
             Ok(None) => info!("No updates published to {}", Self::DISPLAY),
-            Ok(Some(_)) => info!("Downloaded an update to {}", Self::DISPLAY),
+            Ok(Some(_)) => info!("Downloaded an update to {}, it is now ready to use", Self::DISPLAY),
             Err(err) => error!("{}", err.to_string()),
         }
         Ok(())

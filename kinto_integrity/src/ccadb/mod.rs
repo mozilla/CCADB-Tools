@@ -44,7 +44,7 @@ const BAD_CERT_FP: &str = "7BDA50131EA7E55C8FDDA63563D12314A7159D5621333BA8BCDAD
 
 lazy_static! {
     static ref BAD_CERT_VALUE: Revocation = Revocation::IssuerSerial {
-        issuer: "CN=Certum CA,O=Unizeto Sp. z o.o.,C=PL".to_string(),
+        issuer: "C=PL, O=Unizeto Sp. z o.o., CN=Certum CA".to_string(),
         serial: "00:BC:72:66:66:FF:58:BF:F0:02:E5:22:3C:AE:68:2B:F8".to_string(),
         sha_256: Some(BAD_CERT_FP.to_string()),
     };

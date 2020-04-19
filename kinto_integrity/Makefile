@@ -14,5 +14,13 @@ build:
 	docker image prune -f
 	docker image prune -f --filter label=stage=intermediate
 
+update:
+	git checkout master
+	git pull
+	make clean build
+
+deploy:
+	docker run --name kintointegrity -d -e "PORT=80" -p 80:80 kintointegrity
+
 run:
 	./run.sh
