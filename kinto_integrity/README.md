@@ -4,7 +4,14 @@ This tool computes the set differences between Kinto, Firefox Nightly's `cert_st
 ## Deployment
 A `Dockerfile`, `Makefile`, and convenience `run.sh` are provided.
 
-`make clean build run` ... deploys this application within an Ubuntu Docker container listening on port 8080 
+For a fresh deployment from a recently cloned copy, running the following will deploy this application within an Ubuntu Docker container listening on port 80:
+
+`make deploy`
+
+If the application has already been deployed and we need to redeploy from the master branch, the following will do so:
+
+`make clean update deploy`
+
 ## HTTP Endpoints
 
 For all requests, the following datasets are always used:
