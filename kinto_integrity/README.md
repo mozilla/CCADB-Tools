@@ -79,10 +79,21 @@ A certificate is defined at as the following struct.
 
 ```json
 Certificate = {
-  issuer_name: String,
+  issuer: String,
   serial: String,
 }
 ```
+
+However, due to a complication with the upstream dataset, a certificate may ALSO be defined as the following struct.
+
+```json
+Certificate = {
+  subject: String,
+  key_hash: String,
+}
+```
+
+There are very `subject/key_hash` entries in the dataset today, however they do exist.
 
 As this tool computes the difference between the different datasets, the results are represented in a "in this but not in that" format. This computation is done as a typical set difference.
 
