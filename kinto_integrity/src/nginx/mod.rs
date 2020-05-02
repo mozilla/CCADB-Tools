@@ -58,6 +58,8 @@ server {{
 	listen [::]:{port} default_server;
 	server_name kintointegrity;
 
+    server_tokens off;
+
 	location ~ ^/{locations} {{
 		proxy_pass http://backend;
 	}}
