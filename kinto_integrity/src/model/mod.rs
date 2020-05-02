@@ -380,7 +380,7 @@ impl Revocation {
                     sha_256: None,
                 },
             ) => {
-                std::mem::replace(l, None);
+                let _ = std::mem::replace(l, None);
             }
             (
                 Revocation::SubjectKeyHash {
@@ -408,7 +408,7 @@ impl Revocation {
                     sha_256: None,
                 },
             ) => {
-                std::mem::replace(l, None);
+                let _ = std::mem::replace(l, None);
             }
             _ => {}
         };
