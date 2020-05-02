@@ -5,7 +5,8 @@
 use crate::errors::*;
 use crate::configuration;
 
-const CONF: &str = "/etc/nginx/sites-available/default";
+const CONF: &str = "/etc/nginx/sites-enabled/kinto.conf";
+const DEFAULT: &str = "/etc/nginx/sites-enabled/default";
 
 pub struct NginxBuilder {
     port: u16,
@@ -54,20 +55,18 @@ upstream backend {{
 }}
 
 server {{
-	listen {port} default_server;
-	listen [::]:{port} default_server;
-	server_name kintointegrity;
+    listen {port} default_server;
+    listen [::]:{port} default_server;
+    server_name kintointegrity;
 
     server_tokens off;
 
 	location ~ ^/{locations} {{
 		proxy_pass http://backend;
 	}}
-
-	location / {{
+    location / {{
 	    return 404;
-	}}
-
+    }}
 }}
 "#, port=self.port, redirect_port=self.redirect_port, locations=self.build_locations())
     }
@@ -80,6 +79,7 @@ impl Nginx {
         if !configuration::prod() {
             return Ok(())
         }
+        let _ = std::fs::remove_file(DEFAULT);
         std::process::Command::new("nginx").spawn().map_err(|err| {
             IntegrityError::new("failed to start Nginx").with_err(err)
         })?.wait().map_err(|err| {
