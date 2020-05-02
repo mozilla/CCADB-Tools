@@ -431,7 +431,6 @@ impl Revocation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::errors::*;
     use reqwest::Url;
     use std::convert::TryInto;
 
