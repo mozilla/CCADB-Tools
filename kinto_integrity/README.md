@@ -27,9 +27,9 @@ A fresh, per request, Firefox Nightly profile is create and its cert_storage is 
 
 ### Default
 ```bash
-curl -X GET http://example.org
+curl -X GET http://example.org/default
 ```
-The default `/` endpoint computes a diff using a baked-in copy of `revocations.txt` that is a copy of [bug #1553256](https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502).
+The default `/default` endpoint computes a diff using a baked-in copy of `revocations.txt` that is a copy of [bug #1553256](https://bug1553256.bmoattachments.org/attachment.cgi?id=9066502).
 
 ### Specifying a revocations.txt
 ##### GET /with_revocations?url={}

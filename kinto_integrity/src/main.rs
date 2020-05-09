@@ -29,6 +29,8 @@ mod http;
 mod kinto;
 mod model;
 mod revocations_txt;
+mod nginx;
+mod configuration;
 
 use crate::ccadb::CCADB;
 use errors::*;
@@ -41,7 +43,7 @@ mod nightly {
 
     use super::*;
 
-    #[get("/")]
+    #[get("/default")]
     pub fn default() -> IntegrityResult<String> {
         let revocations: Revocations = Revocations::default()?;
         let kinto: Kinto = Kinto::default()?;
@@ -146,8 +148,17 @@ fn main() -> IntegrityResult<()> {
     init_logging();
     firefox::init();
     let port = get_port()?;
+    nginx::NginxBuilder::new().port(port).redirect(8080).
+        location("default").
+        location("with_revocations").
+        location("without_revocations").
+        location("ccadb_cert_storage").
+        location("update_cert_storage").
+        location("update_firefox").
+        build()?.
+        start()?;
     let config = rocket::Config::build(rocket::config::Environment::Production)
-        .port(port)
+        .port(8080)
         .finalize()
         .unwrap();
     rocket::custom(config)

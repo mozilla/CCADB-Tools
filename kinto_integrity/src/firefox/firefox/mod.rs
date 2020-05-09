@@ -203,7 +203,7 @@ impl Firefox {
         if resp.status() == 304 {
             return Ok(None);
         }
-        std::mem::replace(self, Self::try_from(resp)?);
+        let _ = std::mem::replace(self, Self::try_from(resp)?);
         Ok(Some(()))
     }
 
@@ -221,7 +221,7 @@ impl Firefox {
                     .with_err(err)
                     .with_context(ctx!(("url", &url_str)))
             })?;
-        std::mem::replace(self, Self::try_from(resp)?);
+        let _ = std::mem::replace(self, Self::try_from(resp)?);
         Ok(())
     }
 

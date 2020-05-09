@@ -10,7 +10,10 @@ clean:
 	-docker image prune -f --filter label=stage=intermediate
 
 build:
-	docker build --rm -t kintointegrity:latest .
+	docker run --rm -v $(shell pwd):/opt rustlang/rust:nightly cargo build --release --target-dir /opt/target/prod --manifest-path /opt/Cargo.toml
+	mkdir -p target/prod/release/artifact
+	cp target/prod/release/kinto_integrity target/prod/release/artifact
+	docker build --rm -t kintointegrity:latest -f Dockerfile target/prod/release/artifact
 	docker image prune -f
 	docker image prune -f --filter label=stage=intermediate
 
@@ -20,7 +23,7 @@ update:
 
 deploy:
 	make build
-	docker run --name kintointegrity -d -e "PORT=80" -p 80:80 kintointegrity
+	docker run --name kintointegrity -d -e "PORT=80" -e "ENV=PROD" --network host kintointegrity
 
 run:
 	./run.sh
