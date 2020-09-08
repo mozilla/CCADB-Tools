@@ -5,6 +5,11 @@ This software enforces rules outlined in [CAB Forum Baseline Requirements §2.2]
 
 > The CA SHALL host test Web pages that allow Application Software Suppliers to test their software with Subscriber Certificates that chain up to each publicly trusted Root Certificate.  At a minimum, the CA SHALL host separate Web pages using Subscriber Certificates that are (i) valid, (ii) revoked, and (iii) expired.
 
+## Use Cases
+This tool runs tests to verify that the three sample websites required by the CAB Forum Baseline Requirements (for valid, expired, and revoked certificates) do in fact chain up to the specified root certificate and that the status of TLS certificates are as expected (valid, expired, or revoked). Lint tests are also ran against the specified sample website TLS certificates.
+
+This tool is used by Audit Cases and Root Inclusion Cases in the CCADB.
+
 #### Precondition
 Given the input of a candidate root certificate and three test websites, the following tests are executed.
 

@@ -1,6 +1,10 @@
 # Kinto Integrity
 This tool computes the set differences between Kinto, Firefox Nightly's `cert_storage`, and (optionally) `revocations.txt`.
 
+## Use Cases
+
+Kinto Integriy is used by “Data Integrity - OneCRL cert-storage” and “Data Integrity - OneCRL revocations.txt” reports in the CCADB. 
+
 ## Deployment
 A `Dockerfile`, `Makefile`, and convenience `run.sh` are provided.
 

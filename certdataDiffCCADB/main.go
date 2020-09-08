@@ -49,7 +49,9 @@ func init() {
 	flag.StringVar(&ccadbPath, "ccadb", "", "Path to CCADB report file.")
 	flag.StringVar(&ccadbURL, "ccadburl", ccadb.URL, "URL to CCADB report file.")
 	flag.StringVar(&outDir, "o", "", "Path to the output directory.")
-	flag.BoolVar(&serverMode, "serve", false, "Start in server mode.")
+	flag.BoolVar(&serverMode, "serve", false, "Start in server mode. While in server mode the " +
+		"/certdata endpoint is available which downloads a copy of certdata.txt from the default URL and returns a " +
+		"simplified JSON representation. This option requires that the PORT environment variable be set.")
 
 	matchedPath = path.Join(outDir, matched)
 	unmatchedTrustPath = path.Join(outDir, unmatchedTrusted)
