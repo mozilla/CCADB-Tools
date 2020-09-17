@@ -1,0 +1,15 @@
+body {
+  font-family: "helvetica", sans-serif;
+  text-align: center;
+}
+.tool {
+	margin-top: 1em;
+	margin-bottom: 1em;
+}
+
+.cert_info_label { padding-left:2em; float:left; padding-right:0.5em; max-width:20%;}
+.cert_info_value { float:right; max-width:80%;}
+
+.F { color:	#fb0a06; font-weight:bold;}
+.E { color: #cc3300; font-weight:bold;}
+.W { color:	#ffcc00; font-weight:bold;}

@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+	<head>
+		<title>CA Misissuance Checker</title>
+		<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+
+		<!-- Bootstrap + jQuery from CDN -->
+		<script type="text/javascript" src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+		<script type="text/javascript" src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+		<!-- Custom JS -->
+		<script type="text/javascript" src="{{ url_for('static', filename='js/summary.js') }}"></script>
+
+		<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icon/apple-touch-icon.png') }}">
+		<link rel="icon" type="image/png" sizes="32x32" href="{{url_for('static', filename='icon/favicon-32x32.png') }}">
+		<link rel="icon" type="image/png" sizes="16x16" href="{{url_for('static', filename='icon/favicon-16x16.png') }}">
+		<link rel="manifest" href="{{url_for('static', filename='site.webmanifest')}}">
+	</head>
+	<body>
+
+	<div class="container-fluid" style="padding-top:2em;">
+		<!-- <div class="container" style="max-width:50em;"> -->
+		<div class="container">
+
+
+		<h2>Mis-issuance Report - CA ID: {{CA_ID}}</h2>
+
+		<div class="card tool">
+			<div class="card-body">
+				<h4>Cert Info</h4>
+<!--
+				<pre id="caid_pprint">
+{{ca_print}}
+				</pre>
+-->
+				<div class="row">
+					<span class="cert_info_label" ><b>Cert ID</b>:</span> <span class="cert_info_value">{{cert_info.id}} </span>
+				</div>
+				<div class="row">
+					<span class="cert_info_label" ><b>Subject</b>:</span> <span class="cert_info_value">{{cert_info.subjectname}} </span>
+				</div>
+				<div class="row">
+					<span class="cert_info_label"><b>Issuer Name</b>:</span> <span class="cert_info_value"> {{cert_info.issuername}} </span>
+				</div>
+				<div class="row">
+					<span class="cert_info_label"><b>Serial Number</b>:</span> <span class="cert_info_value"> {{cert_info.serialnumber}} </span>
+				</div>
+
+				<div class="row">
+					<span class="cert_info_label"><b>SHA256 Fingerprint</b>:</span> <span class="cert_info_value"> {{cert_info.sha256_fingerprint}} </span>
+				</div>
+				<div class="row">
+					<span class="cert_info_label"><b>SHA1 Fingerprint</b>:</span> <span class="cert_info_value"> {{cert_info.sha1_fingerprint}} </span>
+				</div>
+				<div class="row">
+					<span class="cert_info_label"><b>Validity</b>:</span> <span class="cert_info_value"> {{cert_info.notbefore}} <i>to</i> {{cert_info.notafter}} </span>
+				</div>
+
+				<!--
+				<table class="table">
+					<tbody>
+						<tr>
+							<td>Subject</td>
+							<td>{{cert_info.subjectname}}</td>
+						</tr>
+						<tr>
+							<td>Issuer Subject</td>
+							<td>{{cert_info.issuername}}</td>
+						</tr>
+						<tr>
+							<td>Serial Number</td>
+							<td>{{cert_info.serialnumber}}</td>
+						</tr>
+						<tr>
+							<td>SHA256 Fingerprint</td>
+							<td>{{cert_info.sha256_fingerprint}}</td>
+						</tr>
+						<tr>
+							<td>SHA1 Fingerprint</td>
+							<td>{{cert_info.sha1_fingerprint}}</td>
+						</tr>
+						<tr>
+							<td>Validity</td>
+							<td>{{cert_info.notbefore}} <i>to</i> {{cert_info.notafter}} </td>
+						</tr>
+					</tbody>
+				</table>
+				-->
+			</div>
+		</div>
+
+		<p>
+			We found the following lint issues under this certificate:
+		</p>
+
+		<!-- 
+		<nav>
+			<div class="nav nav-tabs" id="nav-tab" role="tablist">
+				<a class="nav-item nav-link active" id="nav-x509-tab" data-toggle="tab" href="#nav-x509" role="tab" aria-controls="nav-x509" aria-selected="true">x509</a>
+				<a class="nav-item nav-link" id="nav-CAB-tab" data-toggle="tab" href="#nav-CAB" role="tab" aria-controls="nav-CAB" aria-selected="false">CA/B</a>
+				<a class="nav-item nav-link" id="nav-Z-tab" data-toggle="tab" href="#nav-Z" role="tab" aria-controls="nav-Z" aria-selected="false">Z</a>
+			</div>
+		</nav>
+		<div class="tab-content" id="nav-tabContent">
+			<div class="tab-pane fade show active" id="nav-x509" role="tabpanel" aria-labelledby="nav-x509-tab">
+
+		-->
+
+				<table class="table table-dark">
+					<thead>
+						<tr>
+							<th scope="col">Severity</th>
+							<th scope="col">Type</th>
+							<th scope="col">Issue</th>
+							<th scope="col">Affected Certs</th>
+							<th scope="col">Issues</th>
+							<th scope="col">Data</th>
+						</tr>
+					</thead>
+					<tbody>
+
+					{% for issue in x509_issues %}
+						<tr>
+							<td class="{{issue[0][0]}}"> {{ issue[0][0] }}</td>
+							<td>x509</td>
+							<td> {{ issue[0][2] }}</td>
+							<td> {{ issue[1] }} </td>
+							<td> <a class="lint_issue_link" href="/lint_issues/{{CA_ID}}?lint_issue={{issue[0][1]}}">view</a> </td>
+							<td> <a class="lint_issue_link" href="/raw_lint_issues/{{CA_ID}}?lint_issue={{issue[0][1]}}">raw</a> </td>
+						</tr>
+					{% endfor %} 
+
+					{% for issue in cabs_issues %}
+						<tr>
+							<td class="{{issue[0][0]}}"> {{ issue[0][0] }}</td>
+							<td>CAB</td>
+							<td> {{ issue[0][2] }}</td>
+							<td> {{ issue[1] }} </td>
+							<td> <a class="lint_issue_link" href="/lint_issues/{{CA_ID}}?lint_issue={{issue[0][1]}}">view</a> </td>
+							<td> <a class="lint_issue_link" href="/raw_lint_issues/{{CA_ID}}?lint_issue={{issue[0][1]}}">raw</a> </td>
+						</tr>
+					{% endfor %} 
+
+					{% for issue in zs_issues %}
+						<tr>
+							<td class="{{issue[0][0]}}"> {{ issue[0][0] }}</td>
+							<td>Z</td>
+							<td> {{ issue[0][2] }}</td>
+							<td> {{ issue[1] }} </td>
+							<td> <a class="lint_issue_link" href="/lint_issues/{{CA_ID}}?lint_issue={{issue[0][1]}}">view</a> </td>
+							<td> <a class="lint_issue_link" href="/raw_lint_issues/{{CA_ID}}?lint_issue={{issue[0][1]}}">raw</a> </td>
+						</tr>
+					{% endfor %} 
+					</tbody>
+				</table>
+
+		<!--
+			</div>
+		</div>
+
+		-->
+
+		<div>
+			<h4>CA Tree</h4>
+
+			{% macro print_ca_tree(k, d) -%}
+				<ul>
+				{%- for key, value in d.items() %}
+					<li>
+						<p>{{ca_cn_map[key]}} &emsp; <a class="ca_summary_link" href="/summary/{{key}}?">Summary</a> &emsp; <a href="https://crt.sh/?caid={{key}}">crt.sh</a> </p>
+
+					</li>
+					{{- print_ca_tree(key, value) -}}
+				{%- endfor %}
+				</ul>
+			{%- endmacro %}
+
+			<ul>
+				<li>
+					<p>{{ca_cn_map[CA_ID]}} &emsp; <a class="ca_summary_link" href="/summary/{{CA_ID}}?">Summary</a> &emsp; <a href="https://crt.sh/?caid={{CA_ID}}">crt.sh</a> </p>
+				</li>
+				{{ print_ca_tree(CA_ID, ca_tree) }}
+			</ul>
+
+		</div>
+
+
+	</div>
+
+	</div>
+
+</body>
+</html>

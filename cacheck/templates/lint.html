@@ -1,0 +1,71 @@
+			{% macro print_lint_issues(lints) %}
+				{% for issue in lints %}
+				<tr>
+					<td> <a href="https://crt.sh/?id={{ issue['certificate_id'] }}" >{{ issue['certificate_id'] }} </a></td>
+					<td>{{ issue['not_before_date'] }}</td>
+					<td>{{ issue['not_after_date'] }}</td>
+					<td>{{ issue['subject_cn'] }}</td>
+					<td>{{ issue['onecrl_revoked'] }}</td>
+					<td>{{ issue['google_revoked'] }}</td>
+					<td>{{ issue['microsoft_revoked'] }}</td>
+					<td>{{ issue['sha256_fingerprint'] }}</td>
+				</tr>
+				{% endfor %}
+			{%- endmacro %}
+
+<!doctype html>
+<html>
+	<head>
+		<title>CA Misissuance Checker</title>
+		<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+
+		<!-- Bootstrap + jQuery from CDN -->
+		<script type="text/javascript" src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+		<script type="text/javascript" src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+		<!-- Custom JS -->
+		<script type="text/javascript" src="{{ url_for('static', filename='js/summary.js') }}"></script>
+
+		<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icon/apple-touch-icon.png') }}">
+		<link rel="icon" type="image/png" sizes="32x32" href="{{url_for('static', filename='icon/favicon-32x32.png') }}">
+		<link rel="icon" type="image/png" sizes="16x16" href="{{url_for('static', filename='icon/favicon-16x16.png') }}">
+		<link rel="manifest" href="{{url_for('static', filename='site.webmanifest')}}">
+	</head>
+	<body>
+
+	<div class="container-fluid" style="padding-top:2em;">
+		<!-- <div class="container" style="max-width:50em;"> -->
+		<div class="container">
+
+
+		{% for issuer, issues in issuers.items() %}
+		<h5>Issuer Name: <a href="https://crt.sh?caid={{issues[0]['issuer_ca_id']}}">{{ issues[0]['issuer_cn'] }}</a></h5>
+		<h5>Linter: {{issues[0]['linter']}}</h5>
+		<h5>Issue: <span class="{{issues[0]['severity']}}">{{ issues[0]['issue_text'] }}</span></h5>
+		<p> <b>{{ issues|length }}</b> certificates with this lint issue under this CA.</p>
+
+		<table class="table table-light">
+			<thead>
+				<tr>
+					<th scope="col">Cert ID</th>
+					<th scope="col">Not Before</th>
+					<th scope="col">Not After</th>
+					<th scope="col" style="min-width:35em;">Subject CN</th>
+					<th scope="col">OneCRL Revoked</th>
+					<th scope="col">Google Revoked</th>
+					<th scope="col">Microsoft Revoked</th>
+					<th scope="col">SHA-256 fingerprint</th>
+				</tr>
+			</thead>
+			<tbody>
+
+			{{ print_lint_issues(issues) }}
+
+			</tbody>
+		</table>
+		{% endfor %}
+	</div>
+
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+	<head>
+		<title>CA Misissuance Checker</title>
+		<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+		<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+		<!-- Bootstrap + jQuery from CDN -->
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" crossorigin="anonymous">
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" crossorigin="anonymous"></script>
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" crossorigin="anonymous"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" crossorigin="anonymous"></script>
+
+		<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icon/apple-touch-icon.png') }}">
+		<link rel="icon" type="image/png" sizes="32x32" href="{{url_for('static', filename='icon/favicon-32x32.png') }}">
+		<link rel="icon" type="image/png" sizes="16x16" href="{{url_for('static', filename='icon/favicon-16x16.png') }}">
+		<link rel="manifest" href="{{url_for('static', filename='site.webmanifest')}}">
+
+	</head>
+	<body>
+
+<div class="container-fluid" style="padding-top:2em;">
+	<div class="container" style="max-width:60em;">
+
+		<h1>CA Mis-issuance Checker</h1>
+
+		<div class="card tool">
+			<div class="card-body">
+				<h3>Cert fingerprint to CA Issuer ID</h3>
+				<p>
+				Please provide <b>either</b> a SHA-256 <b>or</b> a SHA-1 hex encoded fingerprint for a certificate.
+				</p>
+				<form id="issuer_ca_id_form">
+					<div class="form-group">
+						<label for="ccadb_url">Cert SHA-256 fingerprint</label>
+						<input type="text" class="form-control fingerprint-input" id="sha256_fingerprint" aria-describedby="fingerprint_help" placeholder="Cert SHA256 fingerprint">
+						<small id="fingerprint_help" class="form-text text-muted">Specify the hex-encoded SHA-256 fingerprint for a certificate.</small>
+					</div>
+					<div class="form-group">
+						<label for="ccadb_url">Cert SHA-1 fingerprint</label>
+						<input type="text" class="form-control fingerprint-input" id="sha1_fingerprint" aria-describedby="sha1_fingerprint_help" placeholder="Cert SHA1 fingerprint">
+						<small id="isha1_fingerprint_help" class="form-text text-muted">Specify the hex-encoded SHA-1 fingerprint for a certificate.</small>
+					</div>
+
+
+
+					<button id="fingerprint-to-cert-id-btn" type="button" class="btn btn-primary" onclick="getIssuerCAID()">Get issuer CA ID</button>
+				</form>
+			</div>
+		</div>
+
+		<div class="card tool">
+			<div class="card-body">
+				<h3>CA issuance investigator</h3>
+				<!-- <form id="ca_lint_form" action="/lint_issues/" target="_blank" method="get"> -->
+				<form id="ca_lint_form" action="/lint_issues/" method="get">
+					<h4>Query Settings</h4>
+
+
+					<div class="form-row">
+						<div class="col">
+							  <div class="form-group">
+								<label for="ca_id">CA ID</label>
+								<input type="text" class="form-control" id="ca_id" aria-describedby="ca_id_help" placeholder="Certificate Authority ID">
+								<small id="ca_id_help" class="form-text text-muted">Specify the Certificate Authority ID to check for mis-issued certificates.</small>
+							  </div>
+						</div>
+
+						<div class="col">
+							  <div class="form-group">
+								  <!-- <input id="max_depth" name="max_depth" type="hidden" value="-1"> -->
+								<label for="max_depth">Maximum Depth</label>
+								<input type="text" class="form-control" name="max_depth" id="max_depth" aria-describedby="max_depth_help" placeholder="Maximum recursion depth" value="-1">
+								<small id="max_depth_help" class="form-text text-muted">Specify the maximum recursion depth for child CAs when searching CCADB for lint issues. A depth of 0 limits lint issues to this cert (-1 is infinite).</small>
+							  </div>
+						</div>
+
+					</div>
+
+
+
+					<div class="form-row">
+						<div class="col">
+						  <div class="form-group">
+							<label for="start_date">Start Date</label>
+							<input type="date" class="form-control" id="start_date" name="start" value="">
+						  </div>
+						</div>
+
+						<div class="col">
+						  <div class="form-group">
+							<label for="end_date">End Date</label>
+							<input type="date" class="form-control" id="end_date" name="end" >
+						  </div>
+						</div>
+					</div>
+
+					<h5>Certificate Types</h5>
+					<div class="form-row">
+						<div class="col">
+						  <div class="form-group form-check">
+							<input type="checkbox" class="form-check-input" id="excludeRevoked" name="exclude_revoked">
+							<label class="excludeRevokedLabel" for="excludeRevoked">Exclude revoked certs</label>
+						  </div>	
+						</div>
+
+						<div class="col">
+						  <div class="form-group form-check">
+							<input type="checkbox" class="form-check-input" id="addedToOneCRL" name="onecrl">
+							<label class="addedToOneCRLLabel" for="addedToOneCRL">Exclude certs in OneCRL</label>
+						  </div>	
+						</div>
+
+						<div class="col">
+						  <div class="form-group form-check">
+							<input type="checkbox" class="form-check-input" id="expiredCerts" name="expired_certs" >
+							<label class="expiredCertsLabel" for="expiredCerts">Exclude expired certs</label>
+						  </div>	
+						</div>
+
+						<div class="col">
+						  <div class="form-group form-check">
+							<input type="checkbox" class="form-check-input" id="techConCerts" name="exclude_technically_constrained">
+							<label class="techConCertsLabel" for="techConCerts">Exclude technically constrained</label>
+						  </div>	
+						</div>
+
+					</div>
+
+					<h5>Lint Types</h5>
+					<div class="form-row">
+						<div class="col">
+						  <div class="form-group form-check">
+							<input type="checkbox" class="form-check-input" id="zlint" name="z_lint" checked>
+							<label class="zlintLabel" for="zlint">ZLint</label>
+						  </div>	
+						</div>
+
+						<div class="col">
+						  <div class="form-group form-check">
+							<input type="checkbox" class="form-check-input" id="cablint" name="cab_lint" checked>
+							<label class="cablintLabel" for="cablint">CabLint</label>
+						  </div>	
+						</div>
+
+						<div class="col">
+						  <div class="form-group form-check">
+							<input type="checkbox" class="form-check-input" id="x509lint" name="x509_lint" checked>
+							<label class="x509lintLabel" for="x509lint">x509 Lint</label>
+						  </div>	
+						</div>
+					</div>
+
+
+					<button id="lint-button" type="submit" class="btn btn-primary">Generate JSON</button>
+					<button id="lint-summary-button" type="submit" class="btn btn-primary">Summary</button>
+				</form>
+			</div>
+		</div>
+	</div>
+
+</div>
+
+</body>
+</html>
