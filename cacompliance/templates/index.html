@@ -1,0 +1,127 @@
+{% macro print_bug(bug) %}
+<tr>
+	<td>{{bug.status}}</td>
+	<td>{{bug.summary}}</td>
+	<td>{{bug.creator | parse_user }}</td>
+	<td>
+		{% if bug.is_confirmed %}
+		<i class="fa fa-times-circle" aria-hidden="true"></i>
+		{% else %}
+		<i class="fa fa-check-circle" aria-hidden="true"></i>
+		{% endif %}
+	</td>
+	<td>{{bug.last_change_time | parse_timedelta}}</td>
+	<td>{{bug.assigned_to | parse_user }}</td>
+	<td><a href="{{bug.weburl}}">link</a></td>
+</tr>
+{%- endmacro %}
+
+{#
+{% macro print_bug(bug) -%}
+	<li>
+	<p>Summary: {{bug.summary}}, Status: {{bug.status}}, Creator: {{bug.creator}}, Resolution: {{bug.resolution}}, Open: {{bug.is_open}}, Last Modified: {{bug.last_change_time}}, Confirmed: {{bug.is_confirmed}}  <a href="{{bug.weburl}}">link</a></p>
+	</li>
+{%- endmacro %}
+#}
+
+{% macro table_footer() %}
+</tbody>
+</table>
+{% endmacro %}
+
+{% macro table_header() %}
+<table class="table">
+<thead>
+	<tr>
+		<th scope="col">Status</th>
+		<th scope="col">Summary</th>
+		<th scope="col">Creator</th>
+		<th scope="col">Confirmed</th>
+		<th scope="col">Modified</th>
+		<th scope="col">Assigned</th>
+		<th scope="col">Link</th>
+	</tr>
+</thead>
+<tbody>
+{%endmacro %}
+
+
+
+<!doctype html>
+<html>
+	<head>
+		<title>CA Misissuance Checker</title>
+		<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+		<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+		<!-- Bootstrap + jQuery from CDN -->
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" crossorigin="anonymous">
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" crossorigin="anonymous">
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" crossorigin="anonymous"></script>
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" crossorigin="anonymous"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" crossorigin="anonymous"></script>
+
+	</head>
+	<body>
+
+	<div class="container-fluid" style="padding-top:2em;">
+		<div class="container" style="">
+
+			<h1>CA Compliance Summary for {{date_start}} - {{date_end}}</h1>
+
+			<div id="summary">
+				<h3>Summary</h3>
+
+				<ul>
+					<li><b>{{recent_bugs|length}}</b> new bug reports were filed, of which
+						<b>{{recent_bugs|selectattr('is_open', 'equalto', false) | list | length}}</b>
+						are resolved.</li>
+					<li><b>{{updated_bugs|selectattr('is_open', 'equalto', false) | list | length}}</b> old bug reports were closed.</li>
+					<li><b>{{updated_bugs|selectattr('is_open') | list | length}}</b> old bug reports were updated.</li>
+					<li>There are <b>{{unresolved_bugs|length}}</b> total unresolved bug reports for all time.</li>
+
+				</ul>
+			</div>
+
+			<div id="bug_descriptions">
+				<div id="new_bugs">
+
+					<h3>New bugs</h3>
+					Bugs created in this time period.
+					{{ table_header() }}
+					{% for bug in recent_bugs %}
+						{{ print_bug(bug) }}
+					{% endfor %}
+					{{ table_footer() }}
+				</div>
+
+				<div id="resolved_bugs">	
+					<h3>Resolved bugs</h3>
+					Bugs resolved in this time period.
+					{{ table_header() }}
+					{% for bug in updated_bugs|selectattr('is_open', 'equalto', false) | list + recent_bugs|selectattr('is_open', 'equalto', false) | list %}
+						{{ print_bug(bug) }}
+					{% endfor %}
+					{{ table_footer() }}
+				</div>
+
+
+
+				<div id="update_bugs">	
+					<h3>Updated bugs</h3>
+					Bugs updated but not resolved in this time period.
+					{{ table_header() }}
+					{% for bug in updated_bugs %}
+						{{ print_bug(bug) }}
+					{% endfor %}
+					{{ table_footer() }}
+				</div>
+
+			</div>
+
+		</div>
+	</div>
+
+	</body>
+</html>
