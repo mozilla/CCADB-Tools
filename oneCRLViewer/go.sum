@@ -1,0 +1,10 @@
+github.com/christopher-henderson/OneCRL-Viewer v0.0.0-20200920233919-644d92b4d073 h1:hg8yDhdHv4mAlW4+8zu8dJEwTvontgdzs1WWOneQBls=
+github.com/gocarina/gocsv v0.0.0-20191214001331-e6697589f2e0 h1:sdE8uEOa+jqwX+g4KedeSL6tzDV2b+n5D64/fiDaGyk=
+github.com/gocarina/gocsv v0.0.0-20191214001331-e6697589f2e0/go.mod h1:5YoVOkjYAQumqlV356Hj3xeYh4BdZuLE0/nRkf2NKkI=
+github.com/gocarina/gocsv v0.0.0-20200925213129-04be9ee2e1a2 h1:66G8poRcUE6rtwuckM7ZoLKlyNw5PYytEktymzi/Xds=
+github.com/gocarina/gocsv v0.0.0-20200925213129-04be9ee2e1a2/go.mod h1:5YoVOkjYAQumqlV356Hj3xeYh4BdZuLE0/nRkf2NKkI=
+github.com/lib/pq v1.2.0 h1:LXpIM/LZ5xGFhOpXAQUIMM1HdyqzVYM13zNdjCEEcA0=
+github.com/lib/pq v1.2.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
+github.com/lib/pq v1.8.0 h1:9xohqzkUwzR4Ga4ivdTcawVS89YSDVxXMa3xJX3cGzg=
+github.com/lib/pq v1.8.0/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
+github.com/mozilla/CCADB-Tools v0.0.0-20200917020137-9e3da8c7b928 h1:ktFx4dqupXYTKLlEI9C9so6lsxN9wzrpmQmEd3EjeCU=
