@@ -21,6 +21,10 @@ To add an intermediate certificate, the JSON Request should provide valid PEM in
 - ALV processing is not done at the time of add/update intermediate cert. The CCADB has a separate process that regularly checks for added/updated intermediate certificates and runs ALV on them.
 - If additional validations or trigger logic is added to process intermediate cert, this controller class must also be reviewed to incorporate those changes.
 
+## Mandatory Fields
+- Upload New Cert: CAOwner, IntermediateCertificateName, IntermediateCertPEM, ParentCertPEM
+- Modify Existing Cert Record: SalesforceRecordId, CAOwner, IntermediateCertificateName, IntermediateCertPEM
+
 ## JSON Request Definition
 
 ```
