@@ -119,6 +119,8 @@ All subsequent requests to the API should include the access token in the Author
 
 To upload a new intermediate certificate into CCADB, you must send both the PEM and its parent PEM. The CCADB API will parse the PEM and populate the CCADB record.
 
+**Mandotory Fields**: CAOwner, IntermediateCertificateName, IntermediateCertPEM, ParentCertPEM
+
 ### **Request**
 
 `POST https://[SALESFORCE_INSTANCE_URL]/services/apexrest/create/intermediatecert`
@@ -217,6 +219,8 @@ If the upload request failed you will receive a HTTP Status Code of `400` with J
 ## **CCADB API: Update Existing Intermediate Certificate**
 
 To update an existing record in the CCADB, you POST to the exact same endpoint as you did to upload a cert, except that the request includes the unique salesforce id for the record that you are updating in the `SalesforceRecordId` field. At a minimum you have to supply the `SalesforceRecordId` and the `IntermediateCertPEM`
+
+**Mandotory Fields**: SalesforceRecordId, CAOwner, IntermediateCertificateName, IntermediateCertPEM
 
 `POST https://[SALESFORCE_INSTANCE_URL]/services/apexrest/create/intermediatecert`
 
