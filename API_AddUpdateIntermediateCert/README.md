@@ -154,7 +154,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
 -   A new object 'API Log' will track every add/update request and response along with the user information.
 -   ALV processing is not done at the time of add or update. The CCADB has a separate process that regularly checks for added or updated intermediate certificates and runs ALV on them.
 -   If additional validations or trigger logic is added to process intermediate certificate records, this controller class must also be reviewed to incorporate those changes.
-- 
+
 ### Mandatory Fields
 
 -   Add New Cert: CAOwner, IntermediateCertificateName, IntermediateCertPEM, ParentCertPEM
@@ -183,6 +183,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
  }
  Class PertainingToCertificatesIssued {  
     String FullCRLIssuedByThisCA;            # can be null or a link  
+    List<string> JSONArrayofPartitionedCRLs  # Can be null or a JSON Array of strings; no action taken on this field when value is null; when value is [] the field is reset to empty; field has 5000 characters limit
 }
  Class AuditorInformation {
     String Auditor;                          # can be null or the name of an Auditor in the CCADB list of all auditors
@@ -273,9 +274,14 @@ Request Body:
         "RecognizedCAADomains": "",
         "ProblemReportingMechanism": ""
     },
-    "PertainingToCertificatesIssued": {  
-       "FullCRLIssuedByThisCA": ""          
-   },
+   "PertainingToCertificatesIssued": {  
+      "FullCRLIssuedByThisCA": "" ,
+      "JSONArrayofPartitionedCRLsByCA":
+           [  
+           "[http://cdn.example/crl-1.crl](http://cdn.example/crl-1.crl)",  
+           "[http://cdn.example/crl-2.crl](http://cdn.example/crl-2.crl)"  
+           ]        
+  },
     "AuditorInformation": {
         "Auditor": "Auditor Name",
         "AuditorLocation": "United States"
