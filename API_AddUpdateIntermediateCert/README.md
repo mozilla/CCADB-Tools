@@ -181,7 +181,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
     String RecognizedCAADomains;
     String ProblemReportingMechanism;
  }
- Class PertainingToCertificatesIssued {  # Currently these fields are intended for CRLs of non-TLS certificates
+ Class PertainingToCertificatesIssued { 
     String FullCRLIssuedByThisCA;            # can be null or a link  
     List<string> JSONArrayofPartitionedCRLs  # Can be null or a JSON Array of strings; no action taken on this field when value is null; when value is [] the field is reset to empty; field has 20,000 characters limit
 }
