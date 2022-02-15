@@ -7,6 +7,9 @@ CCADB APIs have been developed to allow Certification Authorities (CAs) to retri
 	
 2. **AddUpdateIntermediateCertAPI** https:/[HOST_URL]/services/apexrest/create/intermediatecert
 	Add or update an intermediate certificate record in the CCADB.
+ 
+## Example
+Scripts have been provided at https://github.com/HARICA-official/ccadb-ca-tools to demonstrate how to use the API to update the "Full CRL Issued By This CA" field for intermediate certificate records.
 
 ## API Authentication
 
