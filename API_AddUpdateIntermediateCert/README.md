@@ -16,7 +16,7 @@ Scripts have been provided at https://github.com/HARICA-official/ccadb-ca-tools 
 OAuth 2 protocol is used to authorize the callouts made by the client application to grant restricted access data to the protected resources in CCADB database. Only a pre configured API enabled CA Community User will be used for callouts. 
 
 A CCADB CA Community User may request the API details (HOST_URL, CONSUMER_KEY, CONSUMER_SECRET, etc.), by creating a Bugzilla Bug (https://bugzilla.mozilla.org/enter_bug.cgi) with the following information:
-* Title: \<Your CA\> - Request for access to CCADB API
+* Title: \<Your CA Name\> - Request for access to CCADB API
 * Product: NSS
 * Component: Common CA Database
 * Whiteboard: \[ccadb-api\]
