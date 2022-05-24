@@ -1,6 +1,8 @@
 # CCADB APIs
 
-CCADB APIs have been developed to allow Certification Authorities (CAs) to retrieve and update data in the CCADB, enabling CAs to automate the process of uploading their intermediate certificates. The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. This service is only available to CAs whose root and intermediate certificates are included within the products and services of CCADB root store members.  
+CCADB APIs have been developed to enable Certificate Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
+
+The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. 
 
 1. **GetCertificateIdAPI** https:/[HOST_URL]/services/apexrest/get/recordid
 	Returns the root or intermediate certificate record Id (Salesforce Id) in the CCADB.
