@@ -32,9 +32,13 @@ type CRL struct {
 
 func VerifyChain(chain []*x509.Certificate) [][]CRL {
 	crls := make([][]CRL, len(chain))
-	for i, cert := range chain {
+	if len(chain) == 1 {
+		return crls
+	}
+	for i, cert := range chain[:len(chain)-1] {
 		crls[i] = queryCRLs(cert)
 	}
+	crls[len(crls)-1] = make([]CRL, 0)
 	return crls
 }
 
