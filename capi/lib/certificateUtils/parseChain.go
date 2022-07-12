@@ -57,8 +57,8 @@ func GatherCertificateChain(subjectURL string) ([]*x509.Certificate, error) {
 	// This is very mandatory otherwise the HTTP package will vomit on revoked/expired certificates and return an error.
 	transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	client := &http.Client{Transport: transport}
-	// You have ten seconds to comply.
-	client.Timeout = time.Duration(10 * time.Second)
+	// You have twenty seconds to comply.
+	client.Timeout = time.Duration(20 * time.Second)
 	req, err := http.NewRequest("GET", subjectURL, nil)
 	if err != nil {
 		return []*x509.Certificate{}, err

@@ -191,7 +191,7 @@ func newOCSPResponse(certificate, issuer *x509.Certificate, responder string) (r
 	r.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:64.0) Gecko/20100101 Firefox/64.0")
 	r.Header.Set("Content-Type", OCSPContentType)
 	client := http.Client{}
-	client.Timeout = time.Duration(10 * time.Second)
+	client.Timeout = time.Duration(20 * time.Second)
 	ret, err := client.Do(r)
 	if err != nil {
 		response.Status = BadResponse
