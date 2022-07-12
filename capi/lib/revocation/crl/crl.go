@@ -84,7 +84,7 @@ func newCRL(serialNumber *big.Int, distributionPoint string) (crl CRL) {
 	req, err := http.NewRequest("GET", distributionPoint, nil)
 	req.Header.Add("X-Automated-Tool", "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool")
 	client := http.Client{}
-	client.Timeout = time.Duration(10 * time.Second)
+	client.Timeout = time.Duration(20 * time.Second)
 	raw, err := client.Do(req)
 	if err != nil {
 		crl.Error = errors.Wrapf(err, "failed to retrieve CRL from distribution point %v", distributionPoint).Error()
