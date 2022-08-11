@@ -6,7 +6,6 @@ API requests are limited to 240 requests per minute. When that is exceeded, the 
 * 500 error means the request timed out, most likely due to throttling
 * 429 error means too many requests made per minute, or a user made the same API call request more than once within a minute
 * Reference: https://apihelp.alchemer.com/help/api-request-limits
-* 
 
 The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. 
 
@@ -246,7 +245,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
     String EVCodeSigningAuditPeriodEndDate;  # when EVCodeSigningAudit is provided, date must be in format yyyy-MM-dd; 
                                                  End Date cannot be > Statement Date; End Date should be > or = to Period Start Date
                                                  
-    String VMCAudit;                         # valid https url, These VMC fields are not mandatory
+    String VMCAudit;                         # valid https url
     String VMCAuditType;                     # when VMCAudit is provided, type must be one of the Audit Types available in the CCADB
     String VMCAuditStatementDate;            # when VMCAudit is provided, date must be in format yyyy-MM-dd
     String VMCAuditPeriodStartDate;          # when VMCAudit is provided, date must be in format yyyy-MM-dd
