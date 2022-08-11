@@ -2,6 +2,12 @@
 
 CCADB APIs have been developed to enable Certificate Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
 
+API requests are limited to 240 requests per minute. When that is exceeded, the requests get throttled. We recommend that you put a small (e.g. 1 to 2 second) delay inbetween each API request.
+* 500 error means the request timed out, most likely due to throttling
+* 429 error means too many requests made per minute, or a user made the same API call request more than once within a minute
+* Reference: https://apihelp.alchemer.com/help/api-request-limits
+* 
+
 The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. 
 
 1. **GetCertificateIdAPI** https:/[HOST_URL]/services/apexrest/get/recordid
@@ -239,6 +245,14 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
     String EVCodeSigningAuditPeriodStartDate;# when EVCodeSigningAudit is provided, date must be in format yyyy-MM-dd
     String EVCodeSigningAuditPeriodEndDate;  # when EVCodeSigningAudit is provided, date must be in format yyyy-MM-dd; 
                                                  End Date cannot be > Statement Date; End Date should be > or = to Period Start Date
+                                                 
+    String VMCAudit;                         # valid https url, These VMC fields are not mandatory
+    String VMCAuditType;                     # when VMCAudit is provided, type must be one of the Audit Types available in the CCADB
+    String VMCAuditStatementDate;            # when VMCAudit is provided, date must be in format yyyy-MM-dd
+    String VMCAuditPeriodStartDate;          # when VMCAudit is provided, date must be in format yyyy-MM-dd
+    String VMCAuditPeriodEndDate;            # when VMCAudit is provided, date must be in format yyyy-MM-dd;
+                                                End Date cannot be > Statement Date; End Date should be > or = to Period Start Date            
+
  }
  
  Class PolicyInformation {
@@ -326,7 +340,12 @@ Request Body:
         "EVCodeSigningAuditType": "",
         "EVCodeSigningAuditStatementDate": "",
         "EVCodeSigningAuditPeriodStartDate": "",
-        "EVCodeSigningAuditPeriodEndDate": ""
+        "EVCodeSigningAuditPeriodEndDate": "",
+        "VMCAudit": "",
+        "VMCAuditType": "",
+        "VMCAuditStatementDate": "",
+        "VMCAuditPeriodStartDate": "",
+        "VMCAuditPeriodEndDate": ""
     },
     "PolicyInformation": {
         "CPCPSSameAsParent": false,
