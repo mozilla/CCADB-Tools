@@ -2,10 +2,9 @@
 
 CCADB APIs have been developed to enable Certificate Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
 
-API requests are limited (e.g.to 240 requests per minute), and when the limit is exceeded, the requests get throttled. We recommend that you put a small (e.g. 1 to 2 second) delay inbetween each API request.
+API requests are limited (e.g. to 240 requests per minute), and the requests get throttled when the limit is exceeded. We recommend that you put a small (e.g. 1 to 2 second) delay between each API request.
 * 500 error probably means the request timed out, most likely due to throttling
 * 429 error probably means too many requests made per minute, or a user made the same API call request more than once within a minute
-* Reference: https://apihelp.alchemer.com/help/api-request-limits
 
 The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. 
 
