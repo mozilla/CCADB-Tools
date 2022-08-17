@@ -2,9 +2,9 @@
 
 CCADB APIs have been developed to enable Certificate Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
 
-API requests are limited to 240 requests per minute. When that is exceeded, the requests get throttled. We recommend that you put a small (e.g. 1 to 2 second) delay inbetween each API request.
-* 500 error means the request timed out, most likely due to throttling
-* 429 error means too many requests made per minute, or a user made the same API call request more than once within a minute
+API requests are limited (e.g.to 240 requests per minute), and when the limit is exceeded, the requests get throttled. We recommend that you put a small (e.g. 1 to 2 second) delay inbetween each API request.
+* 500 error probably means the request timed out, most likely due to throttling
+* 429 error probably means too many requests made per minute, or a user made the same API call request more than once within a minute
 * Reference: https://apihelp.alchemer.com/help/api-request-limits
 
 The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. 
@@ -185,7 +185,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
      String SalesforceRecordId;              # 18 digit Salesforce record id is required when callout is made for update; Salesforce id is returned upon successful add request
      String CAOwner;                         # required field; add/update actions allowed only on CAs own hierarchy
      String SubordinateCAOwner;             
-     String IntermediateCertName;            # the value should be Subject CN of the cert for add/update callouts; it is also being used for tracking API calls and reporting; not used for any validations
+     String IntermediateCertificateName;            # the value should be Subject CN of the cert for add/update callouts; it is also being used for tracking API calls and reporting; not used for any validations
      String IntermediateCertPEM;             # required field; pass PEM string with no carriage return/linefeed; field is populated only during record creation, updates cannot be done via this API (can be done directly in CCADB)
      String ParentCertPEM;                   # required field; pass PEM string with no carriage return/linefeed; field is populated only during record creation, updates cannot be done via this API (can be done directly in CCADB)
      Boolean ConsentforTechnicallyConstrainedCert   # set the field to True when the cert is technically constrained 
