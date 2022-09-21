@@ -35,7 +35,7 @@ RUN apk add glibc-2.29-r0.apk
 
 RUN apk add git build-base libffi-dev ruby-rdoc ruby-dev
 RUN gem install public_suffix simpleidn
-RUN cd /tmp && git clone https://github.com/awslabs/certlint.git && \
+RUN cd /tmp && git clone https://github.com/certlint/certlint.git && \
     cd certlint/ext && \
     ruby extconf.rb && \
     make
