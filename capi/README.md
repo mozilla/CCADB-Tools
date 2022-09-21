@@ -91,7 +91,7 @@ A certificate chain, in the context of the `revoked` test suite, is considered t
 
 ## Linting
 
-This tool supports linting certificate chains using the [x509lint](https://github.com/kroeckx/x509lint) tool and the [certlint](https://github.com/awslabs/certlint) tool.
+This tool supports linting certificate chains using the [x509lint](https://github.com/kroeckx/x509lint) tool and the [certlint](https://github.com/certlint/certlint) tool.
 
 The following three endpoints are provided:
 	
@@ -170,6 +170,6 @@ All errors, warnings, and infos provided by x509lint are mapped directly to the 
 
 ##### certlint
 
-A description of the output of certlint (and its subtool, cablint) can be found [here](https://github.com/awslabs/certlint#output). Any error messages marked as bug, error, or fatal will result in a `FAIL` of that particular certificate.
+A description of the output of certlint (and its subtool, cablint) can be found [here](https://github.com/certlint/certlint#output). Any error messages marked as bug, error, or fatal will result in a `FAIL` of that particular certificate.
 
 All bugs, info, notices, warnings, errors, and fatal output are mapped to the `Bug`, `Info`, `Notices`, `Warnings`, `Errors`, and `Fatal` arrays.
