@@ -201,7 +201,11 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
  }
  Class PertainingToCertificatesIssued { 
     String FullCRLIssuedByThisCA;            # can be null or a link  
-    List<string> JSONArrayofPartitionedCRLs  # Can be null or a JSON Array of strings; no action taken on this field when value is null; when value is [] the field is reset to empty; field has 20,000 characters limit
+    List<string> JSONArrayofPartitionedCRLs  # Can be null or a JSON Array of strings; 
+                                             # no action taken on this field when value is null; 
+                                             # use [""] if not yet issuing; 
+                                             # when value is [] the field is reset to empty; 
+                                             # field has 20,000 characters limit
 }
  Class AuditorInformation {
     String Auditor;                          # can be null or the name of an Auditor in the CCADB list of all auditors
@@ -302,7 +306,7 @@ Request Body:
     },
    "PertainingToCertificatesIssued": {  
       "FullCRLIssuedByThisCA": "" ,
-      "JSONArrayofPartitionedCRLsByCA":
+      "JSONArrayofPartitionedCRLs":
            [  
            "[http://cdn.example/crl-1.crl](http://cdn.example/crl-1.crl)",  
            "[http://cdn.example/crl-2.crl](http://cdn.example/crl-2.crl)"  
