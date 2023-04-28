@@ -1,7 +1,7 @@
 # CCADB-Tools
 Tools or services used in conjunction with or used by the [CCADB](https://www.ccadb.org).
 
-##API_AddUpdateIntermediateCert
+## API_AddUpdateIntermediateCert
 
 **Status:** In use
 
@@ -13,7 +13,7 @@ Tools or services used in conjunction with or used by the [CCADB](https://www.cc
     
 **Used By:** This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
 
-##EVChecker
+## EVChecker
 
 **Status:** In use
 
@@ -23,7 +23,7 @@ Tools or services used in conjunction with or used by the [CCADB](https://www.cc
 
 **Used By:** Used to fill in the “ExtendedValidation.cpp OIDs” fields on root certs in the CCADB. There is a CCADB home page report that alerts when that does not match the published “Mozilla EV Policy OID(s)” field.
 
-##cacheck
+## cacheck
 
 **Status:** In use
 
@@ -33,7 +33,7 @@ Tools or services used in conjunction with or used by the [CCADB](https://www.cc
 
 **Used By:** Mozilla CA Program Managers, other root store members of the CCADB, and CAs.
 
-##cacompliance
+## cacompliance
 
 **Status:** BROKEN -- Bugzilla changed, and implementation was never finished.
 
@@ -43,7 +43,7 @@ Tools or services used in conjunction with or used by the [CCADB](https://www.cc
 
 **Used By:** Would be used by Mozilla CA Program Managers and other root store members of the CCADB.
 
-##capi
+## capi
 
 **Status:** In use
 
@@ -60,7 +60,7 @@ EOF
 
 **Used By:** Automatically run by CCADB in the TEST WEBSITES tab in Add/Update Root Request cases.
 
-##certdataDiffCCADB
+## certdataDiffCCADB
 
 **Status:** In use
 
@@ -70,7 +70,7 @@ EOF
 
 **Used By:** Mozilla root store managers run a report in the CCADB that calls https://certdatadiff-dot-ccadb-231121.appspot.com/certdata which compares a CCADB report of current data with the cerdata.txt in Firefox Beta.
 
-##crlVerification
+## crlVerification
 
 **Status:** In use
 
@@ -80,7 +80,7 @@ EOF
 
 **Used By:** Automatically run by CCADB when a certificate is indicated to be revoked. Also can be invoked via the 'Verify Revocation' button on intermediate certificate records. 
 
-##kinto_integrity
+## kinto_integrity
 
 **Status:** BROKEN -- Broke when Firefox profile directory names became randomized.
 
@@ -90,7 +90,7 @@ EOF
 
 **Used By:** Was used by “Data Integrity - OneCRL cert-storage” and “Data Integrity - OneCRL revocations.txt” reports in the CCADB. 
 
-##oneCRLDiffCCADB
+## oneCRLDiffCCADB
 
 **Status:** BROKEN -- was replaced by kinto_integrity when the OneCRL mechanism was changed.
 
@@ -100,7 +100,7 @@ EOF
 
 **Used By:** Was used by “Data Integrity - OneCRL cert-storage” report in the CCADB
 
-##oneCRLViewer
+## oneCRLViewer
 
 **Status:** BROKEN
 
