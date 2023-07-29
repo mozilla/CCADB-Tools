@@ -64,5 +64,5 @@ func postCertificate(c *gin.Context) {
 	var valInfo ValidationInfo
 	cert := CertToStored(certX509, certHash, "", "", "", &valInfo)
 
-	c.IndentedJSON(http.StatusCreated, cert)
+	c.JSON(http.StatusCreated, cert)
 }
