@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -92,7 +91,7 @@ type SubjectPublicKeyInfo struct {
 	Curve    string  `json:"curve,omitempty"`
 }
 
-//Currently exporting extensions that are already decoded into the x509 Certificate structure
+// Currently exporting extensions that are already decoded into the x509 Certificate structure
 type Extensions struct {
 	AuthorityKeyId           string   `json:"authorityKeyId"`
 	SubjectKeyId             string   `json:"subjectKeyId"`
@@ -119,11 +118,6 @@ type Chain struct {
 	IP     string `json:"ip"`
 	// base64 DER encoded certificates
 	Certs []string `json:"certs"`
-}
-
-type IDs struct {
-	_type  string   `json:"type"`
-	values []string `json:"values"`
 }
 
 type JsonRawCert struct {
@@ -250,7 +244,7 @@ func SHA1Hash(data []byte) string {
 	return fmt.Sprintf("%X", h[:])
 }
 
-//GetBooleanValidity converts the validation info map to DB booleans
+// GetBooleanValidity converts the validation info map to DB booleans
 func (c Certificate) GetBooleanValidity() (trusted_ubuntu, trusted_mozilla, trusted_microsoft, trusted_apple, trusted_android bool) {
 
 	//check Ubuntu validation info
@@ -394,8 +388,8 @@ func getKeyUsages(cert *x509.Certificate) []string {
 	return usage
 }
 
-//getCertExtensions currently stores only the extensions that are already exported by GoLang
-//(in the x509 Certificate Struct)
+// getCertExtensions currently stores only the extensions that are already exported by GoLang
+// (in the x509 Certificate Struct)
 func getCertExtensions(cert *x509.Certificate) Extensions {
 	// initialize []string to store them as `[]` instead of null
 	san := make([]string, 0)
@@ -503,7 +497,7 @@ func GetHexASN1Serial(cert *x509.Certificate) (serial string, err error) {
 	return
 }
 
-//certtoStored returns a Certificate struct created from a X509.Certificate
+// certtoStored returns a Certificate struct created from a X509.Certificate
 func CertToStored(cert *x509.Certificate, parentSignature, domain, ip string, TSName string, valInfo *ValidationInfo) Certificate {
 	var (
 		err    error
@@ -596,23 +590,6 @@ func (cert Certificate) ToX509() (xcert *x509.Certificate, err error) {
 	return x509.ParseCertificate(certRaw)
 }
 
-//printRawCertExtensions Print raw extension info
-//for debugging purposes
-func printRawCertExtensions(cert *x509.Certificate) {
-
-	for i, extension := range cert.Extensions {
-
-		var numbers string
-		for num, num2 := range extension.Id {
-
-			numbers = numbers + " " + "[" + strconv.Itoa(num) + " " + strconv.Itoa(num2) + "]"
-
-		}
-		fmt.Println("//", strconv.Itoa(i), ": {", numbers, "}", string(extension.Value))
-	}
-
-}
-
 // String() prints the subject as a single string, following OpenSSL's display
 // format: Subject: C=US, ST=California, L=Mountain View, O=Google Inc, CN=*.google.com
 func (s Subject) String() string {
@@ -641,17 +618,17 @@ func (c Certificate) IsSelfSigned() bool {
 		len(c.Subject.Country) != len(c.Issuer.Country) {
 		return false
 	}
-	for i, _ := range c.Subject.Organisation {
+	for i := range c.Subject.Organisation {
 		if c.Subject.Organisation[i] != c.Issuer.Organisation[i] {
 			return false
 		}
 	}
-	for i, _ := range c.Subject.OrgUnit {
+	for i := range c.Subject.OrgUnit {
 		if c.Subject.OrgUnit[i] != c.Issuer.OrgUnit[i] {
 			return false
 		}
 	}
-	for i, _ := range c.Subject.Country {
+	for i := range c.Subject.Country {
 		if c.Subject.Country[i] != c.Issuer.Country[i] {
 			return false
 		}
