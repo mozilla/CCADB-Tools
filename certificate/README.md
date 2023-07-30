@@ -30,5 +30,5 @@ For example:
 
   ```sh
   # Submit a PEM file and get back JSON output.
-  curl -X POST -F certificate=@example.pem http://localhost:8080/certificate
+  $ curl -X POST -F certificate=@example.pem http://localhost:8080/certificate
   ```
