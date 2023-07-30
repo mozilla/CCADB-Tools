@@ -20,14 +20,28 @@ import (
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	// ReleaseMode is for production -- no debugging
 	gin.SetMode(gin.ReleaseMode)
 
+	// Default to port 8080 if PORT env var is not set
+	port := getPortEnv("PORT", "8080")
+
 	router := gin.Default()
+	// Use zerolog for gin's logging
 	router.Use(logger.SetLogger())
 	router.POST("/certificate", postCertificate)
-	router.Run(":80")
+	router.Run(":" + port)
 }
 
+// getPortEnv looks for the PORT env var and uses fallback if not set
+func getPortEnv(port, fallback string) string {
+	if value, ok := os.LookupEnv(port); ok {
+		return value
+	}
+	return fallback
+}
+
+// postCertificate does all of the certificate parsing on POST
 func postCertificate(c *gin.Context) {
 	logger.SetLogger()
 
