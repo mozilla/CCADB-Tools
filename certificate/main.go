@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 package main
 
 import (
@@ -16,10 +20,12 @@ import (
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	gin.SetMode(gin.ReleaseMode)
+
 	router := gin.Default()
 	router.Use(logger.SetLogger())
-	router.POST("api/v1/certificate", postCertificate)
-	router.Run(":443")
+	router.POST("/certificate", postCertificate)
+	router.Run(":80")
 }
 
 func postCertificate(c *gin.Context) {
