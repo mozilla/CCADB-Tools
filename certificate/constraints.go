@@ -18,7 +18,7 @@ type Constraints struct {
 	ExcludedIPRanges    []*net.IPNet
 }
 
-// Get returns the Constraints for a given x509 certificate
+// GetConstraints returns the Constraints for a given x509 certificate
 func GetConstraints(cert *x509.Certificate) (*Constraints, error) {
 	certs, err := x509.ParseCertificates(cert.Raw)
 	if err != nil {
@@ -112,10 +112,10 @@ func IsTechnicallyConstrained(cert *x509.Certificate) bool {
 	return false
 }
 
-// IsTechnicallyConstrainedMozPolicyV2_5 determines if a given certificate is technically constrained
+// IsTechnicallyConstrainedMozPolicyV25 determines if a given certificate is technically constrained
 // according to the Mozilla Root Store Policy V2.5.
 // https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/
-func IsTechnicallyConstrainedMozPolicyV2_5(cert *x509.Certificate) bool {
+func IsTechnicallyConstrainedMozPolicyV25(cert *x509.Certificate) bool {
 	// The logic from IsTechnicallyConstrained is extended here due to paragraph
 	// three of section 5.3.1:
 	//

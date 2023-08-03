@@ -7,7 +7,6 @@ package main
 import (
 	"crypto/dsa"
 	"crypto/ecdsa"
-	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -21,40 +20,26 @@ import (
 	"time"
 )
 
-const (
-	Ubuntu_TS_name    = "Ubuntu"
-	Mozilla_TS_name   = "Mozilla"
-	Microsoft_TS_name = "Microsoft"
-	Apple_TS_name     = "Apple"
-	Android_TS_name   = "Android"
-
-	Default_Cisco_Umbrella_Rank = 2147483647 // max positive value of postgres integer
-)
-
 type Certificate struct {
-	ID                     int64                     `json:"id"`
-	Serial                 string                    `json:"serialNumber"`
-	ScanTarget             string                    `json:"scanTarget,omitempty"`
-	IPs                    []string                  `json:"ips,omitempty"`
-	Version                int                       `json:"version"`
-	SignatureAlgorithm     string                    `json:"signatureAlgorithm"`
-	Issuer                 Subject                   `json:"issuer"`
-	Validity               Validity                  `json:"validity"`
-	Subject                Subject                   `json:"subject"`
-	Key                    SubjectPublicKeyInfo      `json:"key"`
-	X509v3Extensions       Extensions                `json:"x509v3Extensions"`
-	X509v3BasicConstraints string                    `json:"x509v3BasicConstraints"`
-	CA                     bool                      `json:"ca"`
-	Analysis               interface{}               `json:"analysis,omitempty"` //for future use...
-	ParentSignature        []string                  `json:"parentSignature,omitempty"`
-	ValidationInfo         map[string]ValidationInfo `json:"validationInfo"`
-	FirstSeenTimestamp     time.Time                 `json:"firstSeenTimestamp"`
-	LastSeenTimestamp      time.Time                 `json:"lastSeenTimestamp"`
-	Hashes                 Hashes                    `json:"hashes"`
-	Raw                    string                    `json:"Raw"`
-	CiscoUmbrellaRank      int64                     `json:"ciscoUmbrellaRank"`
-	Anomalies              string                    `json:"anomalies,omitempty"`
-	MozillaPolicyV2_5      MozillaPolicy             `json:"mozillaPolicyV2_5"`
+	Serial                 string               `json:"serialNumber"`
+	ScanTarget             string               `json:"scanTarget,omitempty"`
+	IPs                    []string             `json:"ips,omitempty"`
+	Version                int                  `json:"version"`
+	SignatureAlgorithm     string               `json:"signatureAlgorithm"`
+	Issuer                 Subject              `json:"issuer"`
+	Validity               Validity             `json:"validity"`
+	Subject                Subject              `json:"subject"`
+	Key                    SubjectPublicKeyInfo `json:"key"`
+	X509v3Extensions       Extensions           `json:"x509v3Extensions"`
+	X509v3BasicConstraints string               `json:"x509v3BasicConstraints"`
+	CA                     bool                 `json:"ca"`
+	Analysis               interface{}          `json:"analysis,omitempty"` //for future use...
+	FirstSeenTimestamp     time.Time            `json:"firstSeenTimestamp"`
+	LastSeenTimestamp      time.Time            `json:"lastSeenTimestamp"`
+	Hashes                 Hashes               `json:"hashes"`
+	Raw                    string               `json:"Raw"`
+	Anomalies              string               `json:"anomalies,omitempty"`
+	MozillaPolicyV25       MozillaPolicy        `json:"mozillaPolicyV2_5"`
 }
 
 type MozillaPolicy struct {
@@ -62,7 +47,6 @@ type MozillaPolicy struct {
 }
 
 type Hashes struct {
-	MD5               string `json:"md5,omitempty"`
 	SHA1              string `json:"sha1,omitempty"`
 	SHA256            string `json:"sha256,omitempty"`
 	SPKISHA256        string `json:"spki-sha256,omitempty"`
@@ -95,7 +79,7 @@ type SubjectPublicKeyInfo struct {
 	Curve    string  `json:"curve,omitempty"`
 }
 
-// Currently exporting extensions that are already decoded into the x509 Certificate structure
+// Extensions that are already decoded in the x509 Certificate structure
 type Extensions struct {
 	AuthorityKeyId           string   `json:"authorityKeyId"`
 	SubjectKeyId             string   `json:"subjectKeyId"`
@@ -110,45 +94,6 @@ type Extensions struct {
 	ExcludedDNSDomains       []string `json:"excludedDNSNames,omitempty"`
 	ExcludedIPAddresses      []string `json:"excludedIPAddresses,omitempty"`
 	IsTechnicallyConstrained bool     `json:"isTechnicallyConstrained"`
-}
-
-type X509v3BasicConstraints struct {
-	CA       bool        `json:"ca"`
-	Analysis interface{} `json:"analysis,omitempty"`
-}
-
-type Chain struct {
-	Domain string `json:"domain"`
-	IP     string `json:"ip"`
-	// base64 DER encoded certificates
-	Certs []string `json:"certs"`
-}
-
-type JsonRawCert struct {
-	RawCert string `json:"rawCert"`
-}
-
-type TrustStore struct {
-	Name  string
-	Certs *x509.CertPool
-}
-
-type ValidationInfo struct {
-	IsValid         bool   `json:"isValid,omitempty"`
-	ValidationError string `json:"validationError,omitempty"`
-}
-
-type Trust struct {
-	ID               int64
-	CertID           int64
-	IssuerID         int64
-	Timestamp        time.Time
-	TrustUbuntu      bool
-	TrustMozilla     bool
-	TrustedMicrosoft bool
-	TrustedApple     bool
-	TrustedAndroid   bool
-	Current          bool
 }
 
 var SignatureAlgorithm = [...]string{
@@ -238,85 +183,9 @@ func SHA256Hash(data []byte) string {
 	return fmt.Sprintf("%X", h[:])
 }
 
-func MD5Hash(data []byte) string {
-	h := md5.Sum(data)
-	return fmt.Sprintf("%X", h[:])
-}
-
 func SHA1Hash(data []byte) string {
 	h := sha1.Sum(data)
 	return fmt.Sprintf("%X", h[:])
-}
-
-// GetBooleanValidity converts the validation info map to DB booleans
-func (c Certificate) GetBooleanValidity() (trusted_ubuntu, trusted_mozilla, trusted_microsoft, trusted_apple, trusted_android bool) {
-
-	//check Ubuntu validation info
-	valInfo, ok := c.ValidationInfo[Ubuntu_TS_name]
-
-	if !ok {
-		trusted_ubuntu = false
-	} else {
-		trusted_ubuntu = valInfo.IsValid
-	}
-
-	//check Mozilla validation info
-	valInfo, ok = c.ValidationInfo[Mozilla_TS_name]
-
-	if !ok {
-		trusted_mozilla = false
-	} else {
-		trusted_mozilla = valInfo.IsValid
-	}
-
-	//check Microsoft validation info
-	valInfo, ok = c.ValidationInfo[Microsoft_TS_name]
-
-	if !ok {
-		trusted_microsoft = false
-	} else {
-		trusted_microsoft = valInfo.IsValid
-	}
-
-	//check Apple validation info
-	valInfo, ok = c.ValidationInfo[Apple_TS_name]
-
-	if !ok {
-		trusted_apple = false
-	} else {
-		trusted_apple = valInfo.IsValid
-	}
-
-	//check Android validation info
-	valInfo, ok = c.ValidationInfo[Android_TS_name]
-
-	if !ok {
-		trusted_android = false
-	} else {
-		trusted_android = valInfo.IsValid
-	}
-	return
-}
-
-// GetValidityMap converts boolean validity variables to a validity map.
-func GetValidityMap(trusted_ubuntu, trusted_mozilla, trusted_microsoft, trusted_apple, trusted_android bool) map[string]ValidationInfo {
-
-	vUbuntu := ValidationInfo{IsValid: trusted_ubuntu}
-	vMozilla := ValidationInfo{IsValid: trusted_mozilla}
-	vMicrosoft := ValidationInfo{IsValid: trusted_microsoft}
-	vApple := ValidationInfo{IsValid: trusted_apple}
-	vAndroid := ValidationInfo{IsValid: trusted_android}
-
-	m := make(map[string]ValidationInfo)
-
-	m[Ubuntu_TS_name] = vUbuntu
-	m[Mozilla_TS_name] = vMozilla
-	m[Microsoft_TS_name] = vMicrosoft
-	m[Apple_TS_name] = vApple
-	m[Android_TS_name] = vAndroid
-
-	return m
-
 }
 
 func getExtKeyUsages(cert *x509.Certificate) (usage []string) {
@@ -428,8 +297,8 @@ func getCertExtensions(cert *x509.Certificate) Extensions {
 	return ext
 }
 
-func getMozillaPolicyV2_5(cert *x509.Certificate) MozillaPolicy {
-	return MozillaPolicy{IsTechnicallyConstrained: IsTechnicallyConstrainedMozPolicyV2_5(cert)}
+func getMozillaPolicyV25(cert *x509.Certificate) MozillaPolicy {
+	return MozillaPolicy{IsTechnicallyConstrained: IsTechnicallyConstrainedMozPolicyV25(cert)}
 }
 
 func getPublicKeyInfo(cert *x509.Certificate) (SubjectPublicKeyInfo, error) {
@@ -501,91 +370,85 @@ func GetHexASN1Serial(cert *x509.Certificate) (serial string, err error) {
 	return
 }
 
-// certtoStored returns a Certificate struct created from a X509.Certificate
-func CertToStored(cert *x509.Certificate, parentSignature, domain, ip string, TSName string, valInfo *ValidationInfo) Certificate {
+// CertToJSON returns a Certificate struct created from a X509.Certificate
+func CertToJSON(cert *x509.Certificate) Certificate {
 	var (
-		err    error
-		stored = Certificate{}
+		domain   string
+		ip       string
+		err      error
+		certJson = Certificate{}
 	)
 	// initialize []string to never store them as null
-	stored.ParentSignature = make([]string, 0)
-	stored.IPs = make([]string, 0)
+	certJson.IPs = make([]string, 0)
 
-	stored.Version = cert.Version
+	certJson.Version = cert.Version
 
 	// If there's an error, we just store the zero value ("")
 	serial, _ := GetHexASN1Serial(cert)
-	stored.Serial = serial
+	certJson.Serial = serial
 
-	stored.SignatureAlgorithm = SignatureAlgorithm[cert.SignatureAlgorithm]
+	certJson.SignatureAlgorithm = SignatureAlgorithm[cert.SignatureAlgorithm]
 
-	stored.Key, err = getPublicKeyInfo(cert)
+	certJson.Key, err = getPublicKeyInfo(cert)
 	if err != nil {
 		log.Printf("Failed to retrieve public key information: %v. Continuing anyway.", err)
 	}
 
-	stored.Issuer.Country = cert.Issuer.Country
-	stored.Issuer.Organisation = cert.Issuer.Organization
-	stored.Issuer.OrgUnit = cert.Issuer.OrganizationalUnit
-	stored.Issuer.CommonName = cert.Issuer.CommonName
+	certJson.Issuer.Country = cert.Issuer.Country
+	certJson.Issuer.Organisation = cert.Issuer.Organization
+	certJson.Issuer.OrgUnit = cert.Issuer.OrganizationalUnit
+	certJson.Issuer.CommonName = cert.Issuer.CommonName
 
-	stored.Subject.Country = cert.Subject.Country
-	stored.Subject.Organisation = cert.Subject.Organization
-	stored.Subject.OrgUnit = cert.Subject.OrganizationalUnit
-	stored.Subject.CommonName = cert.Subject.CommonName
+	certJson.Subject.Country = cert.Subject.Country
+	certJson.Subject.Organisation = cert.Subject.Organization
+	certJson.Subject.OrgUnit = cert.Subject.OrganizationalUnit
+	certJson.Subject.CommonName = cert.Subject.CommonName
 
-	stored.Validity.NotBefore = cert.NotBefore.UTC()
-	stored.Validity.NotAfter = cert.NotAfter.UTC()
+	certJson.Validity.NotBefore = cert.NotBefore.UTC()
+	certJson.Validity.NotAfter = cert.NotAfter.UTC()
 
-	stored.X509v3Extensions = getCertExtensions(cert)
+	certJson.X509v3Extensions = getCertExtensions(cert)
 
-	stored.MozillaPolicyV2_5 = getMozillaPolicyV2_5(cert)
+	certJson.MozillaPolicyV25 = getMozillaPolicyV25(cert)
 
 	//below check tries to hack around the basic constraints extension
 	//not being available in versions < 3.
 	//Only the IsCa variable is set, as setting X509v3BasicConstraints
 	//messes up the validation procedure.
 	if cert.Version < 3 {
-		stored.CA = cert.IsCA
+		certJson.CA = cert.IsCA
 	} else {
 		if cert.BasicConstraintsValid {
-			stored.X509v3BasicConstraints = "Critical"
-			stored.CA = cert.IsCA
+			certJson.X509v3BasicConstraints = "Critical"
+			certJson.CA = cert.IsCA
 		} else {
-			stored.X509v3BasicConstraints = ""
-			stored.CA = false
+			certJson.X509v3BasicConstraints = ""
+			certJson.CA = false
 		}
 	}
 
 	t := time.Now().UTC()
 
-	stored.FirstSeenTimestamp = t
-	stored.LastSeenTimestamp = t
-
-	stored.ParentSignature = append(stored.ParentSignature, parentSignature)
+	certJson.FirstSeenTimestamp = t
+	certJson.LastSeenTimestamp = t
 
 	if !cert.IsCA {
-		stored.ScanTarget = domain
-		stored.IPs = append(stored.IPs, ip)
+		certJson.ScanTarget = domain
+		certJson.IPs = append(certJson.IPs, ip)
 	}
 
-	stored.ValidationInfo = make(map[string]ValidationInfo)
-	stored.ValidationInfo[TSName] = *valInfo
+	certJson.Hashes.SHA1 = SHA1Hash(cert.Raw)
+	certJson.Hashes.SHA256 = SHA256Hash(cert.Raw)
+	certJson.Hashes.SPKISHA256 = SPKISHA256(cert)
+	certJson.Hashes.SubjectSPKISHA256 = SubjectSPKISHA256(cert)
+	certJson.Hashes.PKPSHA256 = PKPSHA256Hash(cert)
 
-	stored.Hashes.MD5 = MD5Hash(cert.Raw)
-	stored.Hashes.SHA1 = SHA1Hash(cert.Raw)
-	stored.Hashes.SHA256 = SHA256Hash(cert.Raw)
-	stored.Hashes.SPKISHA256 = SPKISHA256(cert)
-	stored.Hashes.SubjectSPKISHA256 = SubjectSPKISHA256(cert)
-	stored.Hashes.PKPSHA256 = PKPSHA256Hash(cert)
+	certJson.Raw = base64.StdEncoding.EncodeToString(cert.Raw)
 
-	stored.Raw = base64.StdEncoding.EncodeToString(cert.Raw)
-	stored.CiscoUmbrellaRank = Default_Cisco_Umbrella_Rank
-
-	return stored
+	return certJson
 }
 
-// ToX509() returns the crypto/x509 version of a certificate
+// ToX509 returns the crypto/x509 version of a certificate
 func (cert Certificate) ToX509() (xcert *x509.Certificate, err error) {
 	certRaw, err := base64.StdEncoding.DecodeString(cert.Raw)
 	if err != nil {
@@ -615,25 +478,25 @@ func (s Subject) String() string {
 
 // IsSelfSigned return true if the subject and issuer fields of a certificate
 // are identical
-func (c Certificate) IsSelfSigned() bool {
-	if c.Subject.CommonName != c.Issuer.CommonName ||
-		len(c.Subject.Organisation) != len(c.Issuer.Organisation) ||
-		len(c.Subject.OrgUnit) != len(c.Issuer.OrgUnit) ||
-		len(c.Subject.Country) != len(c.Issuer.Country) {
+func (cert Certificate) IsSelfSigned() bool {
+	if cert.Subject.CommonName != cert.Issuer.CommonName ||
+		len(cert.Subject.Organisation) != len(cert.Issuer.Organisation) ||
+		len(cert.Subject.OrgUnit) != len(cert.Issuer.OrgUnit) ||
+		len(cert.Subject.Country) != len(cert.Issuer.Country) {
 		return false
 	}
-	for i := range c.Subject.Organisation {
-		if c.Subject.Organisation[i] != c.Issuer.Organisation[i] {
+	for i := range cert.Subject.Organisation {
+		if cert.Subject.Organisation[i] != cert.Issuer.Organisation[i] {
 			return false
 		}
 	}
-	for i := range c.Subject.OrgUnit {
-		if c.Subject.OrgUnit[i] != c.Issuer.OrgUnit[i] {
+	for i := range cert.Subject.OrgUnit {
+		if cert.Subject.OrgUnit[i] != cert.Issuer.OrgUnit[i] {
 			return false
 		}
 	}
-	for i := range c.Subject.Country {
-		if c.Subject.Country[i] != c.Issuer.Country[i] {
+	for i := range cert.Subject.Country {
+		if cert.Subject.Country[i] != cert.Issuer.Country[i] {
 			return false
 		}
 	}

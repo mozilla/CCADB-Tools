@@ -144,7 +144,7 @@ lMlvG5avdIGZyTT+ktD3R0wJ/WGAUviweDBSGb+oUmUaBV7igHuZ/ws=
 func TestMozillaPolicy(t *testing.T) {
 	block, _ := pem.Decode(mozTechnicallyConstrained)
 	cert, _ := x509.ParseCertificate(block.Bytes)
-	mozPolicy := getMozillaPolicyV2_5(cert)
+	mozPolicy := getMozillaPolicyV25(cert)
 	if !mozPolicy.IsTechnicallyConstrained {
 		t.Errorf("Wrong Mozilla Technical Constraint value. Got %v, wanted %v", mozPolicy.IsTechnicallyConstrained, true)
 	}
@@ -153,7 +153,7 @@ func TestMozillaPolicy(t *testing.T) {
 func TestMozillaPolicyNotTechnicallyConstrained(t *testing.T) {
 	block, _ := pem.Decode(mozNotTechnicallyConstrained)
 	cert, _ := x509.ParseCertificate(block.Bytes)
-	mozPolicy := getMozillaPolicyV2_5(cert)
+	mozPolicy := getMozillaPolicyV25(cert)
 	if mozPolicy.IsTechnicallyConstrained {
 		t.Errorf("Wrong Mozilla Technical Constraint value. Got %v, wanted %v", mozPolicy.IsTechnicallyConstrained, false)
 	}

@@ -30,7 +30,10 @@ func main() {
 	// Use zerolog for gin's logging
 	router.Use(logger.SetLogger())
 	router.POST("/certificate", postCertificate)
-	router.Run(":" + port)
+	err := router.Run(":" + port)
+	if err != nil {
+		return
+	}
 }
 
 // getPortEnv looks for the PORT env var and uses fallback if not set
@@ -66,7 +69,7 @@ func postCertificate(c *gin.Context) {
 		return
 	}
 
-	block, _ := pem.Decode([]byte(certPEM))
+	block, _ := pem.Decode(certPEM)
 	if block == nil {
 		log.Error().Err(err).Msg("Failed to parse certificate PEM")
 		c.String(http.StatusBadRequest, "Failed to parse certificate PEM")
@@ -80,9 +83,7 @@ func postCertificate(c *gin.Context) {
 		return
 	}
 
-	certHash := SHA256Hash(certX509.Raw)
-	var valInfo ValidationInfo
-	cert := CertToStored(certX509, certHash, "", "", "", &valInfo)
+	cert := CertToJSON(certX509)
 
 	c.JSON(http.StatusCreated, cert)
 }
