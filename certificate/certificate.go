@@ -188,7 +188,8 @@ func SHA1Hash(data []byte) string {
 	return fmt.Sprintf("%X", h[:])
 }
 
-func getExtKeyUsages(cert *x509.Certificate) (usage []string) {
+func getExtKeyUsages(cert *x509.Certificate) []string {
+	usage := make([]string, 0)
 	for _, eku := range cert.ExtKeyUsage {
 		usage = append(usage, ExtKeyUsage[eku])
 	}
@@ -198,7 +199,8 @@ func getExtKeyUsages(cert *x509.Certificate) (usage []string) {
 	return usage
 }
 
-func getExtKeyUsageOIDs(cert *x509.Certificate) (usage []string) {
+func getExtKeyUsageOIDs(cert *x509.Certificate) []string {
+	usage := make([]string, 0)
 	for _, eku := range cert.ExtKeyUsage {
 		usage = append(usage, ExtKeyUsageOID[eku])
 	}
