@@ -84,19 +84,18 @@ type SubjectPublicKeyInfo struct {
 
 // Extensions that are already decoded in the x509 Certificate structure
 type Extensions struct {
-	AuthorityKeyId           string   `json:"authorityKeyId"`
-	SubjectKeyId             string   `json:"subjectKeyId"`
-	KeyUsage                 []string `json:"keyUsage"`
-	ExtendedKeyUsage         []string `json:"extendedKeyUsage"`
-	ExtendedKeyUsageOID      []string `json:"extendedKeyUsageOID"`
-	SubjectAlternativeName   []string `json:"subjectAlternativeName"`
-	CRLDistributionPoints    []string `json:"crlDistributionPoint"`
-	PolicyIdentifiers        []string `json:"policyIdentifiers,omitempty"`
-	PermittedDNSDomains      []string `json:"permittedDNSNames,omitempty"`
-	PermittedIPAddresses     []string `json:"permittedIPAddresses,omitempty"`
-	ExcludedDNSDomains       []string `json:"excludedDNSNames,omitempty"`
-	ExcludedIPAddresses      []string `json:"excludedIPAddresses,omitempty"`
-	IsTechnicallyConstrained bool     `json:"isTechnicallyConstrained"`
+	AuthorityKeyId         string   `json:"authorityKeyId"`
+	SubjectKeyId           string   `json:"subjectKeyId"`
+	KeyUsage               []string `json:"keyUsage"`
+	ExtendedKeyUsage       []string `json:"extendedKeyUsage"`
+	ExtendedKeyUsageOID    []string `json:"extendedKeyUsageOID"`
+	SubjectAlternativeName []string `json:"subjectAlternativeName"`
+	CRLDistributionPoints  []string `json:"crlDistributionPoint"`
+	PolicyIdentifiers      []string `json:"policyIdentifiers,omitempty"`
+	PermittedDNSDomains    []string `json:"permittedDNSNames,omitempty"`
+	PermittedIPAddresses   []string `json:"permittedIPAddresses,omitempty"`
+	ExcludedDNSDomains     []string `json:"excludedDNSNames,omitempty"`
+	ExcludedIPAddresses    []string `json:"excludedIPAddresses,omitempty"`
 }
 
 var SignatureAlgorithm = [...]string{
@@ -285,19 +284,18 @@ func getCertExtensions(cert *x509.Certificate) Extensions {
 	permittedIPAddresses := ipNetSliceToStringSlice(constraints.PermittedIPRanges)
 	excludedIPAddresses := ipNetSliceToStringSlice(constraints.ExcludedIPRanges)
 	ext := Extensions{
-		AuthorityKeyId:           base64.StdEncoding.EncodeToString(cert.AuthorityKeyId),
-		SubjectKeyId:             base64.StdEncoding.EncodeToString(cert.SubjectKeyId),
-		KeyUsage:                 getKeyUsages(cert),
-		ExtendedKeyUsage:         getExtKeyUsages(cert),
-		ExtendedKeyUsageOID:      getExtKeyUsageOIDs(cert),
-		PolicyIdentifiers:        getPolicyIdentifiers(cert),
-		SubjectAlternativeName:   san,
-		CRLDistributionPoints:    crld,
-		PermittedDNSDomains:      constraints.PermittedDNSDomains,
-		ExcludedDNSDomains:       constraints.ExcludedDNSDomains,
-		PermittedIPAddresses:     permittedIPAddresses,
-		ExcludedIPAddresses:      excludedIPAddresses,
-		IsTechnicallyConstrained: IsTechnicallyConstrained(cert),
+		AuthorityKeyId:         base64.StdEncoding.EncodeToString(cert.AuthorityKeyId),
+		SubjectKeyId:           base64.StdEncoding.EncodeToString(cert.SubjectKeyId),
+		KeyUsage:               getKeyUsages(cert),
+		ExtendedKeyUsage:       getExtKeyUsages(cert),
+		ExtendedKeyUsageOID:    getExtKeyUsageOIDs(cert),
+		PolicyIdentifiers:      getPolicyIdentifiers(cert),
+		SubjectAlternativeName: san,
+		CRLDistributionPoints:  crld,
+		PermittedDNSDomains:    constraints.PermittedDNSDomains,
+		ExcludedDNSDomains:     constraints.ExcludedDNSDomains,
+		PermittedIPAddresses:   permittedIPAddresses,
+		ExcludedIPAddresses:    excludedIPAddresses,
 	}
 	return ext
 }
