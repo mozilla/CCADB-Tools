@@ -3,7 +3,7 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* The following contains some adapted code from:
-* https://github.com/mozilla/tls-observatory */
+* https://github.com/mozilla/tls-observatory/blob/7bc42856d2e5594614b56c2f55baf42bb9751b3d/tlsobs-api/handlers.go */
 
 package main
 
