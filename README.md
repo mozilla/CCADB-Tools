@@ -70,6 +70,16 @@ EOF
 
 **Used By:** Mozilla root store managers run a report in the CCADB that calls https://certdatadiff-dot-ccadb-231121.appspot.com/certdata which compares a CCADB report of current data with the cerdata.txt in Firefox Beta.
 
+## certificate
+
+**Status:** In use
+
+**Description:** Parses the PEM of a certificate and outputs a JSON response that CCADB uses to fill in the data on the certificate record in the CCADB.
+
+**Usage:** curl -X POST -F certificate=@certificate.pem https://certificate-dot-ccadb-231121.uc.r.appspot.com/certificate
+
+**Used By:** Used by the CCADB to create a root or intermediate certificate record corresponding to the certificate PEM.
+
 ## crlVerification
 
 **Status:** In use
