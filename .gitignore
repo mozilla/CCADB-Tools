@@ -2,3 +2,5 @@
 target*
 **/*.rs.bk
 go.work*
+.DS_Store
+**/.DS_Store
