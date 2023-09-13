@@ -9,9 +9,9 @@ HOST_PORT=8080
 CONTAINER_PORT=80
 
 docker run \
-    --name certificate \
+    --name evready \
     -d \
     -e "PORT=$CONTAINER_PORT" \
         -p ${HOST_PORT}:${CONTAINER_PORT} \
-    certificate
+    evready
 
