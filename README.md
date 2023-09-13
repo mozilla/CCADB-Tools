@@ -76,7 +76,7 @@ EOF
 
 **Description:** Parses the PEM of a certificate and outputs a JSON response that CCADB uses to fill in the data on the certificate record in the CCADB.
 
-**Usage:** curl -X POST -F certificate=@certificate.pem https://certificate-dot-ccadb-231121.uc.r.appspot.com/certificate
+**Usage:** curl -X POST -F certificate=@certificate.pem https://certificate-dot-ccadb-231121.appspot.com/certificate
 
 **Used By:** Used by the CCADB to create a root or intermediate certificate record corresponding to the certificate PEM.
 
@@ -86,9 +86,19 @@ EOF
 
 **Description:** Verify that there is an entry for the certificate in the CRL. Checks that the revoked certificate’s entry for a given CRL is as expected: there is an entry in the given CRL whose serial matches the given serial, its revocation date matches that which is provided, and revocation reason matches the provided reason.
 
-**Usage:** Example: curl -d '{"crl": "http://crl.ws.symantec.com/pca1-g3.crl","serial": "fc788d52d4441678243b9882cb15b4","revocationDate": "2019/05/07"}' https://crlverification-dot-ccadb-231121.uc.r.appspot.com/
+**Usage:** Example: curl -d '{"crl": "http://crl.ws.symantec.com/pca1-g3.crl","serial": "fc788d52d4441678243b9882cb15b4","revocationDate": "2019/05/07"}' https://crlverification-dot-ccadb-231121.appspot.com/
 
 **Used By:** Automatically run by CCADB when a certificate is indicated to be revoked. Also can be invoked via the 'Verify Revocation' button on intermediate certificate records. 
+
+## evReadiness
+
+**Status:** In use
+
+**Description:** Checks if the root cert and its chain are properly configured for EV Treatment. This test is done for verification of root inclusion requests for which EV is to be enabled.
+
+**Usage:** https://evready-dot-ccadb-231121.appspot.com/evready 
+
+**Used By:** Used by CAs and root store operators.
 
 ## kinto_integrity
 
@@ -106,7 +116,7 @@ EOF
 
 **Description:** Compare CCADB data against OneCRL data. Compares the "OneCRL Status" field from each certificate in [PublicIntermediateCertsRevokedWithPEMCSV](https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV) and attempts to find it within [OneCRL](https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records).
 
-**Usage:** https://onecrldiff-dot-ccadb-231121.uc.r.appspot.com
+**Usage:** https://onecrldiff-dot-ccadb-231121.appspot.com
 
 **Used By:** Was used by “Data Integrity - OneCRL cert-storage” report in the CCADB
 
