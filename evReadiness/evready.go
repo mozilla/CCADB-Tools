@@ -67,6 +67,7 @@ func evReadyPost(c *gin.Context) {
 		return
 	}
 
+	var certFile string
 	// Check for an uploaded PEM file -- if one wasn't submitted, use the pasted PEM contents
 	if ev.RootCertUpload != nil {
 		// Put uploaded PEM file in a guid-generated directory for safety
@@ -76,7 +77,7 @@ func evReadyPost(c *gin.Context) {
 			c.String(http.StatusBadRequest, "Upload file error: %s", err.Error())
 			return
 		}
-		// Opens the uploaded file
+		// Open the uploaded file
 		rootCertFileContent, err := ev.RootCertUpload.Open()
 		if err != nil {
 			slog.Error("Unable to open uploaded PEM file.", "Error", err.Error())
@@ -95,22 +96,25 @@ func evReadyPost(c *gin.Context) {
 			slog.Error("Invalid certificate format. Must be PEM encoded.")
 			c.String(http.StatusBadRequest, "Invalid certificate format. Must be PEM encoded.")
 		}
-		// Set path variable to this PEM file for ev-checker to run later
-		path = pemFile
-		slog.Info("PEM file uploaded: ", "Path", path)
-	} else {
-		// If pasted PEM file, write contents to file at path variable for ev-checker to run later
-		fileErr := os.WriteFile(path, []byte(ev.RootCert), 0)
-		if fileErr != nil {
-			slog.Error("Unable to write PEM to file.", "Error", fileErr.Error())
-			c.String(http.StatusBadRequest, "PEM writing error: %s", fileErr.Error())
-			return
+		certFile, err = handleCert(ev.Hostname, string(decodedCertFile))
+		if err != nil {
+			slog.Error("Unable to write uploaded PEM file to disk.", "Error", err.Error())
 		}
-		slog.Info("PEM file written: ", "Path", path)
+	} else {
+		certFile, err = handleCert(ev.Hostname, ev.RootCert)
+		if err != nil {
+			slog.Error("Unable to write pasted PEM contents to disk.", "Error", err.Error())
+		}
 	}
 
+	data, err := os.ReadFile(certFile)
+	if err != nil {
+		slog.Error("Unable to read certFile.", "Error", err.Error())
+	}
+	slog.Info("certFile read...", "Contents", string(data))
+
 	// Run ev-checker executable
-	out, err := exec.Command(evReadyExec, "-h", ev.Hostname, "-o", ev.OID, "-c", path).CombinedOutput()
+	out, err := exec.Command(evReadyExec, "-h", ev.Hostname, "-o", ev.OID, "-c", certFile).CombinedOutput()
 	if err != nil {
 		slog.Error("ev-ready exec failed", "Error", err.Error())
 	}
@@ -118,8 +122,8 @@ func evReadyPost(c *gin.Context) {
 	slog.Info("Successful!", "Status", string(out))
 	c.String(http.StatusOK, "Status: %s", string(out))
 
-	// Clean up files written for evalution
-	removeErr := os.RemoveAll(path)
+	// Clean up files written for evaluation
+	removeErr := os.RemoveAll(certFile)
 	if removeErr != nil {
 		slog.Error("Unable to delete PEM files or directories", "Error", err.Error())
 	} else {

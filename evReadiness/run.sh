@@ -6,12 +6,12 @@
 
 # Mappings from the host port to the container port.
 HOST_PORT=8080
-CONTAINER_PORT=80
+CONTAINER_PORT=8080
 
 docker run \
-    --name certificate \
+    --name evready \
     -d \
     -e "PORT=$CONTAINER_PORT" \
         -p ${HOST_PORT}:${CONTAINER_PORT} \
-    certificate
+    evready
 
