@@ -78,8 +78,9 @@ func getUnknownUs() []string {
 }
 
 const crtsh = `H:\OneCRL-Viewer\onecrl.html`
+
 func getUnknownThem() []string {
-		b, err := ioutil.ReadFile(crtsh)
+	b, err := ioutil.ReadFile(crtsh)
 	if err != nil {
 		panic(err)
 	}
