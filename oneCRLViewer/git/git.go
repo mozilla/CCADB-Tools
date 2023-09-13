@@ -19,7 +19,6 @@ func NewRepo(directory string) *Repo {
 	return &Repo{directory: directory}
 }
 
-
 func (r *Repo) cmd(args ...string) *exec.Cmd {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.directory
