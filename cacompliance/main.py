@@ -1,4 +1,4 @@
-# [START gae_python37_app]
+# [START gae_python311_app]
 from flask import Flask, render_template, request, jsonify, make_response
 from collections import Counter
 import datetime
@@ -69,4 +69,4 @@ def root():
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)
-# [END gae_python37_app]
+# [END gae_python311_app]
