@@ -1,0 +1,29 @@
+{{define "main"}}
+    <form id="evForm" action="/evready" method="POST" enctype="multipart/form-data">
+        <div>
+            {{ with .Errors.Hostname }}
+            <p class="error">{{ . }}</p>
+            {{ end }}
+            <label>Hostname (TLS Server):</label>
+            <input type="text" name="hostname" placeholder="eg. bugzilla.org">
+        </div>
+        <div>
+            <label>EV Policy OID:</label>
+            <input type="text" name="oid" placeholder="eg. 2.23.140.1.1">
+        </div>
+        <div>
+            <label>Root Certificate PEM:</label>
+            <div>
+                <input type="file" value="Browse..." name="rootCertUpload" />
+            </div>
+            <textarea name="rootCertificate" placeholder="Browse to load PEM file or paste it in here"></textarea>
+        </div>
+        <div>
+            <input type="submit" value="Check EV cert">
+        </div>
+        <div>
+            {{block "results" .}}{{end}}
+            {{block "error" .}}{{end}}
+        </div>
+    </form>
+{{end}}

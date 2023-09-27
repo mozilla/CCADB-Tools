@@ -1,0 +1,25 @@
+{{define "base"}}
+<!doctype html>
+<html lang='en'>
+    <head>
+        <meta charset='utf-8'>
+        <title>{{ .title }}</title>
+        <!-- Link to the CSS stylesheet and favicon -->
+        <link rel="stylesheet" href="/static/css/main.css">
+        <link rel="shortcut icon" href="/static/img/favicon.ico" type="image/x-icon">
+        <!-- Also link to some fonts hosted by Google -->
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700">
+    </head>
+    <body>
+        <header>
+            <h1><a href='/'>EV Certificate Readiness Tool</a></h1>
+        </header>
+        <main>
+            <div class="div-doc">
+                Documentation: <a href="https://wiki.mozilla.org/PSM:EV_Testing_Easy_Version">Wiki - PSM:EV_Testing_Easy_Version</a>
+            </div>
+            {{ template "main" . }}
+        </main>
+    </body>
+</html>
+{{end}}

@@ -102,7 +102,6 @@ func handleCert(domain, certUpload string) (string, error) {
 	defer f.Close()
 
 	for _, cert := range certs {
-		slog.Info("printing cert output...", "cert", cert.Raw)
 		_, err := f.WriteString(createPEM(cert.Raw))
 		if err != nil {
 			slog.Error("Unable to write certs to file.", "Error", err.Error())
@@ -116,13 +115,10 @@ func handleCert(domain, certUpload string) (string, error) {
 			"Error", err.Error())
 	}
 
-	slog.Info("cert chain final...", "pem_file", f.Name())
-	slog.Info("Logging chain...", "chain.Certs", chain.Certs)
-
 	return f.Name(), f.Sync()
 }
 
-// retrieveCertFromHost checks the host connectivity and returns the certificate chain ( if any ) provided
+// retrieveCertFromHost checks the host connectivity and returns the certificate chain (if any) provided
 // by the domain or an error in every other case.
 func retrieveCertFromHost(domainName, port string, skipVerify bool) ([]*x509.Certificate, string, error) {
 	config := tls.Config{InsecureSkipVerify: skipVerify}

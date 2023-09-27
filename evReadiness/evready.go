@@ -20,11 +20,12 @@ type evForm struct {
 	OID            string                `form:"oid" binding:"required"`
 	RootCert       string                `form:"rootCertificate" binding:"omitempty"`
 	RootCertUpload *multipart.FileHeader `form:"rootCertUpload" binding:"omitempty"`
+	Status         string
 }
 
 // evReady handles the GET /evready endpoint
 func evReady(c *gin.Context) {
-	c.HTML(http.StatusOK, "evready", gin.H{
+	c.HTML(http.StatusOK, "base", gin.H{
 		"title": "EV Readiness",
 	})
 }
@@ -40,78 +41,139 @@ func evReadyPost(c *gin.Context) {
 
 	// Use hostnameValidator to validate and clean up hostnames
 	ev.Hostname = hostnameValidator(c.PostForm("hostname"))
-	slog.Info("Received: ", "Hostname", ev.Hostname)
-
-	ev.OID = c.PostForm("oid")
-	slog.Info("Received: ", "OID", ev.OID)
-	// Use oidValidator to validate and clean up OIDs
-	if oidValidator(ev.OID) == false {
-		slog.Error("Invalid OID format.")
-		c.String(http.StatusBadRequest, "Invalid OID format. Please refer to <a href=https://www.ietf.org/rfc/rfc3001.txt>https://www.ietf.org/rfc/rfc3001.txt</a>")
-	}
-
-	ev.RootCert = c.PostForm("rootCertificate")
-	// Only run the pasted PEM validation/cleanup if it was submittted
-	if ev.RootCert != "" && pemValidator(ev.RootCert) == false {
-		slog.Error("Invalid certificate format. Must be PEM encoded.")
-		c.String(http.StatusBadRequest, "Invalid certificate format. Must be PEM encoded.")
+	slog.Info("Hostname received", "Hostname", ev.Hostname)
+	if ev.Hostname == "" {
+		c.HTML(
+			http.StatusBadRequest,
+			"base",
+			gin.H{
+				"Error": "Error: Hostname required.",
+			})
 		return
 	}
 
-	var err error
-	ev.RootCertUpload, err = c.FormFile("rootCertUpload")
-	// Only check the PEM file if one was submitted
-	if ev.RootCertUpload != nil && err != nil {
-		slog.Error("Get form file error.", "Error", err.Error())
-		c.String(http.StatusBadRequest, "Get form file error: %s", err.Error())
+	ev.OID = c.PostForm("oid")
+	slog.Info("OID received", "OID", ev.OID)
+	// Use oidValidator to validate and clean up OIDs
+	if ev.OID == "" {
+		c.HTML(
+			http.StatusBadRequest,
+			"base",
+			gin.H{
+				"Error": "Error: OID required.",
+			})
+		return
+	}
+	if oidValidator(ev.OID) == false {
+		slog.Error("Invalid OID format.")
+		c.HTML(
+			http.StatusBadRequest,
+			"base",
+			gin.H{
+				"Error": "Error: Invalid OID format. Please refer to <a href=https://www.ietf.org/rfc/rfc3001.txt>https://www.ietf.org/rfc/rfc3001.txt</a>",
+			})
 		return
 	}
 
 	var certFile string
-	// Check for an uploaded PEM file -- if one wasn't submitted, use the pasted PEM contents
-	if ev.RootCertUpload != nil {
+	var err error
+	ev.RootCert = c.PostForm("rootCertificate")
+	ev.RootCertUpload, err = c.FormFile("rootCertUpload")
+
+	// Check for both an uploaded PEM file and pasted PEM -- if both were submitted,
+	// let user know to only submit one. And if not file, use the pasted PEM contents
+	if ev.RootCert == "" && ev.RootCertUpload == nil {
+		c.HTML(
+			http.StatusBadRequest,
+			"base",
+			gin.H{
+				"Error": "Error: Please upload or paste the contents of a PEM file.",
+			})
+		return
+	} else if ev.RootCert != "" && ev.RootCertUpload != nil {
+		c.HTML(
+			http.StatusBadRequest,
+			"base",
+			gin.H{
+				"Error": "Error: Please only submit a pasted PEM file OR upload a file.",
+			})
+		return
+	} else if ev.RootCertUpload != nil && err != nil {
+		slog.Error("Get form file error.", "Error", err.Error())
+		c.HTML(
+			http.StatusBadRequest,
+			"base",
+			gin.H{
+				"Error": "Error: Get form file error: %s",
+			})
+		return
+	} else if ev.RootCertUpload != nil {
 		// Put uploaded PEM file in a guid-generated directory for safety
 		pemFile := path + "/" + ev.RootCertUpload.Filename
 		if err := c.SaveUploadedFile(ev.RootCertUpload, pemFile); err != nil {
 			slog.Error("Upload file error.", "Error", err.Error())
-			c.String(http.StatusBadRequest, "Upload file error: %s", err.Error())
+			c.HTML(
+				http.StatusBadRequest,
+				"base",
+				gin.H{
+					"Error": "Error: Upload file error.",
+				})
 			return
 		}
 		// Open the uploaded file
 		rootCertFileContent, err := ev.RootCertUpload.Open()
 		if err != nil {
 			slog.Error("Unable to open uploaded PEM file.", "Error", err.Error())
-			c.String(http.StatusBadRequest, "Unable to open uploaded PEM file: %s", err.Error())
+			c.HTML(
+				http.StatusBadRequest,
+				"base",
+				gin.H{
+					"Error": "Error: Unable to open uploaded PEM file.",
+				})
 			return
 		}
 		// Reads the content of the file
 		decodedCertFile, err := io.ReadAll(rootCertFileContent)
 		if err != nil {
 			slog.Error("Unable to decode PEM file.", "Error", err.Error())
-			c.String(http.StatusBadRequest, "Unable to decode PEM file: %s", err.Error())
+			c.HTML(
+				http.StatusBadRequest,
+				"base",
+				gin.H{
+					"Error": "Error: Unable to decode PEM file.",
+				})
 			return
 		}
 		// Use pemValidator to validate and clean up PEM file content
 		if pemValidator(string(decodedCertFile)) == false {
 			slog.Error("Invalid certificate format. Must be PEM encoded.")
-			c.String(http.StatusBadRequest, "Invalid certificate format. Must be PEM encoded.")
+			c.HTML(
+				http.StatusBadRequest,
+				"base",
+				gin.H{
+					"Error": "Error: Invalid certificate format. Must be PEM encoded.",
+				})
+			return
 		}
 		certFile, err = handleCert(ev.Hostname, string(decodedCertFile))
 		if err != nil {
 			slog.Error("Unable to write uploaded PEM file to disk.", "Error", err.Error())
 		}
-	} else {
+	} else if ev.RootCert != "" && pemValidator(ev.RootCert) == false {
+		slog.Error("Invalid certificate format. Must be PEM encoded.")
+		c.HTML(
+			http.StatusBadRequest,
+			"base",
+			gin.H{
+				"Error": "Error: Invalid certificate format. Must be PEM encoded.",
+			})
+		return
+	} else if ev.RootCert != "" {
 		certFile, err = handleCert(ev.Hostname, ev.RootCert)
 		if err != nil {
 			slog.Error("Unable to write pasted PEM contents to disk.", "Error", err.Error())
 		}
 	}
-
-	data, err := os.ReadFile(certFile)
-	if err != nil {
-		slog.Error("Unable to read certFile.", "Error", err.Error())
-	}
-	slog.Info("certFile read...", "Contents", string(data))
 
 	// Run ev-checker executable
 	out, err := exec.Command(evReadyExec, "-h", ev.Hostname, "-o", ev.OID, "-c", certFile).CombinedOutput()
@@ -119,14 +181,21 @@ func evReadyPost(c *gin.Context) {
 		slog.Error("ev-ready exec failed", "Error", err.Error())
 	}
 
-	slog.Info("Successful!", "Status", string(out))
-	c.String(http.StatusOK, "Status: %s", string(out))
+	slog.Info("Ran ev-checker", "Status", string(out))
+	ev.Status = string(out)
+	c.HTML(
+		http.StatusOK,
+		"base",
+		gin.H{
+			"Status": "EV readiness status: " + ev.Status,
+		},
+	)
 
 	// Clean up files written for evaluation
 	removeErr := os.RemoveAll(certFile)
 	if removeErr != nil {
 		slog.Error("Unable to delete PEM files or directories", "Error", err.Error())
 	} else {
-		slog.Info("Removed unused PEM file", "File", path)
+		slog.Info("Removed unused PEM file", "File", certFile)
 	}
 }
