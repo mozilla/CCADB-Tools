@@ -31,7 +31,7 @@ func main() {
 	// Check for ev-checker binary
 	checkEvReadyExecExists(evReadyExec)
 	router.MaxMultipartMemory = 8 << 20
-	router.LoadHTMLFiles("./templates/evready.tmpl")
+	router.LoadHTMLGlob("templates/*")
 	router.Static("/static", "./static")
 	router.GET("/evready", evReady)
 	router.POST("/evready", evReadyPost)

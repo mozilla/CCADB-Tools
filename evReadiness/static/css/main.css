@@ -11,6 +11,7 @@ html, body {
 }
 
 body {
+    font-weight: bold;
     line-height: 1.5;
     background-color: #F1F3F6;
     color: #34495E;
@@ -44,6 +45,15 @@ h1 a:hover {
 }
 
 h2 {
+    color: green;
+    font-size: 22px;
+    padding-top: 2em;
+    position: relative;
+    top: -9px;
+}
+
+.error {
+    color: red;
     font-size: 22px;
     margin-bottom: 36px;
     position: relative;
@@ -246,4 +256,16 @@ tr {
 
 tr:nth-child(2n) {
     background-color: #F7F9FA;
+}
+
+.div-doc {
+    text-align: center;
+    font-size: 16px!important;
+    font-weight: normal;
+    padding-bottom: 5em;
+}
+
+.div-doc a {
+    font-size: 16px!important;
+    font-weight: normal;
 }
