@@ -1,6 +1,6 @@
 module CCADB-Tools/certificate
 
-go 1.21.1
+go 1.21.3
 
 require (
 	github.com/gin-contrib/logger v0.2.6
