@@ -1,0 +1,35 @@
+{{define "title"}}EV Readiness{{end}}
+
+{{define "main"}}
+    <form action="/evready" method="POST">
+        <div>
+            <label>Hostname (TLS Server):</label>
+            {{with .Form.FieldErrors.hostname}}
+                <label class='error'>{{.}}</label>
+            {{end}}
+            <input type='text' name='hostname' value='{{.Form.Hostname}}' placeholder='eg. bugzilla.org'>
+        </div>
+        <div>
+            <label>EV Policy OID:</label>
+            {{with .Form.FieldErrors.oid}}
+                <label class='error'>{{.}}</label>
+            {{end}}
+            <input type='text' name='oid' value='{{.Form.OID}}' placeholder='eg. 2.23.140.1.1'>
+        </div>
+        <div>
+            <label>Root Certificate PEM:</label>
+            {{with .Form.FieldErrors.rootCert}}
+                <label class='error'>{{.}}</label>
+            {{end}}
+            <div>
+                <input type='file' value='Browse...' name='rootCertUpload' />
+            </div>
+            <div>
+                <textarea name='rootCert' placeholder='Browse to load PEM file or paste it in here'>{{.Form.RootCert}}</textarea>
+            </div>
+        </div>
+        <div>
+            <input type='submit' value='Check EV cert'>
+        </div>
+    </form>
+{{end}}
