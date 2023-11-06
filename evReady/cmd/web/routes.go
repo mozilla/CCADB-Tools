@@ -5,10 +5,10 @@
 package main
 
 import (
-	"github.com/justinas/alice"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/justinas/alice"
 )
 
 func (app *application) routes() http.Handler {

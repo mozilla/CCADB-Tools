@@ -17,7 +17,9 @@ const evReadyExec = "/app/ev-checker"
 
 type application struct {
 	logger        *slog.Logger
+	pemFile       string
 	templateCache map[string]*template.Template
+	Request       *http.Request
 }
 
 func main() {
@@ -41,6 +43,9 @@ func main() {
 	}
 
 	logger.Info("starting server", "addr", *addr)
+
+	// Check for ev-checker binary
+	checkEvReadyExecExists(evReadyExec)
 
 	err = http.ListenAndServe(*addr, app.routes())
 	logger.Error(err.Error())

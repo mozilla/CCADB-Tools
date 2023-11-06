@@ -8,7 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
 	"runtime/debug"
+	"strings"
 )
 
 func (app *application) serverError(w http.ResponseWriter, r *http.Request, err error) {
@@ -54,4 +58,25 @@ func (app *application) render(w http.ResponseWriter, r *http.Request, status in
 
 func (app *application) newTemplateData(r *http.Request) templateData {
 	return templateData{}
+}
+
+// checkEvReadyExecExists checks if the executable is present -- if it's not, exit,
+// because it's the brains behind everything
+func checkEvReadyExecExists(path string) {
+	path, err := exec.LookPath(path)
+	if err != nil {
+		os.Exit(127)
+	}
+}
+
+// urlCleaner cleans up the provided hostname
+func (app *application) urlCleaner(hostname string) string {
+	// the hostname input is already validated earlier,
+	// so no error checking is required here
+	u, _ := url.Parse(strings.TrimSpace(hostname))
+	if u.IsAbs() {
+		return u.Hostname()
+	} else {
+		return strings.TrimSuffix(u.Path, "/")
+	}
 }

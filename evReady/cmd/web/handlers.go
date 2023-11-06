@@ -5,9 +5,11 @@
 package main
 
 import (
-	"github.com/mozilla/CCADB-Tools/evReady/internal/validator"
 	"net/http"
 	"os/exec"
+	"strings"
+
+	"github.com/mozilla/CCADB-Tools/evReady/internal/validator"
 )
 
 type evForm struct {
@@ -42,9 +44,12 @@ func (app *application) evcheck(w http.ResponseWriter, r *http.Request) {
 
 	form.CheckField(validator.NotBlank(form.Hostname), "hostname", "Hostname field is required")
 	form.CheckField(validator.MaxChars(form.Hostname, 253), "hostname", "Hostname cannot be more than 253 characters")
+	form.CheckField(validator.ValidURL(form.Hostname), "hostname", "Hostname must be in a valid URL format with no spaces")
 	form.CheckField(validator.NotBlank(form.OID), "oid", "OID field is required")
 	form.CheckField(validator.MaxChars(form.OID, 253), "oid", "OID cannot be more than 253 characters")
-	form.CheckField(validator.NotBlank(form.RootCert), "rootCert", "A PEM-encoded certificate is required")
+	form.CheckField(validator.ValidOID(form.OID), "oid", "OID must be a valid OID format")
+	form.CheckField(validator.NotBlank(form.RootCert), "rootCert", "PEM certificate field is required")
+	form.CheckField(validator.ValidPEMPaste(form.RootCert), "rootCert", "Certificate must be PEM-encoded")
 
 	if !form.Valid() {
 		data := app.newTemplateData(r)
@@ -53,12 +58,15 @@ func (app *application) evcheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hostname := app.urlCleaner(strings.TrimSpace(form.Hostname))
+	oid := strings.TrimSpace(form.OID)
+
 	pemFile, err := app.pemCreator(form.Hostname, form.RootCert)
 	if err != nil {
 		app.logger.Error("Unable to write pasted PEM contents to disk.", "error", err.Error())
 	}
 
-	out, err := exec.Command(evReadyExec, "-h", form.Hostname, "-o", form.OID, "-c", pemFile).CombinedOutput()
+	out, err := exec.Command(evReadyExec, "-h", hostname, "-o", oid, "-c", pemFile).CombinedOutput()
 	if err != nil {
 		app.logger.Error("ev-ready exec failed", "Error", err.Error())
 	}
@@ -70,14 +78,6 @@ func (app *application) evcheck(w http.ResponseWriter, r *http.Request) {
 	data.Form = form
 	data.Flash = flash
 	app.render(w, r, http.StatusOK, "home.tmpl", data)
-	//file, header, err := r.FormFile("rootCertUpload")
-	//if err != nil {
-	//	app.clientError(w, http.StatusInternalServerError)
-	//	return
-	//}
-	//defer file.Close()
-	//
-	//pemFile := "/tmp" + xid.New().String() + header.Filename
 
 	app.certCleanup(pemFile)
 }
