@@ -9,6 +9,7 @@ import (
 	"net/http"
 )
 
+// secureHeaders follows some security best practices
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Security-Policy",
@@ -23,6 +24,7 @@ func secureHeaders(next http.Handler) http.Handler {
 	})
 }
 
+// logRequest handles logging of requests to server
 func (app *application) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
@@ -32,12 +34,13 @@ func (app *application) logRequest(next http.Handler) http.Handler {
 			uri    = r.URL.RequestURI()
 		)
 
-		app.logger.Info("received request", "ip", ip, "proto", proto, "method", method, "uri", uri)
+		app.logger.Info("Received request", "ip", ip, "proto", proto, "method", method, "uri", uri)
 
 		next.ServeHTTP(w, r)
 	})
 }
 
+// recoverPanic recovers from server panics and returns an error instead
 func (app *application) recoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {

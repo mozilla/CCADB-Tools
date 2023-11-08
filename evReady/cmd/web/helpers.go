@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -71,12 +72,56 @@ func checkEvReadyExecExists(path string) {
 
 // urlCleaner cleans up the provided hostname
 func (app *application) urlCleaner(hostname string) string {
-	// the hostname input is already validated earlier,
-	// so no error checking is required here
-	u, _ := url.Parse(strings.TrimSpace(hostname))
+	u, err := url.Parse(strings.TrimSpace(hostname))
+	if err != nil {
+		app.logger.Error("Unable to parse hostname url", "Error", err.Error())
+	}
 	if u.IsAbs() {
 		return u.Hostname()
 	} else {
 		return strings.TrimSuffix(u.Path, "/")
 	}
+}
+
+// uploadSave handles the process of saving an uploaded file to the file system
+func (app *application) uploadSave(r *http.Request) string {
+	err := r.ParseMultipartForm(1 << 20)
+	if err != nil {
+		app.logger.Error("Unable to parse form", "error", err.Error())
+	}
+
+	file, fileHeader, err := r.FormFile("rootCertUpload")
+	if err != nil {
+		app.logger.Error("Unable to parse form", "error", err.Error())
+	}
+	defer file.Close()
+
+	err = os.MkdirAll("/tmp", os.ModePerm)
+	if err != nil {
+		app.logger.Error("Unable to create /tmp directory", "error", err.Error())
+	}
+
+	pemFile := "/tmp/" + fileHeader.Filename
+	dst, err := os.Create(pemFile)
+	if err != nil {
+		app.logger.Error("Unable to create file", "error", err.Error())
+	}
+
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		app.logger.Error("Unable to save file", "error", err.Error())
+	}
+
+	return pemFile
+}
+
+// pemReader reads the contents of a PEM file
+func (app *application) pemReader(pemUpload string) string {
+	content, err := os.ReadFile(pemUpload)
+	if err != nil {
+		app.logger.Error("Unable to read contents of uploaded file", "error", err.Error())
+	}
+
+	return string(content)
 }

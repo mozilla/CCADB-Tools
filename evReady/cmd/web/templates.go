@@ -14,6 +14,7 @@ type templateData struct {
 	Flash string
 }
 
+// newTemplateCache caches template files
 func newTemplateCache() (map[string]*template.Template, error) {
 	cache := map[string]*template.Template{}
 

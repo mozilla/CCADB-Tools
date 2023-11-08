@@ -5,6 +5,7 @@
 package main
 
 import (
+	"mime/multipart"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -13,14 +14,15 @@ import (
 )
 
 type evForm struct {
-	Hostname string
-	OID      string
-	RootCert string
-	//RootCertFile *multipart.FileHeader
-	Status string
+	Hostname       string
+	OID            string
+	RootCert       string
+	RootCertUpload *multipart.FileHeader
+	Status         string
 	validator.Validator
 }
 
+// home handles the default endpoint GET request, "/evready"
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	data := app.newTemplateData(r)
 	data.Form = evForm{}
@@ -29,18 +31,22 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// evcheck handles the form POST request from the "/evready" endpoint
 func (app *application) evcheck(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
+	err := r.ParseMultipartForm(1 << 20) // 10MB
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return
 	}
 
 	form := evForm{
-		Hostname: r.PostForm.Get("hostname"),
-		OID:      r.PostForm.Get("oid"),
-		RootCert: r.PostForm.Get("rootCert"),
+		Hostname: r.PostFormValue("hostname"),
+		OID:      r.PostFormValue("oid"),
+		RootCert: r.PostFormValue("rootCert"),
 	}
+
+	_, header, _ := r.FormFile("rootCertUpload")
+	form.RootCertUpload = header
 
 	form.CheckField(validator.NotBlank(form.Hostname), "hostname", "Hostname field is required")
 	form.CheckField(validator.MaxChars(form.Hostname, 253), "hostname", "Hostname cannot be more than 253 characters")
@@ -48,22 +54,34 @@ func (app *application) evcheck(w http.ResponseWriter, r *http.Request) {
 	form.CheckField(validator.NotBlank(form.OID), "oid", "OID field is required")
 	form.CheckField(validator.MaxChars(form.OID, 253), "oid", "OID cannot be more than 253 characters")
 	form.CheckField(validator.ValidOID(form.OID), "oid", "OID must be a valid OID format")
-	form.CheckField(validator.NotBlank(form.RootCert), "rootCert", "PEM certificate field is required")
-	form.CheckField(validator.ValidPEMPaste(form.RootCert), "rootCert", "Certificate must be PEM-encoded")
+	form.CheckField(validator.NoPEMs(form.RootCert, form.RootCertUpload), "rootCertUpload", "Please upload or paste the contents of a PEM file")
+	form.CheckField(validator.BothPEMs(form.RootCert, form.RootCertUpload), "rootCertUpload", "Please only submit a pasted PEM file OR upload a file")
+
+	hostname := app.urlCleaner(form.Hostname)
+	oid := strings.TrimSpace(form.OID)
+
+	var pemFile string
+
+	if form.RootCert != "" {
+		form.CheckField(validator.ValidPEM(form.RootCert), "rootCert", "Invalid certificate format. Certificate must be PEM-encoded")
+		pemFile, err = app.pemCreator(hostname, form.RootCert)
+		if err != nil {
+			app.logger.Error("Unable to create PEM file from pasted contents", "Error", err.Error())
+		}
+	} else if form.RootCertUpload != nil {
+		pemUploadFile := app.pemReader(app.uploadSave(r))
+		form.CheckField(validator.ValidPEM(pemUploadFile), "rootCertUpload", "Invalid certificate format. Certificate must be PEM-encoded")
+		pemFile, err = app.pemCreator(hostname, pemUploadFile)
+		if err != nil {
+			app.logger.Error("Unable to create PEM file from upload", "Error", err.Error())
+		}
+	}
 
 	if !form.Valid() {
 		data := app.newTemplateData(r)
 		data.Form = form
 		app.render(w, r, http.StatusUnprocessableEntity, "home.tmpl", data)
 		return
-	}
-
-	hostname := app.urlCleaner(strings.TrimSpace(form.Hostname))
-	oid := strings.TrimSpace(form.OID)
-
-	pemFile, err := app.pemCreator(form.Hostname, form.RootCert)
-	if err != nil {
-		app.logger.Error("Unable to write pasted PEM contents to disk.", "error", err.Error())
 	}
 
 	out, err := exec.Command(evReadyExec, "-h", hostname, "-o", oid, "-c", pemFile).CombinedOutput()
@@ -79,5 +97,6 @@ func (app *application) evcheck(w http.ResponseWriter, r *http.Request) {
 	data.Flash = flash
 	app.render(w, r, http.StatusOK, "home.tmpl", data)
 
+	// remove the cert written to the file system
 	app.certCleanup(pemFile)
 }

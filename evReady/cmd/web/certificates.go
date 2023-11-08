@@ -18,6 +18,7 @@ type CertChain struct {
 	Certs    []string
 }
 
+// getCertFromHost reaches out to the submitted hostname and retrieves its certificates
 func getCertFromHost(hostname, port string, skipVerify bool) ([]*x509.Certificate, string, error) {
 	config := tls.Config{InsecureSkipVerify: skipVerify}
 	canonicalName := hostname + ":" + port
@@ -42,6 +43,7 @@ func getCertFromHost(hostname, port string, skipVerify bool) ([]*x509.Certificat
 	return certs, ip, nil
 }
 
+// certConvert is used to convert raw bytes into a string for cert creation
 func certConvert(rawCert []byte) string {
 	certString := base64.StdEncoding.EncodeToString(rawCert)
 	lineLength := 64
@@ -64,6 +66,7 @@ func certConvert(rawCert []byte) string {
 	return strings.Join(pem, "\n")
 }
 
+// pemCreator creates a valid PEM file which is used for ev-checker
 func (app *application) pemCreator(hostname, rootCert string) (string, error) {
 	certs, ip, err := getCertFromHost(hostname, "443", true)
 	if err != nil || certs == nil {
@@ -97,6 +100,7 @@ func (app *application) pemCreator(hostname, rootCert string) (string, error) {
 	return f.Name(), f.Sync()
 }
 
+// certCleanup removes the cert submitted after ev-checker runs to keep things tidy
 func (app *application) certCleanup(pemFile string) {
 	err := os.RemoveAll(pemFile)
 	if err != nil {
