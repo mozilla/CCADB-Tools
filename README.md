@@ -90,7 +90,7 @@ EOF
 
 **Used By:** Automatically run by CCADB when a certificate is indicated to be revoked. Also can be invoked via the 'Verify Revocation' button on intermediate certificate records. 
 
-## evReadiness
+## evReady
 
 **Status:** In use
 
