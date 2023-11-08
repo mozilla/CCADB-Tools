@@ -1,7 +1,7 @@
 {{define "title"}}EV Readiness{{end}}
 
 {{define "main"}}
-    <form action="/evready" method="POST">
+    <form action="/evready" method="POST" enctype="multipart/form-data">
         <div>
             <label>Hostname (TLS Server):</label>
             {{with .Form.FieldErrors.hostname}}
@@ -18,12 +18,15 @@
         </div>
         <div>
             <label>Root Certificate PEM:</label>
-            {{with .Form.FieldErrors.rootCert}}
+            {{with .Form.FieldErrors.rootCertUpload}}
                 <label class='error'>{{.}}</label>
             {{end}}
             <div>
                 <input type='file' value='Browse...' name='rootCertUpload' />
             </div>
+            {{with .Form.FieldErrors.rootCert}}
+                <label class='error'>{{.}}</label>
+            {{end}}
             <div>
                 <textarea name='rootCert' placeholder='Browse to load PEM file or paste it in here'>{{.Form.RootCert}}</textarea>
             </div>

@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"mime/multipart"
 	"net/url"
 	"regexp"
 	"strings"
@@ -44,7 +45,7 @@ func MaxChars(value string, n int) bool {
 // ValidURL validates the provided hostname
 func ValidURL(value string) bool {
 	_, err := url.Parse(value)
-	if err != nil || strings.HasPrefix(value, " ") || strings.HasSuffix(value, " ") {
+	if err != nil {
 		return false
 	} else {
 		return true
@@ -58,8 +59,26 @@ func ValidOID(value string) bool {
 	return re.MatchString(strings.TrimSpace(value))
 }
 
-// ValidPEMPaste validates the pasted PEM content
-func ValidPEMPaste(value string) bool {
+// NoPEMs validates that there is at least a pasted PEM or an uploaded PEM file
+func NoPEMs(pemPaste string, pemUpload *multipart.FileHeader) bool {
+	if pemPaste == "" && pemUpload == nil {
+		return false
+	} else {
+		return true
+	}
+}
+
+// BothPEMs validates that only one or the other types of PEM are submitted
+func BothPEMs(pemPaste string, pemUpload *multipart.FileHeader) bool {
+	if pemPaste != "" && pemUpload != nil {
+		return false
+	} else {
+		return true
+	}
+}
+
+// ValidPEM validates PEM content - pasted or uploaded
+func ValidPEM(value string) bool {
 	value = strings.TrimSpace(value)
 	return strings.HasPrefix(value, "-----BEGIN CERTIFICATE-----") &&
 		strings.HasSuffix(value, "-----END CERTIFICATE-----")

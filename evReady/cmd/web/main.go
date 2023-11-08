@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 )
 
 // executable built during the docker build step
@@ -42,12 +43,21 @@ func main() {
 		templateCache: templateCache,
 	}
 
-	logger.Info("starting server", "addr", *addr)
+	srv := &http.Server{
+		Addr:         *addr,
+		Handler:      app.routes(),
+		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	logger.Info("Starting server", "addr", srv.Addr)
 
 	// Check for ev-checker binary
 	checkEvReadyExecExists(evReadyExec)
 
-	err = http.ListenAndServe(*addr, app.routes())
+	err = srv.ListenAndServe()
 	logger.Error(err.Error())
 	os.Exit(1)
 }

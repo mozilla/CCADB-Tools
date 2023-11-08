@@ -11,6 +11,7 @@ import (
 	"github.com/justinas/alice"
 )
 
+// routes handles the routing for /evready
 func (app *application) routes() http.Handler {
 	router := httprouter.New()
 
