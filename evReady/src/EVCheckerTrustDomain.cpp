@@ -300,7 +300,9 @@ EVCheckerTrustDomain::CheckRevocation(EndEntityOrCA endEntityOrCA,
                                       const Input* aiaExtension)
 {
   if (!aiaExtension) {
-    return Result::ERROR_CERT_BAD_ACCESS_LOCATION;
+      // BRs and EV Guidelines no longer require OCSP,
+      // but OCSP will be checked if it is provided.
+    return Success;
   }
   ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
   if (!arena) {
