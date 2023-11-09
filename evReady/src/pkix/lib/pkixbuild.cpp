@@ -221,7 +221,9 @@ PathBuildingStep::Check(Input potentialIssuerDER,
   // responders are allowed to forget about expired certificates, and many OCSP
   // responders return an error when asked for the status of an expired
   // certificate.
-  if (deferredSubjectError != Result::ERROR_EXPIRED_CERTIFICATE) {
+  // As of 2022, Firefox does not check OCSP on intermediate certificates.
+  if (deferredSubjectError != Result::ERROR_EXPIRED_CERTIFICATE &&
+      subject.endEntityOrCA == EndEntityOrCA::MustBeEndEntity) {
     CertID certID(subject.GetIssuer(), potentialIssuer.GetSubjectPublicKeyInfo(),
                   subject.GetSerialNumber());
     rv = trustDomain.CheckRevocation(subject.endEntityOrCA, certID, time,
