@@ -95,7 +95,7 @@ This tool supports linting certificate chains using the [x509lint](https://githu
 
 The following three endpoints are provided:
 	
-1. `/lintFromReport` takes no arguments and no body, and returns lint results for the entire [IncludedCACertificateReportPEMCSV](https://ccadb-public.secure.force.com/mozilla/IncludedCACertificateReportPEMCSV) report. 
+1. `/lintFromReport` takes no arguments and no body, and returns lint results for the entire [IncludedCACertificateReportPEMCSV](https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV) report. 
 2. `/lintFromCertificateDetails` takes no arguments but takes a body which is a JSON array of the following struct:
     ```go
     type CCADBRecord struct {

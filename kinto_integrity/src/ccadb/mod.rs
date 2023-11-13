@@ -83,7 +83,7 @@ lazy_static! {
 }
 
 const CCADB_URL: &str =
-    "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
+    "https://ccadb.my.salesforce-sites.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV";
 
 pub struct CCADB {
     pub report: Vec<Entry>,

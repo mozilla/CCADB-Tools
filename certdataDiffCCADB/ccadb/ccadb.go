@@ -17,10 +17,10 @@ import (
 )
 
 const (
-	URL = "https://ccadb-public.secure.force.com/mozilla/IncludedCACertificateReportPEMCSV"
+	URL = "https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV"
 
-	IntermediateReportURL = "https://ccadb-public.secure.force.com/mozilla/PublicAllInterCertsIncTechConsWithPEMCSV"
-	RootReportURL         = "http://ccadb-public.force.com/mozilla/PEMDataForRootCertsWithPEMCSV"
+	IntermediateReportURL = "https://ccadb.my.salesforce-sites.com/mozilla/PublicAllInterCertsIncTechConsWithPEMCSV"
+	RootReportURL         = "http://ccadb.my.salesforce-sites.com/mozilla/PEMDataForRootCertsWithPEMCSV"
 
 	PEMInfo                             = "PEM Info"
 	SHA1Fingerprint                     = "SHA-1 Fingerprint"

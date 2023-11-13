@@ -16,7 +16,7 @@ Usage of ./certdataDiffCCADB:
   -ccadb string
     	Path to CCADB report file.
   -ccadburl string
-    	URL to CCADB report file. (default "https://ccadb-public.secure.force.com/mozilla/IncludedCACertificateReportPEMCSV")
+    	URL to CCADB report file. (default "https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV")
   -cd string
     	Path to certdata.txt
   -cdurl string

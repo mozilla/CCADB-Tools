@@ -1,6 +1,6 @@
 module github.com/mozilla/CCADB-Tools/certdataDiffCCADB
 
-go 1.21.3
+go 1.21
 
 require github.com/throttled/throttled v2.2.5+incompatible
 
