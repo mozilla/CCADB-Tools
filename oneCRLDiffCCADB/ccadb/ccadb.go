@@ -12,7 +12,7 @@ import (
 	"net/http"
 )
 
-const report = "https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV"
+const report = "https://ccadb.my.salesforce-sites.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV"
 
 const (
 	Added      = "Added to OneCRL"
@@ -36,7 +36,7 @@ func (e *Entry) Key() string {
 }
 
 // Retrieve downloads the CCADB report located at
-// https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV
+// https://ccadb.my.salesforce-sites.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV
 // and returns a mapping "key"s to entries.
 //
 // The "key" in this case is the string concatenation of the decimal value of the certificate serial number,

@@ -114,7 +114,7 @@ EOF
 
 **Status:** BROKEN -- was replaced by kinto_integrity when the OneCRL mechanism was changed.
 
-**Description:** Compare CCADB data against OneCRL data. Compares the "OneCRL Status" field from each certificate in [PublicIntermediateCertsRevokedWithPEMCSV](https://ccadb-public.secure.force.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV) and attempts to find it within [OneCRL](https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records).
+**Description:** Compare CCADB data against OneCRL data. Compares the "OneCRL Status" field from each certificate in [PublicIntermediateCertsRevokedWithPEMCSV](https://ccadb.my.salesforce-sites.com/mozilla/PublicIntermediateCertsRevokedWithPEMCSV) and attempts to find it within [OneCRL](https://firefox.settings.services.mozilla.com/v1/buckets/blocklists/collections/certificates/records).
 
 **Usage:** https://onecrldiff-dot-ccadb-231121.appspot.com
 
