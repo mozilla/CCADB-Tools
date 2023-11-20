@@ -112,6 +112,10 @@ var SignatureAlgorithm = [...]string{
 	"ECDSAWithSHA256",
 	"ECDSAWithSHA384",
 	"ECDSAWithSHA512",
+    "SHA256WithRSAPSS",
+    "SHA384WithRSAPSS",
+    "SHA512WithRSAPSS",
+    "PureEd25519",
 }
 
 var ExtKeyUsage = [...]string{
