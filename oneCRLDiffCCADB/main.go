@@ -5,7 +5,7 @@
 package main // import "github.com/mozilla/CCADB-Tools/oneCRLDiffCCADB"
 import (
 	"encoding/json"
-	"errors"
+//	"errors"
 	"fmt"
 	"github.com/mozilla/CCADB-Tools/oneCRLDiffCCADB/ccadb"
 	"github.com/mozilla/CCADB-Tools/oneCRLDiffCCADB/normalized"
@@ -51,7 +51,8 @@ func inspect(norm []*normalized.Normalized) (Return, error) {
 			// Logically dead code? Almost certainly, but...
 			ret.AbsentFromCCADBAndAbsentFromOneCRL = append(ret.AbsentFromCCADBAndAbsentFromOneCRL, n)
 		} else {
-			return ret, errors.New("encountered a case that was unaccounted for during inspection")
+			return ret, nil
+   //         errors.New("encountered a case that was unaccounted for during inspection")
 		}
 	}
 	return ret, nil
