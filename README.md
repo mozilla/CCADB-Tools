@@ -49,12 +49,14 @@ Tools or services used in conjunction with or used by the [CCADB](https://www.cc
 
 **Usage:** See README in https://github.com/mozilla/CCADB-Tools/tree/master/capi
 
-curl -X POST -H "Content-Type: application/json" --data "$TESTINFO" http://127.0.0.1:8080/fromCertificateDetails
-
+```sh
 TESTINFO=$(cat <<EOF
 { "CertificateDetails":[ { "RecordID":"234571894056781356", "Name":"SSL.com Root Certification Authority ECC", "PEM":"-----BEGIN CERTIFICATE----- MIICjTCCAhSgAwIBAgIIdebfy8FoW6gwCgYIKoZIzj0EAwIwfDELMAkGA1UEBhMC VVMxDjAMBgNVBAgMBVRleGFzMRAwDgYDVQQHDAdIb3VzdG9uMRgwFgYDVQQKDA9T U0wgQ29ycG9yYXRpb24xMTAvBgNVBAMMKFNTTC5jb20gUm9vdCBDZXJ0aWZpY2F0 aW9uIEF1dGhvcml0eSBFQ0MwHhcNMTYwMjEyMTgxNDAzWhcNNDEwMjEyMTgxNDAz WjB8MQswCQYDVQQGEwJVUzEOMAwGA1UECAwFVGV4YXMxEDAOBgNVBAcMB0hvdXN0 b24xGDAWBgNVBAoMD1NTTCBDb3Jwb3JhdGlvbjExMC8GA1UEAwwoU1NMLmNvbSBS b290IENlcnRpZmljYXRpb24gQXV0aG9yaXR5IEVDQzB2MBAGByqGSM49AgEGBSuB BAAiA2IABEVuqVDEpiM2nl8ojRfLliJkP9x6jh3MCLOicSS6jkm5BBtHllirLZXI 7Z4INcgn64mMU1jrYor+8FsPazFSY0E7ic3s7LaNGdM0B9y7xgZ/wkWV7Mt/qCPg CemB+vNH06NjMGEwHQYDVR0OBBYEFILRhXMw5zUE044CkvvlpNHEIejNMA8GA1Ud EwEB/wQFMAMBAf8wHwYDVR0jBBgwFoAUgtGFczDnNQTTjgKS++Wk0cQh6M0wDgYD VR0PAQH/BAQDAgGGMAoGCCqGSM49BAMCA2cAMGQCMG/n61kRpGDPYbCWe+0F+S8T kdzt5fxQaxFGRrMcIQBiu77D5+jNB5n5DQtdcj7EqgIwH7y6C+IwJPt8bYBVCpk+ gA0z5Wajs6O7pdWLjwkspl1+4vAHCGht0nxpbl/f5Wpl -----END CERTIFICATE-----", "TestWebsiteValid":"https://test-dv-ecc.ssl.com", "TestWebsiteRevoked":"https://revoked-ecc-dv.ssl.com", "TestWebsiteExpired":"https://expired-ecc-dv.ssl.com" } ] }
 EOF
 )
+
+curl -X POST -H "Content-Type: application/json" --data "$TESTINFO" http://127.0.0.1:8080/fromCertificateDetails
+```
 
 **Used By:** Automatically run by CCADB in the TEST WEBSITES tab in Add/Update Root Request cases.
 
