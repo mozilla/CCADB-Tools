@@ -51,8 +51,7 @@ func inspect(norm []*normalized.Normalized) (Return, error) {
 			// Logically dead code? Almost certainly, but...
 			ret.AbsentFromCCADBAndAbsentFromOneCRL = append(ret.AbsentFromCCADBAndAbsentFromOneCRL, n)
 		} else {
-			return ret, nil
-   //         errors.New("encountered a case that was unaccounted for during inspection")
+	//		return ret, errors.New("encountered a case that was unaccounted for during inspection")
 		}
 	}
 	return ret, nil
