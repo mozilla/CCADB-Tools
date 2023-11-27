@@ -1,0 +1,12 @@
+{{define "san"}}
+    {{with .Certificate}}
+    <h3>Subject Alternative Names</h3>
+    <table>
+        {{range .X509v3Extensions.SubjectAlternativeName}}
+        <tr>
+           <td>{{.}}</td>
+        </tr>
+        {{end}}
+    </table>
+    {{end}}
+{{end}}

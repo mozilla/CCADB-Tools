@@ -1,0 +1,63 @@
+{{define "basicInfo"}}
+    {{with .Certificate}}
+    <h3>Basic Info</h3>
+    <table>
+        <tr>
+            <td>Version</td>
+            <td>{{.Version}}</td>
+        </tr>
+        <tr>
+            <td>Serial Number</td>
+            <td>{{.Serial}}</td>
+        </tr>
+        <tr>
+            <td>Subject</td>
+            <td>{{.Subject}}</td>
+        </tr>
+        <tr>
+            <td>Issuer</td>
+            <td>{{.Issuer}}</td>
+        </tr>
+        <tr>
+            <td>Not Before</td>
+            <td>{{.Validity.NotBefore}}</td>
+        </tr>
+        <tr>
+            <td>Not After</td>
+            <td>{{.Validity.NotAfter}}</td>
+        </tr>
+        <tr>
+            <td>Signature Algorithm</td>
+            <td>{{.SignatureAlgorithm}}</td>
+        </tr>
+        <tr>
+            <td>Key Size</td>
+            <td>{{.Key.Size}}</td>
+        </tr>
+        <tr>
+            <td>Exponent</td>
+            <td>{{.Key.Exponent}}</td>
+        </tr>
+        <tr>
+            <td>SHA1 Hash</td>
+            <td>{{.Hashes.SHA1}}</td>
+        </tr>
+        <tr>
+            <td>SHA256 Hash</td>
+            <td>{{.Hashes.SHA256}}</td>
+        </tr>
+        <tr>
+            <td>SPKI SHA256</td>
+            <td>{{.Hashes.SPKISHA256}}</td>
+        </tr>
+        <tr>
+            <td>Subject SPKI SHA256</td>
+            <td>{{.Hashes.SubjectSPKISHA256}}</td>
+        </tr>
+        <tr>
+            <td>HPKP PIN-SHA256</td>
+            <td>{{.Hashes.PKPSHA256}}</td>
+        </tr>
+    </table>
+    {{end}}
+{{end}}
