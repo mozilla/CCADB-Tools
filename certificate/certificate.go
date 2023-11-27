@@ -43,6 +43,7 @@ type Certificate struct {
 	Raw                    string               `json:"Raw"`
 	Anomalies              string               `json:"anomalies,omitempty"`
 	MozillaPolicyV25       MozillaPolicy        `json:"mozillaPolicyV2_5"`
+	MozillaPolicyV29       MozillaPolicy        `json:"mozillaPolicyV2_9"`
 }
 
 type MozillaPolicy struct {
@@ -308,6 +309,10 @@ func getMozillaPolicyV25(cert *x509.Certificate) MozillaPolicy {
 	return MozillaPolicy{IsTechnicallyConstrained: IsTechnicallyConstrainedMozPolicyV25(cert)}
 }
 
+func getMozillaPolicyV29(cert *x509.Certificate) MozillaPolicy {
+	return MozillaPolicy{IsTechnicallyConstrained: IsTechnicallyConstrainedMozPolicyV29(cert)}
+}
+
 func getPublicKeyInfo(cert *x509.Certificate) (SubjectPublicKeyInfo, error) {
 	pubInfo := SubjectPublicKeyInfo{
 		Alg: PublicKeyAlgorithm[cert.PublicKeyAlgorithm],
@@ -417,6 +422,7 @@ func CertToJSON(cert *x509.Certificate) Certificate {
 	certJson.X509v3Extensions = getCertExtensions(cert)
 
 	certJson.MozillaPolicyV25 = getMozillaPolicyV25(cert)
+	certJson.MozillaPolicyV29 = getMozillaPolicyV29(cert)
 
 	//below check tries to hack around the basic constraints extension
 	//not being available in versions < 3.
