@@ -1,0 +1,29 @@
+{{define "title"}}Certificate Viewer{{end}}
+
+{{define "main"}}
+    {{if .Certificate.Serial}}
+        {{template "basicInfo" .}}
+        {{template "certExt" .}}
+    {{end}}
+    {{if .Certificate.X509v3Extensions.SubjectAlternativeName}}
+        {{template "san" .}}
+    {{end}}
+    <form action="/certviewer" method="POST" enctype="multipart/form-data">
+        <label>Post a certificate</label>
+        {{with .Form.FieldErrors.rootCertUpload}}
+            <label class='error'>{{.}}</label>
+        {{end}}
+        <div>
+            <input type='file' value='Browse...' name='rootCertUpload' />
+        </div>
+        {{with .Form.FieldErrors.rootCert}}
+            <label class='error'>{{.}}</label>
+        {{end}}
+        <div>
+            <textarea name='rootCert' placeholder='Browse to load PEM file or paste it in here'>{{.Form.RootCert}}</textarea>
+        </div>
+        <div>
+            <input type='submit' value='Decode cert'>
+        </div>
+    </form>
+{{end}}

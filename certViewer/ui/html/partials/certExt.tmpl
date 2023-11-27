@@ -1,0 +1,77 @@
+{{define "certExt"}}
+    {{with .Certificate}}
+    <h3>Certificate Extensions</h3>
+    <table>
+        {{if .X509v3Extensions.AuthorityKeyId}}
+        <tr>
+           <td>AuthorityKeyID</td>
+           <td>{{.X509v3Extensions.AuthorityKeyId}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.SubjectKeyId}}
+        <tr>
+           <td>SubjectKeyId</td>
+           <td>{{.X509v3Extensions.SubjectKeyId}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.KeyUsage}}
+        <tr>
+           <td>KeyUsage</td>
+           <td>{{.X509v3Extensions.KeyUsage}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.ExtendedKeyUsage}}
+        <tr>
+            <td>ExtendedKeyUsage</td>
+            <td>{{.X509v3Extensions.ExtendedKeyUsage}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.ExtendedKeyUsageOID}}
+        <tr>
+           <td>ExtendedKeyUsageOID</td>
+           <td>{{.X509v3Extensions.ExtendedKeyUsageOID}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.PolicyIdentifiers}}
+        <tr>
+            <td>PolicyIdentifiers</td>
+            <td>{{.X509v3Extensions.PolicyIdentifiers}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.CRLDistributionPoints}}
+        <tr>
+            <td>CRLDistributionPoints</td>
+            <td>{{.X509v3Extensions.CRLDistributionPoints}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.PermittedDNSDomains}}
+        <tr>
+            <td>PermittedDNSDomains</td>
+            <td>{{.X509v3Extensions.PermittedDNSDomains}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.ExcludedDNSDomains}}
+        <tr>
+            <td>ExcludedDNSDomains</td>
+            <td>{{.X509v3Extensions.ExcludedDNSDomains}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.PermittedIPAddresses}}
+        <tr>
+            <td>PermittedIPAddresses</td>
+            <td>{{.X509v3Extensions.PermittedIPAddresses}}</td>
+        </tr>
+        {{end}}
+        {{if .X509v3Extensions.ExcludedIPAddresses}}
+        <tr>
+            <td>ExcludedIPAddresses</td>
+            <td>{{.X509v3Extensions.ExcludedIPAddresses}}</td>
+        </tr>
+        {{end}}
+        <tr>
+            <td>BasicConstraints</td>
+            <td>CA: {{.CA}}</td>
+        </tr>
+    </table>
+    {{end}}
+{{end}}
