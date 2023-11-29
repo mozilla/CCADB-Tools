@@ -66,9 +66,10 @@ type Validity struct {
 type Subject struct {
 	ID           int64    `json:"id,omitempty"`
 	Country      []string `json:"c,omitempty"`
-	Organisation []string `json:"o,omitempty"`
+	Organization []string `json:"o,omitempty"`
 	OrgUnit      []string `json:"ou,omitempty"`
 	CommonName   string   `json:"cn,omitempty"`
+	EmailAddress any      `json:"emailAddress,omitempty"`
 }
 
 type SubjectPublicKeyInfo struct {
@@ -113,10 +114,10 @@ var SignatureAlgorithm = [...]string{
 	"ECDSAWithSHA256",
 	"ECDSAWithSHA384",
 	"ECDSAWithSHA512",
-    "SHA256WithRSAPSS",
-    "SHA384WithRSAPSS",
-    "SHA512WithRSAPSS",
-    "PureEd25519",
+	"SHA256WithRSAPSS",
+	"SHA384WithRSAPSS",
+	"SHA512WithRSAPSS",
+	"PureEd25519",
 }
 
 var ExtKeyUsage = [...]string{
@@ -407,14 +408,30 @@ func CertToJSON(cert *x509.Certificate) Certificate {
 	}
 
 	certJson.Issuer.Country = cert.Issuer.Country
-	certJson.Issuer.Organisation = cert.Issuer.Organization
+	certJson.Issuer.Organization = cert.Issuer.Organization
 	certJson.Issuer.OrgUnit = cert.Issuer.OrganizationalUnit
 	certJson.Issuer.CommonName = cert.Issuer.CommonName
 
+	// Since Go's x509 package doesn't support emailAddress, as it is
+	// deprecated (but still permitted by RFC 5280), we look for the OID
+	// and add the field accordingly.
+	for _, v := range cert.Issuer.Names {
+		if v.Type.String() == "1.2.840.113549.1.9.1" {
+			certJson.Issuer.EmailAddress = v.Value
+		}
+	}
+
 	certJson.Subject.Country = cert.Subject.Country
-	certJson.Subject.Organisation = cert.Subject.Organization
+	certJson.Subject.Organization = cert.Subject.Organization
 	certJson.Subject.OrgUnit = cert.Subject.OrganizationalUnit
 	certJson.Subject.CommonName = cert.Subject.CommonName
+
+	// See note above for cert.Issuer.Names
+	for _, v := range cert.Subject.Names {
+		if v.Type.String() == "1.2.840.113549.1.9.1" {
+			certJson.Subject.EmailAddress = v.Value
+		}
+	}
 
 	certJson.Validity.NotBefore = cert.NotBefore.UTC()
 	certJson.Validity.NotAfter = cert.NotAfter.UTC()
@@ -477,8 +494,8 @@ func (s Subject) String() string {
 	if len(s.Country) > 0 {
 		comp = append(comp, "C="+strings.Join(s.Country, ", C="))
 	}
-	if len(s.Organisation) > 0 {
-		comp = append(comp, "O="+strings.Join(s.Organisation, ", O="))
+	if len(s.Organization) > 0 {
+		comp = append(comp, "O="+strings.Join(s.Organization, ", O="))
 	}
 	if len(s.OrgUnit) > 0 {
 		comp = append(comp, "OU="+strings.Join(s.OrgUnit, ", OU="))
@@ -493,13 +510,13 @@ func (s Subject) String() string {
 // are identical
 func (cert Certificate) IsSelfSigned() bool {
 	if cert.Subject.CommonName != cert.Issuer.CommonName ||
-		len(cert.Subject.Organisation) != len(cert.Issuer.Organisation) ||
+		len(cert.Subject.Organization) != len(cert.Issuer.Organization) ||
 		len(cert.Subject.OrgUnit) != len(cert.Issuer.OrgUnit) ||
 		len(cert.Subject.Country) != len(cert.Issuer.Country) {
 		return false
 	}
-	for i := range cert.Subject.Organisation {
-		if cert.Subject.Organisation[i] != cert.Issuer.Organisation[i] {
+	for i := range cert.Subject.Organization {
+		if cert.Subject.Organization[i] != cert.Issuer.Organization[i] {
 			return false
 		}
 	}
