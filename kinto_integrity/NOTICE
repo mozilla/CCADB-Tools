@@ -1,6 +1,0 @@
-1. x509-parser is a project authored by Pierre Chifflier. The original project can be found on crates.io at
-   https://crates.io/crates/x509-parser and on GitHub at https://github.com/rusticata/x509-parser. A fork of the
-   repository can be found under the x509-parser directory. The following changes have been made:
-
-       a. Made public the function found at x509-parser/src/x509_parser.rs::parse_name (line 84).
-

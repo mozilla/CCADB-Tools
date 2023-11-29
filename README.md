@@ -104,16 +104,6 @@ curl -d '{"crl": "http://crl.ws.symantec.com/pca1-g3.crl","serial": "fc788d52d44
 
 **Used By:** Used by CAs and root store operators.
 
-## kinto_integrity
-
-**Status:** BROKEN -- Broke when Firefox profile directory names became randomized.
-
-**Description:**  Computes the set differences between Kinto, Firefox Nightly's cert_storage, and (optionally) revocations.txt.
-
-**Usage:** 
-
-**Used By:** Was used by “Data Integrity - OneCRL cert-storage” and “Data Integrity - OneCRL revocations.txt” reports in the CCADB. 
-
 ## oneCRLDiffCCADB
 
 **Status:** In Use
@@ -123,13 +113,3 @@ curl -d '{"crl": "http://crl.ws.symantec.com/pca1-g3.crl","serial": "fc788d52d44
 **Usage:** See the README in https://github.com/mozilla/CCADB-Tools/tree/master/oneCRLDiffCCADB
 
 **Used By:** The "Data Integrity - OneCRL cert-storage" report in the CCADB
-
-## oneCRLViewer
-
-**Status:** BROKEN
-
-**Description:** Was intended to serve as a version controlled history of OneCRL. Finds incremental differences in OneCRL and uses a git repository as a way to provide a history of OneCRL. Also attempts to find the associate certificate for each OneCRL entry in crt.sh.
-
-**Usage:** 
-
-**Used By:** Implementation was not completed.
