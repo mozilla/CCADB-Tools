@@ -21,11 +21,11 @@ const (
 )
 
 type Entry struct {
+    IssuerCommonName       string `csv:"Certificate Issuer Common Name" json:"issuerCN"`
 	Serial                 string `csv:"Certificate Serial Number" json:"serial"`
+    Fingerprint            string `csv:"SHA-256 Fingerprint" json:"sha_256"`
 	RevocationStatus       string `csv:"OneCRL Status" json:"revocationStatus"`
-	IssuerCommonName       string `csv:"Certificate Issuer Common Name" json:"issuerCN"`
 	IssuerOrganizationName string `csv:"Certificate Issuer Organization" json:"issuerON"`
-	Fingerprint            string `csv:"SHA-256 Fingerprint" json:"fingerprint"`
 }
 
 // Key constructs a string that is the concatenation of the certificate serial (decoded from hex to an decimal value)

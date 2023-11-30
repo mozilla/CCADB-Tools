@@ -31,11 +31,11 @@
  
  ```go
 type Entry struct {
+    IssuerCommonName       string `csv:"Certificate Issuer Common Name" json:"issuerCN"`
 	Serial                 string `csv:"Certificate Serial Number" json:"serial"`
+    Fingerprint            string `csv:"SHA-256 Fingerprint" json:"sha_256"`   
 	RevocationStatus       string `csv:"OneCRL Status" json:"revocationStatus"`
-	IssuerCommonName       string `csv:"Certificate Issuer Common Name" json:"issuerCN"`
 	IssuerOrganizationName string `csv:"Certificate Issuer Organization" json:"issuerON"`
-	Fingerprint            string `csv:"SHA-256 Fingerprint" json:"fingerprint"`
 }
 type OneCRLIntermediate struct {
 	Schema  int `json:"schema"`
@@ -92,32 +92,32 @@ For example:
 {
   "AddedAndPresentInOneCRL": [
     {
-      "serial": "272B67229745D2438BF9774186AEBD",
-      "revocationStatus": "Added to OneCRL",
       "issuerCN": "SwissSign Gold CA - G2",
+      "serial": "272B67229745D2438BF9774186AEBD",
+      "sha_256": "B102959F862B71B78EFDC7FA9F43B3AFD7E52312A07493A752835B991D840F4C"
+      "revocationStatus": "Added to OneCRL",
       "issuerON": "SwissSign AG",
-      "fingerprint": "B102959F862B71B78EFDC7FA9F43B3AFD7E52312A07493A752835B991D840F4C"
     },
     {
-      "serial": "5E6A370085B654779E268474A34F5119",
-      "revocationStatus": "Added to OneCRL",
       "issuerCN": "VeriSign Class 3 Public Primary Certification Authority - G5",
+      "serial": "5E6A370085B654779E268474A34F5119",
+      "sha_256": "7E12646B4C25257479ECDC4FBEDFA5225BF5C4520301EABB1FFFA2566C932560"
+      "revocationStatus": "Added to OneCRL",
       "issuerON": "VeriSign, Inc.",
-      "fingerprint": "7E12646B4C25257479ECDC4FBEDFA5225BF5C4520301EABB1FFFA2566C932560"
     },
     {
-      "serial": "01313B3B",
-      "revocationStatus": "Added to OneCRL",
       "issuerCN": "Staat der Nederlanden Burger CA - G2",
+      "serial": "01313B3B",
+      "sha_256": "DA89E17721513690FE115F5C23F0CB76B6D6E258540A85F8537511EA720056C6"
+      "revocationStatus": "Added to OneCRL",
       "issuerON": "Staat der Nederlanden",
-      "fingerprint": "DA89E17721513690FE115F5C23F0CB76B6D6E258540A85F8537511EA720056C6"
     },
     {
-      "serial": "00F85D2F190C609F1494B28DF9C1D1E74C",
-      "revocationStatus": "Added to OneCRL",
       "issuerCN": "TeliaSonera Root CA v1",
+      "serial": "00F85D2F190C609F1494B28DF9C1D1E74C",
+      "sha_256": "CEDBC6EEE71BBE0D4EE5A728B4215A4C634C654D44F737F2E3BA35E0A295FBF4"
+      "revocationStatus": "Added to OneCRL",
       "issuerON": "TeliaSonera",
-      "fingerprint": "CEDBC6EEE71BBE0D4EE5A728B4215A4C634C654D44F737F2E3BA35E0A295FBF4"
     },
    ....
   ]
