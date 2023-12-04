@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -98,6 +99,7 @@ type Extensions struct {
 	PermittedIPAddresses   []string `json:"permittedIPAddresses,omitempty"`
 	ExcludedDNSDomains     []string `json:"excludedDNSNames,omitempty"`
 	ExcludedIPAddresses    []string `json:"excludedIPAddresses,omitempty"`
+	InhibitAnyPolicy       *int     `json:"inhibitAnyPolicy,omitempty"`
 }
 
 var SignatureAlgorithm = [...]string{
@@ -289,6 +291,7 @@ func getCertExtensions(cert *x509.Certificate) Extensions {
 	}
 	permittedIPAddresses := ipNetSliceToStringSlice(constraints.PermittedIPRanges)
 	excludedIPAddresses := ipNetSliceToStringSlice(constraints.ExcludedIPRanges)
+
 	ext := Extensions{
 		AuthorityKeyId:         base64.StdEncoding.EncodeToString(cert.AuthorityKeyId),
 		SubjectKeyId:           base64.StdEncoding.EncodeToString(cert.SubjectKeyId),
@@ -303,6 +306,14 @@ func getCertExtensions(cert *x509.Certificate) Extensions {
 		PermittedIPAddresses:   permittedIPAddresses,
 		ExcludedIPAddresses:    excludedIPAddresses,
 	}
+
+	for _, v := range cert.Extensions {
+		if OIDFieldName(v.Id) == "InhibitAnyPolicy" {
+			value, _ := strconv.Atoi(string(v.Value))
+			ext.InhibitAnyPolicy = &value
+		}
+	}
+
 	return ext
 }
 
@@ -383,6 +394,17 @@ func GetHexASN1Serial(cert *x509.Certificate) (serial string, err error) {
 	return
 }
 
+func OIDFieldName(oid asn1.ObjectIdentifier) string {
+	switch oid.String() {
+	case "1.2.840.113549.1.9.1":
+		return "emailAddress"
+	case "2.5.29.54":
+		return "InhibitAnyPolicy"
+	default:
+		return ""
+	}
+}
+
 // CertToJSON returns a Certificate struct created from a X509.Certificate
 func CertToJSON(cert *x509.Certificate) Certificate {
 	var (
@@ -416,7 +438,7 @@ func CertToJSON(cert *x509.Certificate) Certificate {
 	// deprecated (but still permitted by RFC 5280), we look for the OID
 	// and add the field accordingly.
 	for _, v := range cert.Issuer.Names {
-		if v.Type.String() == "1.2.840.113549.1.9.1" {
+		if OIDFieldName(v.Type) == "emailAddress" {
 			certJson.Issuer.EmailAddress = v.Value
 		}
 	}
@@ -428,7 +450,7 @@ func CertToJSON(cert *x509.Certificate) Certificate {
 
 	// See note above for cert.Issuer.Names
 	for _, v := range cert.Subject.Names {
-		if v.Type.String() == "1.2.840.113549.1.9.1" {
+		if OIDFieldName(v.Type) == "emailAddress" {
 			certJson.Subject.EmailAddress = v.Value
 		}
 	}
@@ -478,15 +500,6 @@ func CertToJSON(cert *x509.Certificate) Certificate {
 	return certJson
 }
 
-// ToX509 returns the crypto/x509 version of a certificate
-func (cert Certificate) ToX509() (xcert *x509.Certificate, err error) {
-	certRaw, err := base64.StdEncoding.DecodeString(cert.Raw)
-	if err != nil {
-		return
-	}
-	return x509.ParseCertificate(certRaw)
-}
-
 // String() prints the subject as a single string, following OpenSSL's display
 // format: Subject: C=US, ST=California, L=Mountain View, O=Google Inc, CN=*.google.com
 func (s Subject) String() string {
@@ -504,31 +517,4 @@ func (s Subject) String() string {
 		comp = append(comp, "CN="+s.CommonName)
 	}
 	return strings.Join(comp, ", ")
-}
-
-// IsSelfSigned return true if the subject and issuer fields of a certificate
-// are identical
-func (cert Certificate) IsSelfSigned() bool {
-	if cert.Subject.CommonName != cert.Issuer.CommonName ||
-		len(cert.Subject.Organization) != len(cert.Issuer.Organization) ||
-		len(cert.Subject.OrgUnit) != len(cert.Issuer.OrgUnit) ||
-		len(cert.Subject.Country) != len(cert.Issuer.Country) {
-		return false
-	}
-	for i := range cert.Subject.Organization {
-		if cert.Subject.Organization[i] != cert.Issuer.Organization[i] {
-			return false
-		}
-	}
-	for i := range cert.Subject.OrgUnit {
-		if cert.Subject.OrgUnit[i] != cert.Issuer.OrgUnit[i] {
-			return false
-		}
-	}
-	for i := range cert.Subject.Country {
-		if cert.Subject.Country[i] != cert.Issuer.Country[i] {
-			return false
-		}
-	}
-	return true
 }
