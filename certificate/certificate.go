@@ -14,13 +14,13 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
 	"fmt"
 	"log"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -65,12 +65,31 @@ type Validity struct {
 }
 
 type Subject struct {
-	ID           int64    `json:"id,omitempty"`
-	Country      []string `json:"c,omitempty"`
-	Organization []string `json:"o,omitempty"`
-	OrgUnit      []string `json:"ou,omitempty"`
-	CommonName   string   `json:"cn,omitempty"`
-	EmailAddress any      `json:"emailAddress,omitempty"`
+	Country                     []string `json:"c,omitempty"`
+	Organization                []string `json:"o,omitempty"`
+	OrganizationalUnit          []string `json:"ou,omitempty"`
+	CommonName                  string   `json:"cn,omitempty"`
+	Locality                    []string `json:"l,omitempty"`
+	StateOrProvince             []string `json:"st,omitempty"`
+	StreetAddress               []string `json:"streetAddress,omitempty"`
+	PostalCode                  []string `json:"postalCode,omitempty"`
+	SerialNumber                string   `json:"serialNumber,omitempty"`
+	EmailAddress                any      `json:"emailAddress,omitempty"`
+	UID                         any      `json:"uid,omitempty"`
+	DomainComponent             []string `json:"dc,omitempty"`
+	Name                        any      `json:"name,omitempty"`
+	Surname                     any      `json:"surname,omitempty"`
+	GivenName                   any      `json:"givenName,omitempty"`
+	Initials                    any      `json:"initials,omitempty"`
+	GenerationQualifier         any      `json:"generationQualifier,omitempty"`
+	Title                       any      `json:"title,omitempty"`
+	Pseudonym                   any      `json:"pseudonym,omitempty"`
+	BusinessCategory            any      `json:"businessCategory,omitempty"`
+	JurisdictionLocality        any      `json:"jurisdictionLocality,omitempty"`
+	JurisdictionStateOrProvince any      `json:"jurisdictionStateOrProvince,omitempty"`
+	JurisdictionCountry         any      `json:"jurisdictionCountry,omitempty"`
+	OrganizationIdentifier      any      `json:"organizationIdentifier,omitempty"`
+	DNQualifier                 any      `json:"dnQualifier,omitempty"`
 }
 
 type SubjectPublicKeyInfo struct {
@@ -394,15 +413,71 @@ func GetHexASN1Serial(cert *x509.Certificate) (serial string, err error) {
 	return
 }
 
+// OIDFieldName takes in an OID asn1.ObjectIdentifier and returns the field name
+// This is where we can add additional OIDs and fields that Go doesn't support natively
 func OIDFieldName(oid asn1.ObjectIdentifier) string {
 	switch oid.String() {
-	case "1.2.840.113549.1.9.1":
-		return "emailAddress"
 	case "2.5.29.54":
 		return "InhibitAnyPolicy"
 	default:
 		return ""
 	}
+}
+
+// GetDomainComponent converts the Domain Component field for Subject/Issuer to an array of strings
+// for multiple DCs. Eg - dc=com,dc=example
+func GetDomainComponent(attributes []pkix.AttributeTypeAndValue) []string {
+	var domainComponents []string
+
+	for _, v := range attributes {
+		if v.Type.String() == "0.9.2342.19200300.100.1.25" {
+			domainComponents = append(domainComponents, v.Value.(string))
+		}
+	}
+
+	return domainComponents
+}
+
+// GetSubjectAttributes retrieves field names for OIDs that Go does not natively support
+func GetSubjectAttributes(attributes []pkix.AttributeTypeAndValue) Subject {
+	var subjectAttributes Subject
+
+	for _, v := range attributes {
+		switch v.Type.String() {
+		case "1.2.840.113549.1.9.1":
+			subjectAttributes.EmailAddress = v.Value
+		case "0.9.2342.19200300.100.1.1":
+			subjectAttributes.UID = v.Value
+		case "2.5.4.41":
+			subjectAttributes.Name = v.Value
+		case "2.5.4.4":
+			subjectAttributes.Surname = v.Value
+		case "2.5.4.42":
+			subjectAttributes.GivenName = v.Value
+		case "2.5.4.43":
+			subjectAttributes.Initials = v.Value
+		case "2.5.4.44":
+			subjectAttributes.GenerationQualifier = v.Value
+		case "2.5.4.12":
+			subjectAttributes.Title = v.Value
+		case "2.5.4.65":
+			subjectAttributes.Pseudonym = v.Value
+		case "2.5.4.15":
+			subjectAttributes.BusinessCategory = v.Value
+		case "1.3.6.1.4.1.311.60.2.1.1":
+			subjectAttributes.JurisdictionLocality = v.Value
+		case "1.3.6.1.4.1.311.60.2.1.2":
+			subjectAttributes.JurisdictionStateOrProvince = v.Value
+		case "1.3.6.1.4.1.311.60.2.1.3":
+			subjectAttributes.JurisdictionCountry = v.Value
+		case "2.5.4.97":
+			subjectAttributes.OrganizationIdentifier = v.Value
+		case "2.5.4.46":
+			subjectAttributes.DNQualifier = v.Value
+		}
+	}
+
+	return subjectAttributes
 }
 
 // CertToJSON returns a Certificate struct created from a X509.Certificate
@@ -429,31 +504,39 @@ func CertToJSON(cert *x509.Certificate) Certificate {
 		log.Printf("Failed to retrieve public key information: %v. Continuing anyway.", err)
 	}
 
+	// Handle uncommon attributes for Issuer
+	certJson.Issuer = GetSubjectAttributes(cert.Issuer.Names)
+
+	// Handle Domain Components properly
+	certJson.Issuer.DomainComponent = GetDomainComponent(cert.Issuer.Names)
+
+	// Handle common attributes for Issuer
 	certJson.Issuer.Country = cert.Issuer.Country
 	certJson.Issuer.Organization = cert.Issuer.Organization
-	certJson.Issuer.OrgUnit = cert.Issuer.OrganizationalUnit
+	certJson.Issuer.OrganizationalUnit = cert.Issuer.OrganizationalUnit
+	certJson.Issuer.Locality = cert.Issuer.Locality
+	certJson.Issuer.StateOrProvince = cert.Issuer.Province
+	certJson.Issuer.StreetAddress = cert.Issuer.StreetAddress
+	certJson.Issuer.PostalCode = cert.Issuer.PostalCode
+	certJson.Issuer.SerialNumber = cert.Issuer.SerialNumber
 	certJson.Issuer.CommonName = cert.Issuer.CommonName
 
-	// Since Go's x509 package doesn't support emailAddress, as it is
-	// deprecated (but still permitted by RFC 5280), we look for the OID
-	// and add the field accordingly.
-	for _, v := range cert.Issuer.Names {
-		if OIDFieldName(v.Type) == "emailAddress" {
-			certJson.Issuer.EmailAddress = v.Value
-		}
-	}
+	// Handle uncommon attributes for Subject
+	certJson.Subject = GetSubjectAttributes(cert.Subject.Names)
 
+	// Handle Domain Components properly
+	certJson.Subject.DomainComponent = GetDomainComponent(cert.Subject.Names)
+
+	// Handle common attributes for Subject
 	certJson.Subject.Country = cert.Subject.Country
 	certJson.Subject.Organization = cert.Subject.Organization
-	certJson.Subject.OrgUnit = cert.Subject.OrganizationalUnit
+	certJson.Subject.OrganizationalUnit = cert.Subject.OrganizationalUnit
+	certJson.Subject.Locality = cert.Subject.Locality
+	certJson.Subject.StateOrProvince = cert.Subject.Province
+	certJson.Subject.StreetAddress = cert.Subject.StreetAddress
+	certJson.Subject.PostalCode = cert.Subject.PostalCode
+	certJson.Subject.SerialNumber = cert.Subject.SerialNumber
 	certJson.Subject.CommonName = cert.Subject.CommonName
-
-	// See note above for cert.Issuer.Names
-	for _, v := range cert.Subject.Names {
-		if OIDFieldName(v.Type) == "emailAddress" {
-			certJson.Subject.EmailAddress = v.Value
-		}
-	}
 
 	certJson.Validity.NotBefore = cert.NotBefore.UTC()
 	certJson.Validity.NotAfter = cert.NotAfter.UTC()
@@ -498,23 +581,4 @@ func CertToJSON(cert *x509.Certificate) Certificate {
 	certJson.Raw = base64.StdEncoding.EncodeToString(cert.Raw)
 
 	return certJson
-}
-
-// String() prints the subject as a single string, following OpenSSL's display
-// format: Subject: C=US, ST=California, L=Mountain View, O=Google Inc, CN=*.google.com
-func (s Subject) String() string {
-	var comp []string
-	if len(s.Country) > 0 {
-		comp = append(comp, "C="+strings.Join(s.Country, ", C="))
-	}
-	if len(s.Organization) > 0 {
-		comp = append(comp, "O="+strings.Join(s.Organization, ", O="))
-	}
-	if len(s.OrgUnit) > 0 {
-		comp = append(comp, "OU="+strings.Join(s.OrgUnit, ", OU="))
-	}
-	if len(s.CommonName) > 0 {
-		comp = append(comp, "CN="+s.CommonName)
-	}
-	return strings.Join(comp, ", ")
 }
