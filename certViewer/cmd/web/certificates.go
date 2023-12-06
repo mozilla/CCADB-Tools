@@ -21,6 +21,8 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -29,9 +31,9 @@ type Certificate struct {
 	Serial                 string
 	Version                int
 	SignatureAlgorithm     string
-	Issuer                 pkix.Name
+	Issuer                 string
 	Validity               Validity
-	Subject                pkix.Name
+	Subject                string
 	Key                    SubjectPublicKeyInfo
 	X509v3Extensions       Extensions
 	X509v3BasicConstraints string
@@ -51,6 +53,34 @@ type Hashes struct {
 type Validity struct {
 	NotBefore string
 	NotAfter  string
+}
+
+type Subject struct {
+	Country                     []string
+	Organization                []string
+	OrganizationalUnit          []string
+	CommonName                  string
+	Locality                    []string
+	StateOrProvince             []string
+	StreetAddress               []string
+	PostalCode                  []string
+	SerialNumber                string
+	EmailAddress                any
+	UID                         any
+	DomainComponent             []string
+	Name                        any
+	Surname                     any
+	GivenName                   any
+	Initials                    any
+	GenerationQualifier         any
+	Title                       any
+	Pseudonym                   any
+	BusinessCategory            any
+	JurisdictionLocality        any
+	JurisdictionStateOrProvince any
+	JurisdictionCountry         any
+	OrganizationIdentifier      any
+	DNQualifier                 any
 }
 
 type SubjectPublicKeyInfo struct {
@@ -79,6 +109,7 @@ type Extensions struct {
 	PermittedIPAddresses   string
 	ExcludedDNSDomains     string
 	ExcludedIPAddresses    string
+	InhibitAnyPolicy       *int
 }
 
 var SignatureAlgorithm = [...]string{
@@ -252,6 +283,17 @@ func getKeyUsages(cert *x509.Certificate) []string {
 	return usage
 }
 
+// OIDFieldName takes in an OID asn1.ObjectIdentifier and returns the field name
+// This is where we can add additional OIDs and fields that Go doesn't support natively
+func OIDFieldName(oid asn1.ObjectIdentifier) string {
+	switch oid.String() {
+	case "2.5.29.54":
+		return "InhibitAnyPolicy"
+	default:
+		return ""
+	}
+}
+
 // getCertExtensions currently stores only the extensions that are already exported by GoLang
 // (in the x509 Certificate Struct)
 func getCertExtensions(cert *x509.Certificate) Extensions {
@@ -284,6 +326,14 @@ func getCertExtensions(cert *x509.Certificate) Extensions {
 		PermittedIPAddresses:   strings.Join(permittedIPAddresses, ", "),
 		ExcludedIPAddresses:    strings.Join(excludedIPAddresses, ", "),
 	}
+
+	for _, v := range cert.Extensions {
+		if OIDFieldName(v.Id) == "InhibitAnyPolicy" {
+			value, _ := strconv.Atoi(string(v.Value))
+			ext.InhibitAnyPolicy = &value
+		}
+	}
+
 	return ext
 }
 
@@ -356,6 +406,139 @@ func GetHexASN1Serial(cert *x509.Certificate) (serial string, err error) {
 	return
 }
 
+// GetOIDAttributes retrieves field names for OIDs that Go does not natively support
+func GetOIDAttributes(attributes []pkix.AttributeTypeAndValue) Subject {
+	var (
+		subjectAttributes Subject
+		domainComponents  []string
+	)
+
+	for _, v := range attributes {
+		switch v.Type.String() {
+		case "1.2.840.113549.1.9.1":
+			subjectAttributes.EmailAddress = v.Value
+		case "0.9.2342.19200300.100.1.1":
+			subjectAttributes.UID = v.Value
+		case "2.5.4.41":
+			subjectAttributes.Name = v.Value
+		case "2.5.4.4":
+			subjectAttributes.Surname = v.Value
+		case "2.5.4.42":
+			subjectAttributes.GivenName = v.Value
+		case "2.5.4.43":
+			subjectAttributes.Initials = v.Value
+		case "2.5.4.44":
+			subjectAttributes.GenerationQualifier = v.Value
+		case "2.5.4.12":
+			subjectAttributes.Title = v.Value
+		case "2.5.4.65":
+			subjectAttributes.Pseudonym = v.Value
+		case "2.5.4.15":
+			subjectAttributes.BusinessCategory = v.Value
+		case "1.3.6.1.4.1.311.60.2.1.1":
+			subjectAttributes.JurisdictionLocality = v.Value
+		case "1.3.6.1.4.1.311.60.2.1.2":
+			subjectAttributes.JurisdictionStateOrProvince = v.Value
+		case "1.3.6.1.4.1.311.60.2.1.3":
+			subjectAttributes.JurisdictionCountry = v.Value
+		case "2.5.4.97":
+			subjectAttributes.OrganizationIdentifier = v.Value
+		case "2.5.4.46":
+			subjectAttributes.DNQualifier = v.Value
+		case "0.9.2342.19200300.100.1.25":
+			domainComponents = append(domainComponents, v.Value.(string))
+		}
+	}
+
+	subjectAttributes.DomainComponent = domainComponents
+
+	return subjectAttributes
+}
+
+// GetAttributes takes a Subject struct and returns all fields in a comma-delimited string
+func GetAttributes(attributes Subject) string {
+	var attr []string
+
+	if len(attributes.Country) > 0 {
+		attr = append(attr, "C="+strings.Join(attributes.Country, ", C="))
+	}
+	if len(attributes.Organization) > 0 {
+		attr = append(attr, "O="+strings.Join(attributes.Organization, ", O="))
+	}
+	if len(attributes.OrganizationalUnit) > 0 {
+		attr = append(attr, "OU="+strings.Join(attributes.OrganizationalUnit, ", OU="))
+	}
+	if len(attributes.Locality) > 0 {
+		attr = append(attr, "L="+strings.Join(attributes.Locality, ", L="))
+	}
+	if len(attributes.StateOrProvince) > 0 {
+		attr = append(attr, "ST="+strings.Join(attributes.StateOrProvince, ", ST="))
+	}
+	if len(attributes.StreetAddress) > 0 {
+		attr = append(attr, "streetAddress="+strings.Join(attributes.StreetAddress, ", streetAddress="))
+	}
+	if len(attributes.PostalCode) > 0 {
+		attr = append(attr, "postalCode="+strings.Join(attributes.PostalCode, ", postalCode="))
+	}
+	if len(attributes.SerialNumber) > 0 {
+		attr = append(attr, "SN="+attributes.SerialNumber)
+	}
+	if len(attributes.CommonName) > 0 {
+		attr = append(attr, "CN="+attributes.CommonName)
+	}
+	if attributes.EmailAddress != nil && len(attributes.EmailAddress.(string)) > 0 {
+		attr = append(attr, "emailAddress="+attributes.EmailAddress.(string))
+	}
+	if attributes.UID != nil && len(attributes.UID.(string)) > 0 {
+		attr = append(attr, "UID="+attributes.UID.(string))
+	}
+	if attributes.DomainComponent != nil && len(attributes.DomainComponent) > 0 {
+		attr = append(attr, "DC="+strings.Join(attributes.DomainComponent, ", DC="))
+	}
+	if attributes.Name != nil && len(attributes.Name.(string)) > 0 {
+		attr = append(attr, "name="+attributes.Name.(string))
+	}
+	if attributes.Surname != nil && len(attributes.Surname.(string)) > 0 {
+		attr = append(attr, "surname="+attributes.Surname.(string))
+	}
+	if attributes.GivenName != nil && len(attributes.GivenName.(string)) > 0 {
+		attr = append(attr, "givenName="+attributes.GivenName.(string))
+	}
+	if attributes.Initials != nil && len(attributes.Initials.(string)) > 0 {
+		attr = append(attr, "initials="+attributes.Initials.(string))
+	}
+	if attributes.GenerationQualifier != nil && len(attributes.GenerationQualifier.(string)) > 0 {
+		attr = append(attr, "generationQualifier="+attributes.GenerationQualifier.(string))
+	}
+	if attributes.Title != nil && len(attributes.Title.(string)) > 0 {
+		attr = append(attr, "title="+attributes.Title.(string))
+	}
+	if attributes.Pseudonym != nil && len(attributes.Pseudonym.(string)) > 0 {
+		attr = append(attr, "pseudonym="+attributes.Pseudonym.(string))
+	}
+	if attributes.BusinessCategory != nil && len(attributes.BusinessCategory.(string)) > 0 {
+		attr = append(attr, "businessCategory="+attributes.BusinessCategory.(string))
+	}
+	if attributes.JurisdictionLocality != nil && len(attributes.JurisdictionLocality.(string)) > 0 {
+		attr = append(attr, "jurisdictionLocality="+attributes.JurisdictionLocality.(string))
+	}
+	if attributes.JurisdictionStateOrProvince != nil && len(attributes.JurisdictionStateOrProvince.(string)) > 0 {
+		attr = append(attr, "jurisdictionStateOrProvince="+attributes.JurisdictionStateOrProvince.(string))
+	}
+	if attributes.JurisdictionCountry != nil && len(attributes.JurisdictionCountry.(string)) > 0 {
+		attr = append(attr, "jurisdictionCountry="+attributes.JurisdictionCountry.(string))
+	}
+	if attributes.OrganizationIdentifier != nil && len(attributes.OrganizationIdentifier.(string)) > 0 {
+		attr = append(attr, "organizationIdentifier="+attributes.OrganizationIdentifier.(string))
+	}
+	if attributes.DNQualifier != nil && len(attributes.DNQualifier.(string)) > 0 {
+		attr = append(attr, "dnQualifier="+attributes.DNQualifier.(string))
+	}
+
+	return strings.Join(attr, ", ")
+}
+
+// CertInfo returns a Certificate struct created from a X509.Certificate
 func certInfo(cert *x509.Certificate) Certificate {
 	serial, err := GetHexASN1Serial(cert)
 	if err != nil {
@@ -365,8 +548,6 @@ func certInfo(cert *x509.Certificate) Certificate {
 	certRead := Certificate{
 		Version: cert.Version,
 		Serial:  serial,
-		Subject: cert.Subject,
-		Issuer:  cert.Issuer,
 		Validity: Validity{
 			NotBefore: cert.NotBefore.UTC().Format(time.RFC3339),
 			NotAfter:  cert.NotAfter.UTC().Format(time.RFC3339),
@@ -386,6 +567,48 @@ func certInfo(cert *x509.Certificate) Certificate {
 	certRead.Key, err = getPublicKeyInfo(cert)
 	if err != nil {
 		slog.Error("Failed to retrieve public key information", "error", err.Error())
+	}
+
+	// Handle common attributes for Issuer
+	var commonIssuerAttributes Subject
+	commonIssuerAttributes.Country = cert.Issuer.Country
+	commonIssuerAttributes.Organization = cert.Issuer.Organization
+	commonIssuerAttributes.OrganizationalUnit = cert.Issuer.OrganizationalUnit
+	commonIssuerAttributes.Locality = cert.Issuer.Locality
+	commonIssuerAttributes.StateOrProvince = cert.Issuer.Province
+	commonIssuerAttributes.StreetAddress = cert.Issuer.StreetAddress
+	commonIssuerAttributes.PostalCode = cert.Issuer.PostalCode
+	commonIssuerAttributes.SerialNumber = cert.Issuer.SerialNumber
+	commonIssuerAttributes.CommonName = cert.Issuer.CommonName
+	// Handle uncommon attributes for Issuer
+	uncommonIssuerAttributes := GetOIDAttributes(cert.Issuer.Names)
+	// Format all Issuer attributes into one string
+	// If uncommon attributes are empty, only return common... otherwise we get a trailing comma
+	if reflect.DeepEqual(uncommonIssuerAttributes, Subject{}) {
+		certRead.Issuer = GetAttributes(commonIssuerAttributes)
+	} else {
+		certRead.Issuer = strings.Join([]string{GetAttributes(commonIssuerAttributes), GetAttributes(uncommonIssuerAttributes)}, ", ")
+	}
+
+	// Handle common attributes for Subject
+	var commonSubjectAttributes Subject
+	commonSubjectAttributes.Country = cert.Subject.Country
+	commonSubjectAttributes.Organization = cert.Subject.Organization
+	commonSubjectAttributes.OrganizationalUnit = cert.Subject.OrganizationalUnit
+	commonSubjectAttributes.Locality = cert.Subject.Locality
+	commonSubjectAttributes.StateOrProvince = cert.Subject.Province
+	commonSubjectAttributes.StreetAddress = cert.Subject.StreetAddress
+	commonSubjectAttributes.PostalCode = cert.Subject.PostalCode
+	commonSubjectAttributes.SerialNumber = cert.Subject.SerialNumber
+	commonSubjectAttributes.CommonName = cert.Subject.CommonName
+	// Handle uncommon attributes for Subject
+	uncommonSubjectAttributes := GetOIDAttributes(cert.Subject.Names)
+	// Format all Subject attributes into one string
+	// If uncommon attributes are empty, only return common... otherwise we get a trailing comma
+	if reflect.DeepEqual(uncommonSubjectAttributes, Subject{}) {
+		certRead.Subject = GetAttributes(commonSubjectAttributes)
+	} else {
+		certRead.Subject = strings.Join([]string{GetAttributes(commonSubjectAttributes), GetAttributes(uncommonSubjectAttributes)}, ", ")
 	}
 
 	certRead.X509v3Extensions = getCertExtensions(cert)

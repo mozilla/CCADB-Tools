@@ -68,6 +68,12 @@
             <td>{{.X509v3Extensions.ExcludedIPAddresses}}</td>
         </tr>
         {{end}}
+        {{if .X509v3Extensions.InhibitAnyPolicy}}
+        <tr>
+            <td>InhibitAnyPolicy</td>
+            <td>{{.X509v3Extensions.InhibitAnyPolicy}}</td>
+        </tr>
+        {{end}}
         <tr>
             <td>BasicConstraints</td>
             <td>CA: {{.CA}}</td>
