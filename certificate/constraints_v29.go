@@ -56,16 +56,19 @@ func IsTechnicallyConstrainedMozPolicyV29(cert *x509.Certificate) bool {
 
 	if hasServerAuth {
 		// Look for disqualifying companion EKUs.
-		for _, kp := range cert.ExtKeyUsage {
-			switch kp {
-			case x509.ExtKeyUsageCodeSigning, x509.ExtKeyUsageEmailProtection, x509.ExtKeyUsageTimeStamping, x509.ExtKeyUsageOCSPSigning:
-				// TLSBR 7.1.2.10.6: "id-kp-codeSigning   1.3.6.1.5.5.7.3.3   MUST NOT"
-				// TLSBR 7.1.2.10.6: "id-kp-emailProtection   1.3.6.1.5.5.7.3.4   MUST NOT"
-				// TLSBR 7.1.2.10.6: "id-kp-timeStamping   1.3.6.1.5.5.7.3.8   MUST NOT"
-				// TLSBR 7.1.2.10.6: "id-kp-OCSPSigning   1.3.6.1.5.5.7.3.9   MUST NOT"
-				return false
-			}
-		}
+
+// COMMENT OUT because the following rule applies whether technically constrained or not. It does not determine if technically contrained.
+//		for _, kp := range cert.ExtKeyUsage {
+//			switch kp {
+//			case x509.ExtKeyUsageCodeSigning, x509.ExtKeyUsageEmailProtection, x509.ExtKeyUsageTimeStamping, x509.ExtKeyUsageOCSPSigning:
+//				// TLSBR 7.1.2.10.6: "id-kp-codeSigning   1.3.6.1.5.5.7.3.3   MUST NOT"
+//				// TLSBR 7.1.2.10.6: "id-kp-emailProtection   1.3.6.1.5.5.7.3.4   MUST NOT"
+//				// TLSBR 7.1.2.10.6: "id-kp-timeStamping   1.3.6.1.5.5.7.3.8   MUST NOT"
+//				// TLSBR 7.1.2.10.6: "id-kp-OCSPSigning   1.3.6.1.5.5.7.3.9   MUST NOT"
+//				return false
+//			}
+//		}
+        
 		for _, oid := range cert.UnknownExtKeyUsage {
 			if oid.Equal(oidPrecertificateSigningCertificate) {
 				// TLSBR 7.1.2.10.6: "Precertificate Signing Certificate   1.3.6.1.4.1.11129.2.4.4   MUST NOT"
@@ -87,14 +90,16 @@ func IsTechnicallyConstrainedMozPolicyV29(cert *x509.Certificate) bool {
 		}
 	} else if hasEmailProtection {
 		// Look for disqualifying companion EKUs.
-		for _, kp := range cert.ExtKeyUsage {
-			switch kp {
-			case x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageCodeSigning, x509.ExtKeyUsageTimeStamping:
-				// MRSP 5.3.1: "id-kp-serverAuth...MUST NOT be present."
-				// SBR 7.1.2.2(g): "id-kp-serverAuth, id-kp-codeSigning, id-kp-timeStamping...SHALL NOT be present."
-				return false // Unconstrained
-			}
-		}
+  
+// COMMENT OUT because the following rule applies whether technically constrained or not. It does not determine if technically contrained.
+//		for _, kp := range cert.ExtKeyUsage {
+//			switch kp {
+//			case x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageCodeSigning, x509.ExtKeyUsageTimeStamping:
+//				// MRSP 5.3.1: "id-kp-serverAuth...MUST NOT be present."
+//				// SBR 7.1.2.2(g): "id-kp-serverAuth, id-kp-codeSigning, id-kp-timeStamping...SHALL NOT be present."
+//				return false // Unconstrained
+//			}
+//		}
 
 		// MRSP 5.3.1: "If the intermediate CA certificate includes the id-kp-emailProtection extended key usage, then to be considered technically constrained,
 		// it MUST comply with section 7.1.5 of the S/MIME Baseline Requirements and include the Name Constraints X.509v3 extension with constraints on rfc822Name,
