@@ -106,7 +106,7 @@ func NewReportFrom(url string) (report Report, err error) {
 	if err != nil {
 		return
 	}
-	req.Header.Add("X-TOOL", "github.com/christopher-henderson/capi")
+	req.Header.Add("X-TOOL", "github.com/mozilla/CCADB-Tools/tree/master/capi")
 	resp, err := client.Do(req)
 	if err != nil {
 		return
