@@ -9,8 +9,8 @@ COPY . .
 RUN apt update
 RUN apt install -y libnss3-tools libssl-dev ruby-dev
 RUN go build capi.go
-RUN git clone https://github.com/christopher-henderson/x509lint.git && \
-    cd x509lint && \
+
+RUN cd x509lint && \
     make
 #RUN git clone https://github.com/kroeckx/x509lint.git && \
 #    cd x509lint && \
