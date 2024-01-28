@@ -5,11 +5,11 @@
 package x509lint
 
 import (
-	"bytes"
 	"crypto/x509"
 	go_x509lint "github.com/crtsh/go-x509lint"
 	"log"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -64,9 +64,7 @@ func Lint(certificate *x509.Certificate, ctype certType) X509Lint {
 	go_x509lint.Init()
 	defer go_x509lint.Finish()
 	got := go_x509lint.Check(certificate.Raw, int(ctype))
-	result := NewX509Lint()
-	parseOutput([]byte(got), &result)
-	return result
+	return parseOutput(got)
 }
 
 func NewX509Lint() X509Lint {
@@ -77,23 +75,25 @@ func NewX509Lint() X509Lint {
 	}
 }
 
-func parseOutput(output []byte, result *X509Lint) {
-	for _, line := range bytes.Split(output, []byte{'\n'}) {
-		if line == nil || len(line) == 0 {
+func parseOutput(output string) X509Lint {
+	result := NewX509Lint()
+	for _, line := range strings.Split(output, "\n") {
+		if len(line) == 0 {
 			continue
 		}
-		if bytes.HasPrefix(line, []byte("E: ")) {
-			if bytes.Contains(line, []byte("Fails decoding the characterset")) {
+		if strings.HasPrefix(line, "E: ") {
+			if strings.Contains(line, "Fails decoding the characterset") {
 				// @TODO We currently have no notion as why this happens, so we are ignoring it for now.
 				continue
 			}
-			result.Errors = append(result.Errors, string(line[3:]))
-		} else if bytes.HasPrefix(line, []byte("W: ")) {
-			result.Warnings = append(result.Warnings, string(line[3:]))
-		} else if bytes.HasPrefix(line, []byte("I: ")) {
-			result.Info = append(result.Info, string(line[3:]))
+			result.Errors = append(result.Errors, line[3:])
+		} else if strings.HasPrefix(line, "W: ") {
+			result.Warnings = append(result.Warnings, line[3:])
+		} else if strings.HasPrefix(line, "I: ") {
+			result.Info = append(result.Info, line[3:])
 		} else {
-			log.Printf(`unexpected x509Lint output: "%s"`, string(output))
+			log.Printf(`unexpected x509Lint output: "%s"`, line)
 		}
 	}
+	return result
 }
