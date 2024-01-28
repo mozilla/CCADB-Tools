@@ -7,13 +7,10 @@ package x509lint
 import (
 	"bytes"
 	"crypto/x509"
-	"encoding/pem"
-	"fmt"
-	"io/ioutil"
+	go_x509lint "github.com/crtsh/go-x509lint"
 	"log"
-	"os"
-	"os/exec"
 	"reflect"
+	"sync"
 )
 
 type X509Lint struct {
@@ -58,48 +55,22 @@ func LintChain(certificates []*x509.Certificate) ([]X509Lint, error) {
 	return results, nil
 }
 
+// go_x509lint.Init() and go_x509lint.Finish() both mutate global state.
+//
+// Concurrent read/writes MAY be safe for some roundabout reason that I cannot see,
+// but given that there are no docs on the matter it seems prudent to simply
+// lock the library for a given certificate check.
+var x509LintLock = sync.Mutex{}
+
 func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
+	x509LintLock.Lock()
+	defer x509LintLock.Unlock()
+	go_x509lint.Init()
+	defer go_x509lint.Finish()
+	go_x509lint.Init()
+	got := go_x509lint.Check(certificate.Raw, int(ctype))
 	result := NewX509Lint()
-	f, err := ioutil.TempFile("", "x509lint")
-	if err != nil {
-		return result, err
-	}
-	defer func() {
-		if err := os.Remove(f.Name()); err != nil {
-			log.Println(err)
-		}
-	}()
-	err = pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-	if err != nil {
-		return result, err
-	}
-	err = f.Close()
-	if err != nil {
-		return result, err
-	}
-	cmd := exec.Command("x509lint", f.Name(), certTypeToStr[ctype])
-	stdout := bytes.NewBuffer([]byte{})
-	stderr := bytes.NewBuffer([]byte{})
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	cmderr := cmd.Run()
-	output, err := ioutil.ReadAll(stdout)
-	if err != nil {
-		return result, err
-	}
-	errors, err := ioutil.ReadAll(stderr)
-	if err != nil {
-		return result, err
-	}
-	if cmderr != nil {
-		errStr := fmt.Sprintf("%s, stderr: %s, stdout: %s, cmd: %s %s %s", cmderr, string(errors), string(output), "x509lint", f.Name(), certTypeToStr[ctype])
-		result.CmdError = &errStr
-		// This has the slight distinction of being an error
-		// from x509lint itself rather than from, say,
-		// the filesystem or shell failing.
-		return result, nil
-	}
-	parseOutput(output, &result)
+	parseOutput([]byte(got), &result)
 	return result, nil
 }
 
@@ -108,12 +79,14 @@ func NewX509Lint() X509Lint {
 		Errors:   make([]string, 0),
 		Warnings: make([]string, 0),
 		Info:     make([]string, 0),
-		CmdError: nil,
 	}
 }
 
 func parseOutput(output []byte, result *X509Lint) {
 	for _, line := range bytes.Split(output, []byte{'\n'}) {
+		if line == nil || len(line) == 0 {
+			continue
+		}
 		if bytes.HasPrefix(line, []byte("E: ")) {
 			if bytes.Contains(line, []byte("Fails decoding the characterset")) {
 				// @TODO We currently have no notion as why this happens, so we are ignoring it for now.
@@ -125,7 +98,7 @@ func parseOutput(output []byte, result *X509Lint) {
 		} else if bytes.HasPrefix(line, []byte("I: ")) {
 			result.Info = append(result.Info, string(line[3:]))
 		} else {
-			log.Printf(`unexpected x509Lint output: "{}"`, string(output))
+			log.Printf(`unexpected x509Lint output: "%s"`, string(output))
 		}
 	}
 }

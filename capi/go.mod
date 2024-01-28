@@ -10,6 +10,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/crtsh/go-x509lint v1.0.1 // indirect
 	github.com/gomodule/redigo v1.8.9 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	golang.org/x/sys v0.15.0 // indirect
