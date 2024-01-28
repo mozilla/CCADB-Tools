@@ -48,10 +48,7 @@ func TestInfoLevelSubscriber(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := Lint(cert, subscriber)
-	if err != nil {
-		t.Error(err)
-	}
+	got := Lint(cert, subscriber)
 	want := NewX509Lint()
 	want.Info = []string{
 		"Subject has a deprecated CommonName",

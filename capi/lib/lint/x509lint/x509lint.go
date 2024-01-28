@@ -46,11 +46,7 @@ func LintChain(certificates []*x509.Certificate) ([]X509Lint, error) {
 		default:
 			ct = intermediate
 		}
-		l, err := Lint(cert, ct)
-		if err != nil {
-			return results, err
-		}
-		results[i] = l
+		results[i] = Lint(cert, ct)
 	}
 	return results, nil
 }
@@ -62,7 +58,7 @@ func LintChain(certificates []*x509.Certificate) ([]X509Lint, error) {
 // lock the library for a given certificate check.
 var x509LintLock = sync.Mutex{}
 
-func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
+func Lint(certificate *x509.Certificate, ctype certType) X509Lint {
 	x509LintLock.Lock()
 	defer x509LintLock.Unlock()
 	go_x509lint.Init()
@@ -70,7 +66,7 @@ func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
 	got := go_x509lint.Check(certificate.Raw, int(ctype))
 	result := NewX509Lint()
 	parseOutput([]byte(got), &result)
-	return result, nil
+	return result
 }
 
 func NewX509Lint() X509Lint {
