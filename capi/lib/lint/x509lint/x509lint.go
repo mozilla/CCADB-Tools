@@ -67,7 +67,6 @@ func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
 	defer x509LintLock.Unlock()
 	go_x509lint.Init()
 	defer go_x509lint.Finish()
-	go_x509lint.Init()
 	got := go_x509lint.Check(certificate.Raw, int(ctype))
 	result := NewX509Lint()
 	parseOutput([]byte(got), &result)
