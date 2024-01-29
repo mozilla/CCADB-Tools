@@ -7,14 +7,9 @@ FROM golang:latest AS buildStage
 WORKDIR /opt
 COPY . .
 RUN apt update
-RUN apt install -y libnss3-tools libssl-dev ruby-dev
+RUN apt install -y libnss3-tools libssl-dev ruby-dev zlib1g-dev
+RUN ln -s /usr/lib/x86_64-linux-gnu/libcrypto.a /usr/lib64/libcrypto.a
 RUN go build capi.go
-
-RUN cd x509lint && \
-    make
-#RUN git clone https://github.com/kroeckx/x509lint.git && \
-#    cd x509lint && \
-#    make
 
 FROM debian:latest
 
@@ -32,7 +27,6 @@ RUN apt purge -y gcc g++ git libffi-dev make ruby-dev ruby-sdoc
 COPY --from=buildStage /opt/ /tmp/
 RUN mv /tmp/capi /opt/
 RUN mv /tmp/certlint /opt/
-RUN mv /tmp/x509lint/x509lint /usr/local/bin/
 RUN rm -rf /tmp/*
 
 CMD ["/opt/capi"]

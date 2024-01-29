@@ -5,15 +5,12 @@
 package x509lint
 
 import (
-	"bytes"
 	"crypto/x509"
-	"encoding/pem"
-	"fmt"
-	"io/ioutil"
+	go_x509lint "github.com/crtsh/go-x509lint"
 	"log"
-	"os"
-	"os/exec"
 	"reflect"
+	"strings"
+	"sync"
 )
 
 type X509Lint struct {
@@ -49,58 +46,25 @@ func LintChain(certificates []*x509.Certificate) ([]X509Lint, error) {
 		default:
 			ct = intermediate
 		}
-		l, err := Lint(cert, ct)
-		if err != nil {
-			return results, err
-		}
-		results[i] = l
+		results[i] = Lint(cert, ct)
 	}
 	return results, nil
 }
 
-func Lint(certificate *x509.Certificate, ctype certType) (X509Lint, error) {
-	result := NewX509Lint()
-	f, err := ioutil.TempFile("", "x509lint")
-	if err != nil {
-		return result, err
-	}
-	defer func() {
-		if err := os.Remove(f.Name()); err != nil {
-			log.Println(err)
-		}
-	}()
-	err = pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-	if err != nil {
-		return result, err
-	}
-	err = f.Close()
-	if err != nil {
-		return result, err
-	}
-	cmd := exec.Command("x509lint", f.Name(), certTypeToStr[ctype])
-	stdout := bytes.NewBuffer([]byte{})
-	stderr := bytes.NewBuffer([]byte{})
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	cmderr := cmd.Run()
-	output, err := ioutil.ReadAll(stdout)
-	if err != nil {
-		return result, err
-	}
-	errors, err := ioutil.ReadAll(stderr)
-	if err != nil {
-		return result, err
-	}
-	if cmderr != nil {
-		errStr := fmt.Sprintf("%s, stderr: %s, stdout: %s, cmd: %s %s %s", cmderr, string(errors), string(output), "x509lint", f.Name(), certTypeToStr[ctype])
-		result.CmdError = &errStr
-		// This has the slight distinction of being an error
-		// from x509lint itself rather than from, say,
-		// the filesystem or shell failing.
-		return result, nil
-	}
-	parseOutput(output, &result)
-	return result, nil
+// go_x509lint.Init() and go_x509lint.Finish() both mutate global state.
+//
+// Concurrent read/writes MAY be safe for some roundabout reason that I cannot see,
+// but given that there are no docs on the matter it seems prudent to simply
+// lock the library for a given certificate check.
+var x509LintLock = sync.Mutex{}
+
+func Lint(certificate *x509.Certificate, ctype certType) X509Lint {
+	x509LintLock.Lock()
+	defer x509LintLock.Unlock()
+	go_x509lint.Init()
+	defer go_x509lint.Finish()
+	got := go_x509lint.Check(certificate.Raw, int(ctype))
+	return parseOutput(got)
 }
 
 func NewX509Lint() X509Lint {
@@ -108,24 +72,28 @@ func NewX509Lint() X509Lint {
 		Errors:   make([]string, 0),
 		Warnings: make([]string, 0),
 		Info:     make([]string, 0),
-		CmdError: nil,
 	}
 }
 
-func parseOutput(output []byte, result *X509Lint) {
-	for _, line := range bytes.Split(output, []byte{'\n'}) {
-		if bytes.HasPrefix(line, []byte("E: ")) {
-			if bytes.Contains(line, []byte("Fails decoding the characterset")) {
+func parseOutput(output string) X509Lint {
+	result := NewX509Lint()
+	for _, line := range strings.Split(output, "\n") {
+		if len(line) == 0 {
+			continue
+		}
+		if strings.HasPrefix(line, "E: ") {
+			if strings.Contains(line, "Fails decoding the characterset") {
 				// @TODO We currently have no notion as why this happens, so we are ignoring it for now.
 				continue
 			}
-			result.Errors = append(result.Errors, string(line[3:]))
-		} else if bytes.HasPrefix(line, []byte("W: ")) {
-			result.Warnings = append(result.Warnings, string(line[3:]))
-		} else if bytes.HasPrefix(line, []byte("I: ")) {
-			result.Info = append(result.Info, string(line[3:]))
+			result.Errors = append(result.Errors, line[3:])
+		} else if strings.HasPrefix(line, "W: ") {
+			result.Warnings = append(result.Warnings, line[3:])
+		} else if strings.HasPrefix(line, "I: ") {
+			result.Info = append(result.Info, line[3:])
 		} else {
-			log.Printf(`unexpected x509Lint output: "{}"`, string(output))
+			log.Printf(`unexpected x509Lint output: "%s"`, line)
 		}
 	}
+	return result
 }
