@@ -7,7 +7,7 @@ package x509lint
 import (
 	"crypto/x509"
 	go_x509lint "github.com/crtsh/go-x509lint"
-	"log"
+//	"log"
 	"reflect"
 	"strings"
 	"sync"
@@ -92,7 +92,7 @@ func parseOutput(output string) X509Lint {
 		} else if strings.HasPrefix(line, "I: ") {
 			result.Info = append(result.Info, line[3:])
 		} else {
-			log.Printf(`unexpected x509Lint output: "%s"`, line)
+//			log.Printf(`unexpected x509Lint output: "%s"`, line)
 		}
 	}
 	return result
