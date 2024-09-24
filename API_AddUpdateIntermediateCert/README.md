@@ -184,7 +184,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
      String SalesforceRecordId;              # 18 digit Salesforce record id is required when callout is made for update; Salesforce id is returned upon successful add request
      String CAOwner;                         # required field; add/update actions allowed only on CAs own hierarchy
      String SubordinateCAOwner;             
-     String IntermediateCertificateName;            # the value should be Subject CN of the cert for add/update callouts; it is also being used for tracking API calls and reporting; not used for any validations
+     String IntermediateCertificateName;     # the value should be Subject CN of the cert for add/update callouts; it is also being used for tracking API calls and reporting; not used for any validations
      String IntermediateCertPEM;             # required field; pass PEM string with no carriage return/linefeed; field is populated only during record creation, updates cannot be done via this API (can be done directly in CCADB)
      String ParentCertPEM;                   # required field; pass PEM string with no carriage return/linefeed; field is populated only during record creation, updates cannot be done via this API (can be done directly in CCADB)
      Boolean ConsentforTechnicallyConstrainedCert   # set the field to True when the cert is technically constrained 
@@ -206,6 +206,15 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
                                              # use [""] if not yet issuing; 
                                              # when value is [] the field is reset to empty; 
                                              # field has 20,000 characters limit
+    String CABForumCertificatePolicyIdentifier;   # can be null or value or one of the values available in the CCADB
+    String DVACMEEndpoints;                       # can be null or a link                         
+    String OVACMEEndpoints;                       # can be null or a link 
+    String EVACMEEndpoints;                       # can be null or a link 
+    String IVACMEEndpoints;                       # can be null or a link 
+    String OtherDVAutomatedSolutionDescription;   # can be null or a link 
+    String OtherOVAutomatedSolutionDescription;   # can be null or a link 
+    String OtherEVAutomatedSolutionDescription;   # can be null or a link 
+    String OtherIVAutomatedSolutionDescription;   # can be null or a link 
 }
  Class AuditorInformation {
     String Auditor;                          # can be null or the name of an Auditor in the CCADB list of all auditors
@@ -213,39 +222,47 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
  } 
  Class AuditInformation {
     Boolean AuditSameAsParent;               # can be null or set to True if the new cert will be in the parent cert's annual audit statements   
+    
     String StandardAudit;                    # valid https url 
-    String StandardAuditType;                # when StandardAudit is provided, tyep must be one of the Audit Types available in the CCADB
+    String StandardAuditType;                # when StandardAudit is provided, type must be one of the Audit Types available in the CCADB
     String StandardAuditStatementDate;       # when StandardAudit is provided, date must be in format yyyy-MM-dd
     String StandardAuditPeriodStartDate;     # when StandardAudit is provided, date must be in format yyyy-MM-dd
     String StandardAuditPeriodEndDate;       # when StandardAudit is provided, date must be in format yyyy-MM-dd;
                                                  End Date cannot be > Statement Date; End Date should be > or = to Period Start Date
+
+    String NetSecAudit;                      # valid https url 
+    String NetSecAuditType;                  # when NetSecAudit is provided, type must be one of the Audit Types available in the CCADB
+    String NetSecAuditStatementDate;         # when NetSecAudit is provided, date must be in format yyyy-MM-dd
+    String NetSecAuditPeriodStartDate;       # when NetSecAudit is provided, date must be in format yyyy-MM-dd
+    String NetSecAuditPeriodEndDate;         # when NetSecAudit is provided, date must be in format yyyy-MM-dd; 
+                                                 End Date cannot be > Statement Date; End Date should be > or = to Period Start Date
                                                     
+    String TLSBRAudit;                       # valid https url 
+    String TLSBRAuditType;                   # when TLSBRAudit is provided, type must be one of the Audit Types available in the CCADB
+    String TLSBRAuditStatementDate;          # when TLSBRAudit is provided, date must be in format yyyy-MM-dd
+    String TLSBRAuditPeriodStartDate;        # when TLSBRAudit is provided, date must be in format yyyy-MM-dd
+    String TLSBRAuditPeriodEndDate;          # when TLSBRAudit is provided, date must be in format yyyy-MM-dd; 
+                                                 End Date cannot be > Statement Date; End Date should be > or = to Period Start Date
+    
+    String TLSEVGAudit;                      # valid https url 
+    String TLSEVGAuditType;                  # when TLSEVGAudit is provided, type must be one of the Audit Types available in the CCADB
+    String TLSEVGAuditStatementDate;         # when TLSEVGAudit is provided, date must be in format yyyy-MM-dd
+    String TLSEVGAuditPeriodStartDate;       # when TLSEVGAudit is provided, date must be in format yyyy-MM-dd
+    String TLSEVGAuditPeriodEndDate;         # when TLSEVGAudit is provided, date must be in format yyyy-MM-dd; 
+                                                 End Date cannot be > Statement Date; End Date should be > or = to Period Start Date
+
     String CodeSigningAudit;                 # valid https url 
     String CodeSigningAuditType;             # when CodeSigningAudit is provided, type must be one of the Audit Types available in the CCADB
     String CodeSigningAuditStatementDate;    # when CodeSigningAudit is provided, date must be in format yyyy-MM-dd
     String CodeSigningAuditPeriodStartDate;  # when CodeSigningAudit is provided, date must be in format yyyy-MM-dd
     String CodeSigningAuditPeriodEndDate;    # when CodeSigningAudit is provided, date must be in format yyyy-MM-dd; 
-                                                 End Date cannot be > Statement Date; End Date should be > or = to Period Start Date,
-
-    String BRAudit;                          # valid https url 
-    String BRAuditType;                      # when BRAudit is provided, type must be one of the Audit Types available in the CCADB
-    String BRAuditStatementDate;             # when BRAudit is provided, date must be in format yyyy-MM-dd
-    String BRAuditPeriodStartDate;           # when BRAudit is provided, date must be in format yyyy-MM-dd
-    String BRAuditPeriodEndDate;             # when BRAudit is provided, date must be in format yyyy-MM-dd; 
-                                                 End Date cannot be > Statement Date; End Date should be > or = to Period Start Date,
-    
-    String EVSSLAudit;                       # valid https url 
-    String EVSSLAuditType;                   # when EVSSLAudit is provided, type must be one of the Audit Types available in the CCADB
-    String EVSSLAuditStatementDate;          # when EVSSLAudit is provided, date must be in format yyyy-MM-dd
-    String EVSSLAuditPeriodStartDate;        # when EVSSLAudit is provided, date must be in format yyyy-MM-dd
-    String EVSSLAuditPeriodEndDate;          # when EVSSLAudit is provided, date must be in format yyyy-MM-dd; 
                                                  End Date cannot be > Statement Date; End Date should be > or = to Period Start Date
                                                     
-    String EVCodeSigningAudit;               # valid https url 
-    String EVCodeSigningAuditType;           # when EVCodeSigningAudit is provided, type must be one of the Audit Types available in the CCADB
-    String EVCodeSigningAuditStatementDate;  # when EVCodeSigningAudit is provided, date must be in format yyyy-MM-dd
-    String EVCodeSigningAuditPeriodStartDate;# when EVCodeSigningAudit is provided, date must be in format yyyy-MM-dd
-    String EVCodeSigningAuditPeriodEndDate;  # when EVCodeSigningAudit is provided, date must be in format yyyy-MM-dd; 
+    String SMIMEAudit;                       # valid https url 
+    String SMIMEAuditType;                   # when SMIMEAudit is provided, type must be one of the Audit Types available in the CCADB
+    String SMIMEAuditStatementDate;          # when SMIMEAudit is provided, date must be in format yyyy-MM-dd
+    String SMIMEAuditPeriodStartDate;        # when SMIMEAudit is provided, date must be in format yyyy-MM-dd
+    String SMIMEAuditPeriodEndDate;          # when SMIMEAudit is provided, date must be in format yyyy-MM-dd; 
                                                  End Date cannot be > Statement Date; End Date should be > or = to Period Start Date
                                                  
     String VMCAudit;                         # valid https url
@@ -257,13 +274,27 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
 
  }
  
- Class PolicyInformation {
-    Boolean CPCPSSameAsParent                # can be null or set to True if the new cert will be in the parent cert's CP/CPS info
+ Class NonAuditDocumentationInformation {
+
     String PolicyDocumentation;
     String DocumentRepository;
-    String CertificatePolicy;
-    String CertificationPracticeStatement;
+
+    Boolean CPSameAsParent                   # can be null or set to True if the new cert will be in the parent cert's CP info
+    String CertificatePolicy;                # document link must be provided along with the date 
+    String CPLastUpdatedDate;                # when provided, date must be in format yyyy-MM-dd
+
+    Boolean CPSSameAsParent                  # can be null or set to True if the new cert will be in the parent cert's CPS info
+    String CertificationPracticeStatement;   # document link must be provided along with the date
+    String CPSLastUpdatedDate;               # when provided, date must be in format yyyy-MM-d
+
+    Boolean CPCPSSameAsParent                # can be null or set to True if the new cert will be in the parent cert's CP/CPS info
+    String CertificatePracticeAndPolicyStatement;    # document link must be provided along with the date
     String CPCPSLastUpdatedDate;             # when provided, date must be in format yyyy-MM-dd
+
+    Boolean SelfAssessmentSameAsParent       # can be null or set to True if the new cert will be in the parent cert's Self-Assessment info
+    String SelfAssessment;                   # document link must be provided along with the date
+    String SelfAssessmentCompletionDate;     # when provided, date must be in format yyyy-MM-dd
+    
  }
 
   String Description;
@@ -311,51 +342,73 @@ Request Body:
            "[http://cdn.example/crl-1.crl](http://cdn.example/crl-1.crl)",  
            "[http://cdn.example/crl-2.crl](http://cdn.example/crl-2.crl)"  
            ]        
-  },
+       "CABForumCertificatePolicyIdentifier": "",
+       "DVACMEEndpoints": "",
+       "OVACMEEndpoints": "",
+       "EVACMEEndpoints": "",
+       "IVACMEEndpoints": "",
+       "OtherDVAutomatedSolutionDescription": "",
+       "OtherOVAutomatedSolutionDescription": "",
+       "OtherEVAutomatedSolutionDescription": "",
+       "OtherIVAutomatedSolutionDescription": ""        
+    },
     "AuditorInformation": {
         "Auditor": "Auditor Name",
         "AuditorLocation": "United States"
     },
     "AuditInformation": {
         "AuditSameAsParent": false,
-        "StandardAudit": "http://URL/StandardAudit04FINAL.PDF",
+        "StandardAudit": "http://URL/StandardAuditFile.PDF",
         "StandardAuditType": "ETSI EN 319 411",
         "StandardAuditStatementDate": "2018-10-10",
         "StandardAuditPeriodStartDate": "2018-10-10",
         "StandardAuditPeriodEndDate": "2018-10-10",
+        "NetSecAudit": "",
+        "NetSecAuditType": "",
+        "NetSecAuditStatementDate": "",
+        "NetSecAuditPeriodStartDate": "",
+        "NetSecAuditPeriodEndDate": "",
+        "TLSBRAudit": "",
+        "TLSBRAuditType": "",
+        "TLSBRAuditStatementDate": "",
+        "TLSBRAuditPeriodStartDate": "",
+        "TLSBRAuditPeriodEndDate": "",
+        "TLSEVGAudit": "",
+        "TLSEVGAuditType": "",
+        "TLSEVGAuditStatementDate": "",
+        "TLSEVGAuditPeriodStartDate": "",
+        "TLSEVGAuditPeriodEndDate": "",
         "CodeSigningAudit": "",
         "CodeSigningAuditType": "",
         "CodeSigningAuditStatementDate": "",
         "CodeSigningAuditPeriodStartDate": "",
         "CodeSigningAuditPeriodEndDate": "",
-        "BRAudit": "",
-        "BRAuditType": "",
-        "BRAuditStatementDate": "",
-        "BRAuditPeriodStartDate": "",
-        "BRAuditPeriodEndDate": "",
-        "EVSSLAudit": "",
-        "EVSSLAuditType": "",
-        "EVSSLAuditStatementDate": "",
-        "EVSSLAuditPeriodStartDate": "",
-        "EVSSLAuditPeriodEndDate": "",
-        "EVCodeSigningAudit": "",
-        "EVCodeSigningAuditType": "",
-        "EVCodeSigningAuditStatementDate": "",
-        "EVCodeSigningAuditPeriodStartDate": "",
-        "EVCodeSigningAuditPeriodEndDate": "",
+        "SMIMEAudit": "",
+        "SMIMEAuditType": "",
+        "SMIMEAuditStatementDate": "",
+        "SMIMEAuditPeriodStartDate": "",
+        "SMIMEAuditPeriodEndDate": "",
         "VMCAudit": "",
         "VMCAuditType": "",
         "VMCAuditStatementDate": "",
         "VMCAuditPeriodStartDate": "",
         "VMCAuditPeriodEndDate": ""
     },
-    "PolicyInformation": {
-        "CPCPSSameAsParent": false,
-        "PolicyDocumentation": "",
-        "DocumentRepositatory": "https://URL/repository/CA#CPS",
+    "NonAuditDocumentationInformation" {
+        "PolicyDocumentation": false,
+        "DocumentRepository": "",
+        "CPSameAsParent": "",
         "CertificatePolicy": "",
-        "CertificationPracticeStatement": "https://URL/cps.pdf",
-        "CPCPSLastUpdatedDate": "2019-02-01"
+        "CPLastUpdatedDate": "",      
+        "CPSSameAsParent": "",                
+        "CertificationPracticeStatement": "",
+        "CPSLastUpdatedDate": "",               
+        "CPCPSSameAsParent": "",              
+        "CertificatePracticeAndPolicyStatement": "",
+        "CPCPSLastUpdatedDate": "",            
+        "SelfAssessmentSameAsParent": "",      
+        "SelfAssessment": "",
+        "SelfAssessmentCompletionDate": ""   
     },
     "Description": "",
     "PublicComments": ""
@@ -395,7 +448,7 @@ Failed Response Body (If the upload request failed you will receive a HTTP Statu
     "AuditInformation": {
         "AuditSameAsParent": true
     },
-    "PolicyInformation": {
+    "NonAuditDocumentationInformation": {
         "CPCPSSameAsParent": true
     },
     "Description": "This is the description",
