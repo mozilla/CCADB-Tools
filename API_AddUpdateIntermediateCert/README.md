@@ -274,7 +274,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
 
  }
  
- Class NonAuditDocumentationInformation {
+ Class NonAuditDocumentInformation {
 
     String PolicyDocumentation;
     String DocumentRepository;
