@@ -394,7 +394,7 @@ Request Body:
         "VMCAuditPeriodStartDate": "",
         "VMCAuditPeriodEndDate": ""
     },
-    "NonAuditDocumentationInformation" {
+    "NonAuditDocumentInformation" {
         "PolicyDocumentation": false,
         "DocumentRepository": "",
         "CPSameAsParent": "",
@@ -448,7 +448,7 @@ Failed Response Body (If the upload request failed you will receive a HTTP Statu
     "AuditInformation": {
         "AuditSameAsParent": true
     },
-    "NonAuditDocumentationInformation": {
+    "NonAuditDocumentInformation": {
         "CPCPSSameAsParent": true
     },
     "Description": "This is the description",
