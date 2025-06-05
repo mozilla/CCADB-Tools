@@ -140,13 +140,11 @@ func ValidateRevocationReason(cert pkix.RevokedCertificate, ourReason Revocation
 }
 
 func asn1ToRevocationReason(data []byte) RevocationReason {
-	// An ASN1 Enumerated has a minimum of three bytes.
-	//
-	//	0. The number 10, signifying that it is an enum.
-	//	1. The number of bytes that follow (n).
-	//	2-n. The enumeration value.
-	//
-	// A revocation reason code has only ten values
-	// so we only  need the second index.
-	return RevocationReason(int(data[2]))
+	var val int
+	_, err := asn1.Unmarshal(data, &val)
+	if err != nil {
+		// Optional: log or return more specific info
+		return NOT_GIVEN
+	}
+	return RevocationReason(val)
 }
