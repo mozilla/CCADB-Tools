@@ -141,24 +141,12 @@ func ValidateRevocationReason(cert pkix.RevokedCertificate, ourReason Revocation
 }
 
 func asn1ToRevocationReason(data []byte) RevocationReason {
-	var raw asn1.RawValue
-	_, err := asn1.Unmarshal(data, &raw)
+	reasonCode := asn1.Enumerated(0)
+	_, err := asn1.Unmarshal(data, &reasonCode)
 	if err != nil {
-		fmt.Println("Unmarshal to RawValue failed:", err)
+		fmt.Println("Unmarshal to asn1.Enumerated failed:", err)
 		return NOT_GIVEN
 	}
-
-	if raw.Tag != asn1.TagEnum {
-		fmt.Printf("Expected ENUMERATED tag (10), got tag: %d\n", raw.Tag)
-		return NOT_GIVEN
-	}
-	if len(raw.Bytes) == 0 {
-		fmt.Println("No bytes found in ASN.1 ENUMERATED value.")
-		return NOT_GIVEN
-	}
-
-	val := int(raw.Bytes[0])
-	fmt.Printf("Extracted ENUMERATED value: %d\n", val)
-	return RevocationReason(val)
+	return RevocationReason(reasonCode)
 }
 
