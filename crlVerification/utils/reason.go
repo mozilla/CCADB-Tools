@@ -40,6 +40,7 @@ const (
 	SUPERSEDED
 	CESSATION_OF_OPERATION
 	CERTIFICATE_HOLD
+	UNUSED
 	REMOVE_FROM_CRL
 	PRIVILEGE_WITHDRAWN
 	AA_COMPROMISE
@@ -140,13 +141,12 @@ func ValidateRevocationReason(cert pkix.RevokedCertificate, ourReason Revocation
 }
 
 func asn1ToRevocationReason(data []byte) RevocationReason {
-	// An ASN1 Enumerated has a minimum of three bytes.
-	//
-	//	0. The number 10, signifying that it is an enum.
-	//	1. The number of bytes that follow (n).
-	//	2-n. The enumeration value.
-	//
-	// A revocation reason code has only ten values
-	// so we only  need the second index.
-	return RevocationReason(int(data[2]))
+	reasonCode := asn1.Enumerated(0)
+	_, err := asn1.Unmarshal(data, &reasonCode)
+	if err != nil {
+		fmt.Println("Unmarshal to asn1.Enumerated failed:", err)
+		return NOT_GIVEN
+	}
+	return RevocationReason(reasonCode)
 }
+
