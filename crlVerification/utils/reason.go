@@ -40,6 +40,7 @@ const (
 	SUPERSEDED
 	CESSATION_OF_OPERATION
 	CERTIFICATE_HOLD
+	UNUSED
 	REMOVE_FROM_CRL
 	PRIVILEGE_WITHDRAWN
 	AA_COMPROMISE
@@ -140,11 +141,24 @@ func ValidateRevocationReason(cert pkix.RevokedCertificate, ourReason Revocation
 }
 
 func asn1ToRevocationReason(data []byte) RevocationReason {
-	var val int
-	_, err := asn1.Unmarshal(data, &val)
+	var raw asn1.RawValue
+	_, err := asn1.Unmarshal(data, &raw)
 	if err != nil {
-		// Optional: log or return more specific info
+		fmt.Println("Unmarshal to RawValue failed:", err)
 		return NOT_GIVEN
 	}
+
+	if raw.Tag != asn1.TagEnum {
+		fmt.Printf("Expected ENUMERATED tag (10), got tag: %d\n", raw.Tag)
+		return NOT_GIVEN
+	}
+	if len(raw.Bytes) == 0 {
+		fmt.Println("No bytes found in ASN.1 ENUMERATED value.")
+		return NOT_GIVEN
+	}
+
+	val := int(raw.Bytes[0])
+	fmt.Printf("Extracted ENUMERATED value: %d\n", val)
 	return RevocationReason(val)
 }
+
