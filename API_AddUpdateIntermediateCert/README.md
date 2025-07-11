@@ -214,7 +214,11 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
     String OtherDVAutomatedSolutionDescription;   # can be null or a link 
     String OtherOVAutomatedSolutionDescription;   # can be null or a link 
     String OtherEVAutomatedSolutionDescription;   # can be null or a link 
-    String OtherIVAutomatedSolutionDescription;   # can be null or a link 
+    String OtherIVAutomatedSolutionDescription;   # can be null or a link
+    String DVAutomatedTestCertificateWebsite;     # can be null or a link
+    String OVAutomatedTestCertificateWebsite;     # can be null or a link
+    String EVAutomatedTestCertificateWebsite;     # can be null or a link
+    String IVAutomatedTestCertificateWebsite;     # can be null or a link 
 }
  Class AuditorInformation {
     String Auditor;                          # can be null or the name of an Auditor in the CCADB list of all auditors
@@ -350,7 +354,11 @@ Request Body:
        "OtherDVAutomatedSolutionDescription": "",
        "OtherOVAutomatedSolutionDescription": "",
        "OtherEVAutomatedSolutionDescription": "",
-       "OtherIVAutomatedSolutionDescription": ""        
+       "OtherIVAutomatedSolutionDescription": "",
+       "DVAutomatedTestCertificateWebsite": "",
+       "OVAutomatedTestCertificateWebsite": "",
+       "EVAutomatedTestCertificateWebsite": "",
+       "IVAutomatedTestCertificateWebsite": ""      
     },
     "AuditorInformation": {
         "Auditor": "Auditor Name",
@@ -394,19 +402,19 @@ Request Body:
         "VMCAuditPeriodStartDate": "",
         "VMCAuditPeriodEndDate": ""
     },
-    "NonAuditDocumentInformation" {
+    "NonAuditDocumentInformation": {
         "PolicyDocumentation": false,
         "DocumentRepository": "",
-        "CPSameAsParent": "",
+        "CPSameAsParent": false,
         "CertificatePolicy": "",
         "CPLastUpdatedDate": "",      
-        "CPSSameAsParent": "",                
+        "CPSSameAsParent": false,                
         "CertificationPracticeStatement": "",
         "CPSLastUpdatedDate": "",               
-        "CPCPSSameAsParent": "",              
+        "CPCPSSameAsParent": false,              
         "CertificatePracticeAndPolicyStatement": "",
         "CPCPSLastUpdatedDate": "",            
-        "SelfAssessmentSameAsParent": "",      
+        "SelfAssessmentSameAsParent": false,      
         "SelfAssessment": "",
         "SelfAssessmentCompletionDate": ""   
     },
