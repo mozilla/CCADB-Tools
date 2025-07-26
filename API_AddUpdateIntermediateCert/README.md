@@ -289,11 +289,15 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
 
     Boolean CPSSameAsParent                  # can be null or set to True if the new cert will be in the parent cert's CPS info
     String CertificationPracticeStatement;   # document link must be provided along with the date
-    String CPSLastUpdatedDate;               # when provided, date must be in format yyyy-MM-d
+    String CPSLastUpdatedDate;               # when provided, date must be in format yyyy-MM-dd
 
     Boolean CPCPSSameAsParent                # can be null or set to True if the new cert will be in the parent cert's CP/CPS info
     String CertificatePracticeAndPolicyStatement;    # document link must be provided along with the date
     String CPCPSLastUpdatedDate;             # when provided, date must be in format yyyy-MM-dd
+
+    Boolean MarkdownOrAsciiDocCPCPSSameAsParent    # can be null or set to True if the new cert will be in the parent cert's Markdown info
+    String MarkdownOrAsciiDocCPCPS;                # document link must be provided along with the date
+    String MarkdownOrAsciiDocCPCPSLastUpdatedDate; # when provided, date must be in format yyyy-MM-dd
 
     Boolean SelfAssessmentSameAsParent       # can be null or set to True if the new cert will be in the parent cert's Self-Assessment info
     String SelfAssessment;                   # document link must be provided along with the date
@@ -413,7 +417,10 @@ Request Body:
         "CPSLastUpdatedDate": "",               
         "CPCPSSameAsParent": false,              
         "CertificatePracticeAndPolicyStatement": "",
-        "CPCPSLastUpdatedDate": "",            
+        "CPCPSLastUpdatedDate": "",  
+        "MarkdownOrAsciiDocCPCPSSameAsParent": false,              
+        "MarkdownOrAsciiDocCPCPS": "",
+        "MarkdownOrAsciiDocCPCPSLastUpdatedDate": "",            
         "SelfAssessmentSameAsParent": false,      
         "SelfAssessment": "",
         "SelfAssessmentCompletionDate": ""   
