@@ -101,16 +101,16 @@ func deser(src []byte) ([]*EVInfo, error) {
 			}
 			kEVinfos = append(kEVinfos, evinfo)
   // After a struct '}', accept either ',' (more) or '}' (end-of-array)
-+      if b, err = consumeWhiteSpace(r); err != nil {
-+        return kEVinfos, err
-+      }
-+      if b == ',' {
-+        continue
-+      }
-+      if b == '}' {
-+        return kEVinfos, nil
-+      }
-+      return kEVinfos, errors.New(fmt.Sprintf(`received an unexpected character after EVInfo, got "%s"`, string(b)))
+      if b, err = consumeWhiteSpace(r); err != nil {
+        return kEVinfos, err
+      }
+      if b == ',' {
+        continue
+      }
+      if b == '}' {
+        return kEVinfos, nil
+      }
+      return kEVinfos, errors.New(fmt.Sprintf(`received an unexpected character after EVInfo, got "%s"`, string(b)))
 			case '}':
 			// The end of the kEVinfo array
 			return kEVinfos, nil
@@ -270,7 +270,7 @@ func consumeWhiteSpace(r io.RuneReader) (rune, error) {
 	var err error
 	for b, _, err = r.ReadRune(); err == nil; b, _, err = r.ReadRune() {
 		switch b {
-		case ' ', '\n', '\t', '\r':
+		case ' ', '\n':
 		default:
 			return b, err
 		}
