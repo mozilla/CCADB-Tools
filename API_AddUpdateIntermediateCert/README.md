@@ -2,16 +2,16 @@
 
 CCADB APIs have been developed to enable Certificate Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
 
-API requests are limited (e.g. to 240 requests per minute), and the requests get throttled when the limit is exceeded. We recommend that you put a small (e.g. 1 to 2 second) delay between each API request.
-* 500 error probably means the request timed out, most likely due to throttling
-* 429 error probably means too many requests made per minute, or a user made the same API call request more than once within a minute
+API requests have limitations, and they may be throttled if the limit is exceeded. In the CCADB database, each API request is scheduled as an asynchronous process. Salesforce has a limit of 100 asynchronous processes at any given time. If this limit is exceeded, an error is returned. We recommend adding a delay (e.g., 5 seconds or more) between each API request to avoid hitting this limit.
+* 500 error means the request timed out, most likely due to throttling
+* 429 error means too many requests made per minute, or a user made the same API call request more than once within a minute
 
 The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. 
 
-1. **GetCertificateIdAPI** https:/[HOST_URL]/services/apexrest/get/recordid
+1. **GetCertificateIdAPI** [HOST_URL]/services/apexrest/get/recordid
 	Returns the root or intermediate certificate record Id (Salesforce Id) in the CCADB.
 	
-2. **AddUpdateIntermediateCertAPI** https:/[HOST_URL]/services/apexrest/create/intermediatecert
+2. **AddUpdateIntermediateCertAPI** [HOST_URL]/services/apexrest/create/intermediatecert
 	Add or update an intermediate certificate record in the CCADB.
  
 ## Example
@@ -32,13 +32,13 @@ Upon receipt of the API details (HOST_URL, CONSUMER_KEY, CONSUMER_SECRET, etc.) 
 
 1. Login to CCADB using the CA Community User credentials
 2. Replace the parameters in the link below and paste it in the address bar of your browser
-	https://[HOST_URL]/services/oauth2/authorize?client_id=[CONSUMER_KEY]&redirect_uri=https://[HOST_URL]/&response_type=code
+	[HOST_URL]/services/oauth2/authorize?client_id=[CONSUMER_KEY]&redirect_uri=[REDIRECT_URI]/&response_type=code
 3. An approval page will be displayed to grant access to the app. Click on the 'Allow' button to approve 
 4. Salesforce will redirect to the callback url (specified in 'redirect_uri'). Quickly freeze the loading of the page and look in the browser address bar to extract the 'authorization code', save the code for the next steps. The link will look like the one below:
-https://[HOST_URL]/?code=a2KQxyzYaMm_hIxxxxxxxxxxbKd9zxxxxxtWyvLViTsgg%3D%3D&sfdc_community_url=https://[HOST_URL]&sfdc_community_id=0ABC000ABC0KzhXYZC
+[HOST_URL]/?code=a2KQxyzYaMm_hIxxxxxxxxxxbKd9zxxxxxtWyvLViTsgg%3D%3D&sfdc_community_url=[HOST_URL]&sfdc_community_id=0ABC000ABC0KzhXYZC
 5. To get refresh tokens use Postman or another tool that can make REST API calls. Set a single POST request and pass the parameters below:
 
-	POST request endpoint: [https://[HOST_URL]/services/oauth2/token
+	POST request endpoint: [HOST_URL]/services/oauth2/token
 
     |Key| Value |
     |--|--|
@@ -46,7 +46,7 @@ https://[HOST_URL]/?code=a2KQxyzYaMm_hIxxxxxxxxxxbKd9zxxxxxtWyvLViTsgg%3D%3D&sfd
     |client_secret|[CONSUMER_SECRET]|
     |grant_type|authorization_code|
     |code  | [AUTHORIZATION_CODE] |
-    |redirect_uri|https://[HOST_URL]/|
+    |redirect_uri|[REDIRECT_URI]|
 
      **Important**: *The AUTHORIZATION_CODE should only be used once or you will have to start the process over again in the browser.*
 
@@ -55,7 +55,7 @@ https://[HOST_URL]/?code=a2KQxyzYaMm_hIxxxxxxxxxxbKd9zxxxxxtWyvLViTsgg%3D%3D&sfd
     {
     "access_token": "Ml84H6WahE......5ce8S8i0g6B8EuakeIK",
     "refresh_token": "2x8rydH234.......AmED2LdYZj9YqsTl",
-    "sfdc_community_url": "https://[HOST_URL]",
+    "sfdc_community_url": "[HOST_URL]",
     "sfdc_community_id": "WK6234000ACDFaMXYZ",
     "signature": "l456fgWR3FOkQwp23456xVaVqRS",
     "scope": "visualforce refresh_token web api full",
@@ -67,7 +67,7 @@ https://[HOST_URL]/?code=a2KQxyzYaMm_hIxxxxxxxxxxbKd9zxxxxxtWyvLViTsgg%3D%3D&sfd
 
 6. Once you have the 'refresh token' it can be reused for subsequent API authentication requests. Whenever API operations are needed you will first need to send an authentication request to retrieve a temporary bearer token that will need to be included in every API request.
 
-    To authenticate and retrieve a new bearer token send a POST request to the same authentication endpoint  POST https://[HOST_URL]/services/oauth2/token with the following POST variables:
+    To authenticate and retrieve a new bearer token send a POST request to the same authentication endpoint  POST [HOST_URL]/services/oauth2/token with the following POST variables:
     
     |Key| Value |
     |--|--|
@@ -285,19 +285,19 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
 
     Boolean CPSameAsParent                   # can be null or set to True if the new cert will be in the parent cert's CP info
     String CertificatePolicy;                # document link must be provided along with the date 
-    String CPLastUpdatedDate;                # when provided, date must be in format yyyy-MM-dd
+    String CPEffectiveDate;                  # when provided, date must be in format yyyy-MM-dd
 
     Boolean CPSSameAsParent                  # can be null or set to True if the new cert will be in the parent cert's CPS info
     String CertificationPracticeStatement;   # document link must be provided along with the date
-    String CPSLastUpdatedDate;               # when provided, date must be in format yyyy-MM-dd
+    String CPSEffectiveDate;                 # when provided, date must be in format yyyy-MM-dd
 
     Boolean CPCPSSameAsParent                # can be null or set to True if the new cert will be in the parent cert's CP/CPS info
     String CertificatePracticeAndPolicyStatement;    # document link must be provided along with the date
-    String CPCPSLastUpdatedDate;             # when provided, date must be in format yyyy-MM-dd
+    String CPCPSEffectiveDate;               # when provided, date must be in format yyyy-MM-dd
 
     Boolean MarkdownOrAsciiDocCPCPSSameAsParent    # can be null or set to True if the new cert will be in the parent cert's Markdown info
     String MarkdownOrAsciiDocCPCPS;                # document link must be provided along with the date
-    String MarkdownOrAsciiDocCPCPSLastUpdatedDate; # when provided, date must be in format yyyy-MM-dd
+    String MarkdownOrAsciiDocCPCPSEffectiveDate;   # when provided, date must be in format yyyy-MM-dd
 
     Boolean SelfAssessmentSameAsParent       # can be null or set to True if the new cert will be in the parent cert's Self-Assessment info
     String SelfAssessment;                   # document link must be provided along with the date
@@ -370,7 +370,7 @@ Request Body:
     },
     "AuditInformation": {
         "AuditSameAsParent": false,
-        "StandardAudit": "http://URL/StandardAuditFile.PDF",
+        "StandardAudit": "http://domain/StandardAuditFile.PDF",
         "StandardAuditType": "ETSI EN 319 411",
         "StandardAuditStatementDate": "2018-10-10",
         "StandardAuditPeriodStartDate": "2018-10-10",
@@ -410,17 +410,17 @@ Request Body:
         "PolicyDocumentation": false,
         "DocumentRepository": "",
         "CPSameAsParent": false,
-        "CertificatePolicy": "",
-        "CPLastUpdatedDate": "",      
+        "CertificatePolicy": "https://domain/sampleCPfile.pdf",
+        "CPEffectiveDate": "2018-10-10",      
         "CPSSameAsParent": false,                
-        "CertificationPracticeStatement": "",
-        "CPSLastUpdatedDate": "",               
+        "CertificationPracticeStatement": "https://domain/sampleCPSfile.pdf",
+        "CPSEffectiveDate": "2018-10-11",               
         "CPCPSSameAsParent": false,              
         "CertificatePracticeAndPolicyStatement": "",
-        "CPCPSLastUpdatedDate": "",  
+        "CPCPSEffectiveDate": "",  
         "MarkdownOrAsciiDocCPCPSSameAsParent": false,              
         "MarkdownOrAsciiDocCPCPS": "",
-        "MarkdownOrAsciiDocCPCPSLastUpdatedDate": "",            
+        "MarkdownOrAsciiDocCPCPSEffectiveDate": "",            
         "SelfAssessmentSameAsParent": false,      
         "SelfAssessment": "",
         "SelfAssessmentCompletionDate": ""   
