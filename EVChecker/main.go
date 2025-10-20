@@ -23,9 +23,9 @@ import (
 	"strings"
 )
 
-const nightly = "https://hg.mozilla.org/mozilla-central/raw-file/tip/security/certverifier/ExtendedValidation.cpp"
-const beta = "https://hg.mozilla.org/releases/mozilla-beta/raw-file/tip/security/certverifier/ExtendedValidation.cpp"
-const release = "https://hg.mozilla.org/releases/mozilla-release/raw-file/tip/security/certverifier/ExtendedValidation.cpp"
+const nightly = "https://hg.mozilla.org/mozilla-unified/raw-file/central/security/certverifier/ExtendedValidation.cpp"
+const beta    = "https://hg.mozilla.org/mozilla-unified/raw-file/beta/security/certverifier/ExtendedValidation.cpp"
+const release = "https://hg.mozilla.org/mozilla-unified/raw-file/release/security/certverifier/ExtendedValidation.cpp"
 
 func get(url string) ([]byte, error) {
 	client := http.Client{}
@@ -100,7 +100,18 @@ func deser(src []byte) ([]*EVInfo, error) {
 				return kEVinfos, err
 			}
 			kEVinfos = append(kEVinfos, evinfo)
-		case '}':
+  // After a struct '}', accept either ',' (more) or '}' (end-of-array)
+      if b, err = consumeWhiteSpace(r); err != nil {
+        return kEVinfos, err
+      }
+      if b == ',' {
+        continue
+      }
+      if b == '}' {
+        return kEVinfos, nil
+      }
+      return kEVinfos, errors.New(fmt.Sprintf(`received an unexpected character after EVInfo, got "%s"`, string(b)))
+			case '}':
 			// The end of the kEVinfo array
 			return kEVinfos, nil
 		default:
@@ -147,15 +158,6 @@ func NewEVInfo(r io.RuneReader) (*EVInfo, error) {
 	}
 	if brace != '}' {
 		return nil, errors.New(fmt.Sprintf("expected a closing brace for an EVInfo boundary, but got %s", string(brace)))
-	}
-	comma, err := consumeWhiteSpace(r)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to consume the delimiting comma between EVInfos")
-	}
-	// consume up to the , that delimits struct literal fields.
-	// This does not in any way honor the final field omitting this comma.
-	if comma != ',' {
-		return nil, errors.New(fmt.Sprintf(`expected the character "," while decoding the delimiter for an EVInfo array, got "%s"`, string(comma)))
 	}
 	return &EVInfo{
 		DottedOID:         dottedOid,
