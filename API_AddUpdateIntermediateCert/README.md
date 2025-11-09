@@ -203,7 +203,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
     String FullCRLIssuedByThisCA;            # can be null or a link  
     List<string> JSONArrayofPartitionedCRLs  # Can be null or a JSON Array of strings; 
                                              # no action taken on this field when value is null; 
-                                             # use [""] if not yet issuing; 
+                                             # must use [""] if not yet issuing; 
                                              # when value is [] the field is reset to empty; 
                                              # field has 20,000 characters limit
     String CABForumCertificatePolicyIdentifier;   # can be null or value or one of the values available in the CCADB
