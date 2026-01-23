@@ -16,9 +16,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
-	ocsplib "golang.org/x/crypto/ocsp"
 )
 
 // RFC 6960
