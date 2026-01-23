@@ -9,8 +9,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"github.com/mozilla/CCADB-Tools/capi/lib/certificateUtils"
-	"golang.org/x/crypto/ocsp"
 	"io"
 	"net/http"
 	"testing"

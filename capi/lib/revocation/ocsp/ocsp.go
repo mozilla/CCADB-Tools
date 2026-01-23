@@ -9,8 +9,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
-	ocsplib "golang.org/x/crypto/ocsp"
 	"io"
 	"net/http"
 	"regexp"

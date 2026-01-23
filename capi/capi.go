@@ -485,7 +485,7 @@ func lintSubject(subject string) model.ChainLintResult {
 	} else {
 		chainWithoutRoot = chain
 	}
-	clint, err := certlint.LintCerts(chainWithoutRoot)
+	results, err := pkimetal.LintChain(chainWithoutRoot)
 	if err != nil {
 		result.Error = err.Error()
 		result.Opinion.Result = model.FAIL

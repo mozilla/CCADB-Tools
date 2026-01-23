@@ -68,8 +68,7 @@ type CertificateLintResult struct {
 
 func NewCertificateLintResult(original *x509.Certificate, results pkimetal.PKIMetal) CertificateLintResult {
 	return CertificateLintResult{
-		X509Lint: X509,
-		Certlint: clint,
+		PkiMetal: results,
 		CrtSh:    "https://crt.sh/?sha256=" + certificateUtils.FingerprintOf(original),
 	}
 }

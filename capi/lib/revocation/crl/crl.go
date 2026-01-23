@@ -7,7 +7,6 @@ package crl
 import (
 	"crypto/x509"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"math/big"
 	"net/http"
