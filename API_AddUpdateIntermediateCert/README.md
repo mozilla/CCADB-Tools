@@ -205,7 +205,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
                                              # no action taken on this field when value is null; 
                                              # must use [""] if not yet issuing; 
                                              # when value is [] the field is reset to empty; 
-                                             # field has 20,000 characters limit
+                                             # field has 100,000 characters limit
     String CABForumCertificatePolicyIdentifier;   # can be null or value or one of the values available in the CCADB
     String DVACMEEndpoints;                       # can be null or a link                         
     String OVACMEEndpoints;                       # can be null or a link 
