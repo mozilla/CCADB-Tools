@@ -2,7 +2,7 @@
 
 CCADB APIs have been developed to enable Certificate Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
 
-API requests have limitations, and they may be throttled if the limit is exceeded. In the CCADB database, each API request is scheduled as an asynchronous process. Salesforce has a limit of 100 asynchronous processes at any given time. If this limit is exceeded, an error is returned. We recommend adding a delay (e.g., 5 seconds or more) between each API request to avoid hitting this limit.
+API requests have limitations, and they may be throttled if the limit is exceeded. In the CCADB database, each API request is scheduled as an asynchronous process. Salesforce has a limit of 100 asynchronous processes at any given time. If this limit is exceeded, an error is returned. We recommend adding a delay (e.g., 5 seconds or more) between each API request to avoid hitting this limit. The Salesforce per-request transaction limit is 2 minutes. If a callout is not completed within this timeframe, a timeout error is returned.
 * 500 error means the request timed out, most likely due to throttling
 * 429 error means too many requests made per minute, or a user made the same API call request more than once within a minute
 
@@ -15,7 +15,7 @@ The REST API accepts JSON payloads and it is integrated via Salesforce Connected
 	Add or update an intermediate certificate record in the CCADB.
  
 ## Example
-Scripts have been provided at https://github.com/HARICA-official/ccadb-ca-tools to demonstrate how to use the API to update the "Full CRL Issued By This CA" field for intermediate certificate records.
+Scripts have been provided at https://github.com/HARICA-official/ccadb-ca-tools to demonstrate how to use the API. 
 
 ## API Authentication
 
@@ -200,12 +200,16 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
     String ProblemReportingMechanism;
  }
  Class PertainingToCertificatesIssued { 
-    String FullCRLIssuedByThisCA;            # can be null or a link  
-    List<string> JSONArrayofPartitionedCRLs  # Can be null or a JSON Array of strings; 
-                                             # no action taken on this field when value is null; 
-                                             # must use [""] if not yet issuing; 
-                                             # when value is [] the field is reset to empty; 
-                                             # field has 100,000 characters limit
+   
+    List<string> JSONArrayofAllFullCRLURLs        # only JSON array of URLs allowed;  
+                                                  # no action taken on this field when value is null; 
+                                                  # when value is [] the field is reset to empty; 
+                                                  # field has 100,000 characters limit        
+    List<string> JSONArrayofPartitionedCRLs       # only JSON array of URLs allowed;
+                                                  # must use [""] if not yet issuing; 
+                                                  # no action taken on this field when value is null; 
+                                                  # when value is [] the field is reset to empty; 
+                                                  # field has 100,000 characters limit
     String CABForumCertificatePolicyIdentifier;   # can be null or value or one of the values available in the CCADB
     String DVACMEEndpoints;                       # can be null or a link                         
     String OVACMEEndpoints;                       # can be null or a link 
@@ -344,7 +348,7 @@ Request Body:
         "ProblemReportingMechanism": ""
     },
    "PertainingToCertificatesIssued": {  
-      "FullCRLIssuedByThisCA": "" ,
+      "JSONArrayofAllFullCRLURLs": [] ,
       "JSONArrayofPartitionedCRLs":
            [  
            "[http://cdn.example/crl-1.crl](http://cdn.example/crl-1.crl)",  
