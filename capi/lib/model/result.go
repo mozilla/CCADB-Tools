@@ -83,7 +83,7 @@ func (o *Opinion) Append(other Opinion) {
 }
 
 type Concern struct {
-	Raw            string // The raw response from, say, the OCSP or certutil tools
+	Raw            string // The raw response from, say, the OCSP responder or chain verification
 	Interpretation string // What this tool thinks is wrong.
 	Advise         string // Any advise for troubleshooting
 }

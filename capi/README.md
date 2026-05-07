@@ -44,66 +44,50 @@ Given the input of a candidate root certificate and three test websites, the fol
     - 2.a: If the target website fails to provide _all_ intermediate certificates, then this test will be marked as a `FAIL` during certificate chain validation. For details, please see `Verification Rules`.
     - 2.b: If the target website does not provide a root certificate within its chain, then the `candidate root certificate` is installed to the chain as the root.
     - 2.c: If the target webiste *_does_* provide a root certificate within its chain, then that certificate is discarded and the `candidate root certificate` is installed to the chain as the root.
-##### 3. Installation into the NSS Database
-- This program relies upon the [NSS Tools](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/tools) collection of utilities to perform chain validation and expiration checking. In order to use these tools, this program requires the use of an NSS database.
-    - 3.a: In order to ensure sanity, each call to verify a single test website results in a private, completely empty, NSS database. That is, the only certificates present within the NSS database for a given test website are those constructed by step `2. Certificate Chain Construction`.
-    - 3.b: Installation is done via the NSS tool, [certutil](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/tools/NSS_Tools_certutil).
-    - 3.c: For every certificate within the chain constructed in `2. Certificate Chain Construction`, the following `cerutil` command is executed:
-        ```
-        If the certificate's issuer common name is equivalent to the certificate's subject common name (that is, the certificate is a trust anchor), then: 
-            certutil -A -t C -n <CERT FINGERPRINT> -d <DATABASE DIRECTORY>
-        else:
-            certutil -A -t ,, -n <CERT FINGERPRINT> -d <DATABASE DIRECTORY>
-        ```
-##### 4. Expiration and Chain Verification
-- Certificate expiration and chain verification is done via the NSS tool, `certutil`.
-    - 4.a: For every certificate within the chain constructed in `2. Certificate Chain Construction`, the following `cerutil` command is executed:
-        ```
-        If the certificate is a CA, then:
-            certutil -V -e -n <CERT FINGERPINT> -u L -d <DATABASE DIRECTORY>
-        else:
-            certutil -V -e -n <CERT FINGERPINT> -u V -d <DATABASE DIRECTORY>
-        ```
-    - 4.b: A certificate is identified as being a CA if its basic constraint of `cA` is set to true, as per [RFC 5280 4.2.1.9. Basic Constraints](https://tools.ietf.org/html/rfc5280#page-39).
-    - 4.c: If `certutil` outputs `certutil: certificate is valid`, then that certificate is noted as being valid. Whether or not this results in a FAIL depends on which test suite (valid, revoked, expired) is being executed. For details, please see `Verification Rules`.
-    - 4.d: If `certutil` outputs `certutil: certificate is invalid: Peer's Certificate has expired`, then that certificate is noted as being expired. Whether or not this results in a `FAIL` depends on which test suite (valid, revoked, expired) is being executed. For details, please see `Verification Rules`.
-    - 4.e: If `certutil` outputs `certutil: certificate is invalid: Peer's Certificate issuer is not recognized`, then that certificate is marked as having a broken certificate chain. This will result in a `FAIL` for all test suites.
-##### 5. CRL
+##### 3. Expiration and Chain Verification
+- Chain and expiration checking is done with the Go standard library's [`crypto/x509`](https://pkg.go.dev/crypto/x509) package.
+    - 3.a: Each verification operates on a private trust set built only from the chain constructed in `2. Certificate Chain Construction`. Self-issued certificates (those whose subject DER equals their issuer DER) are placed in the roots pool; all others go in the intermediates pool.
+    - 3.b: For every certificate within the chain, the following classification is produced:
+        - If the certificate's `notAfter` is in the past, it is recorded as `expired`.
+        - Otherwise, if the certificate is self-issued, its self-signature is verified. The certificate is recorded as `valid` if the signature checks out, including the case where Go reports `x509.InsecureAlgorithmError` (legacy signature algorithms such as SHA1WithRSA are accepted for trust-anchor self-signatures). A genuinely invalid self-signature is recorded as `issuerUnknown`.
+        - Otherwise, `Certificate.Verify` is called with the chain-derived roots and intermediates pools, `KeyUsages` set to `ExtKeyUsageAny`, and `CurrentTime` pinned inside the certificate's own validity window. Success is recorded as `valid`; failure is recorded as `issuerUnknown`.
+    - 3.c: Pinning `CurrentTime` to the certificate under test means an expired ancestor surfaces as `issuerUnknown` for the descendant rather than being attributed to the descendant as expiration.
+##### 4. CRL
 - For a given certificate, all CRL endpoints are checked as follows.
-    - 5.a: LDAP endpoints are _ignored_ by this program.
-    - 5.b: A timeout of 20 seconds is enforced. If this 20-second timeout is triggered, then the test is marked as a `FAIL`
-    - 5.c: HTTP requests from this client may be accurately identified from the following header: `"X-Automated-Tool": "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool"`
-    - 5.d: CRL endpoints are extracted from the given certificate's `CRLDistributionPoints` as defined in [RFC 5280 4.2.1.13. CRL Distribution Points](https://tools.ietf.org/html/rfc5280#section-4.2.1.13).
-    - 5.e: Every CRL downloaded is deserialized using the [Golang X509 ParseCRL](https://golang.org/pkg/crypto/x509/#ParseCRL) function.
-    - 5.f: For each entry within the `revokedCertificates` sequence ([RFC 5280 5.1. CRL Fields](https://tools.ietf.org/html/rfc5280#section-5.1)) the `userCertificate` is compared with the given certificate's `serialNumber` ([RFC 5280 4.1. Basic Certificate Fields](https://tools.ietf.org/html/rfc5280#section-4.1)). If the serial number matches, then this certificate is considered `revoked` by this CRL.
-    - 5.g: If no CRL distribution endpoints are listed within the certificate, or all endpoints serve an empty CRL, then this certificate is considered `good`.
-    - 5.h: If there is a disagreement between CRLs on the status of a particular certificate, then this certificate will be marked as a `FAIL`.
-##### 6. OCSP
+    - 4.a: LDAP endpoints are _ignored_ by this program.
+    - 4.b: A timeout of 20 seconds is enforced. If this 20-second timeout is triggered, then the test is marked as a `FAIL`
+    - 4.c: HTTP requests from this client may be accurately identified from the following header: `"X-Automated-Tool": "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool"`
+    - 4.d: CRL endpoints are extracted from the given certificate's `CRLDistributionPoints` as defined in [RFC 5280 4.2.1.13. CRL Distribution Points](https://tools.ietf.org/html/rfc5280#section-4.2.1.13).
+    - 4.e: Every CRL downloaded is deserialized using the [Golang X509 ParseCRL](https://golang.org/pkg/crypto/x509/#ParseCRL) function.
+    - 4.f: For each entry within the `revokedCertificates` sequence ([RFC 5280 5.1. CRL Fields](https://tools.ietf.org/html/rfc5280#section-5.1)) the `userCertificate` is compared with the given certificate's `serialNumber` ([RFC 5280 4.1. Basic Certificate Fields](https://tools.ietf.org/html/rfc5280#section-4.1)). If the serial number matches, then this certificate is considered `revoked` by this CRL.
+    - 4.g: If no CRL distribution endpoints are listed within the certificate, or all endpoints serve an empty CRL, then this certificate is considered `good`.
+    - 4.h: If there is a disagreement between CRLs on the status of a particular certificate, then this certificate will be marked as a `FAIL`.
+##### 5. OCSP
 - For a given certificate, all OCSP responders are checked as follows.
-    - 6.a: OCSP responders are extracted from the given certificate's authority access information extension ([RFC 4.2.2.1. Authority Information Access](https://tools.ietf.org/html/rfc5280#section-4.2.2.1))
-    - 6.b: Each OCSP responder listed is queried using a request generated by the [Golang crypto/ocsp](https://godoc.org/golang.org/x/crypto/ocsp) package.
-    - 6.c: A timeout of 20 seconds is enforced. If this 20-second timeout is triggered, then the test is marked as a `FAIL`.
-    - 6.d: HTTP requests from this client may be accurately identified from the following header: `"X-Automated-Tool": "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool"`
-    - 6.e The statuses of `revoked`, `good`, or `unknown` (as per [RFC 2560](https://www.ietf.org/rfc/rfc2560.txt)) are recorded for a given certificate.
+    - 5.a: OCSP responders are extracted from the given certificate's authority access information extension ([RFC 4.2.2.1. Authority Information Access](https://tools.ietf.org/html/rfc5280#section-4.2.2.1))
+    - 5.b: Each OCSP responder listed is queried using a request generated by the [Golang crypto/ocsp](https://godoc.org/golang.org/x/crypto/ocsp) package.
+    - 5.c: A timeout of 20 seconds is enforced. If this 20-second timeout is triggered, then the test is marked as a `FAIL`.
+    - 5.d: HTTP requests from this client may be accurately identified from the following header: `"X-Automated-Tool": "https://github.com/mozilla/CCADB-Tools/capi CCADB test website verification tool"`
+    - 5.e The statuses of `revoked`, `good`, or `unknown` (as per [RFC 2560](https://www.ietf.org/rfc/rfc2560.txt)) are recorded for a given certificate.
 
 # Verification Rules
 ## Valid
 A certificate chain, in the context of the `valid` test suite, is considered to pass [iff](https://en.wikipedia.org/wiki/If_and_only_if):
-1. `certutil` outputs `certutil: certificate is valid` for all certificates within the candidate chain.
+1. Every certificate within the candidate chain is recorded as `valid` by the chain verification step.
 2. No certificate within the chain is listed as being revoked by any CRL listed within its `CRLDistributionPoints`.
 3. No certificate within the chain is considered _not_ `good` by any OCSP responder listed within its authority information access.
 ## Expired
 A certificate chain, in the context of the `expired` test suite, is considered to pass [iff](https://en.wikipedia.org/wiki/If_and_only_if):
-1. `certutil` outputs `certutil: certificate is invalid: Peer's Certificate has expired` for the leaf certificate of the candidate chain.
-2. The intermediate certificates within the candidate chain _may_ either be considered `valid` or `expired` by `certutil`
-3. The root certificate _may not_ be considered `expired` by `certutil`.
+1. The leaf certificate of the candidate chain is recorded as `expired` by the chain verification step.
+2. The intermediate certificates within the candidate chain _may_ be recorded as either `valid` or `expired`.
+3. The root certificate _may not_ be recorded as `expired`.
 4. The leaf certificate _must not_ be revoked by any CRL.
 5. The leaf certificate _may be_ considered either `good` or `unauthorized` by OCSP responders.
 5. No intermediate or root certificate within the chain may be revoked by any CRL.
 6. No intermediate or root certificate within the chain is considered _not_ `good` by any OCSP responder listed within its authority information access.
 ## Revoked
 A certificate chain, in the context of the `revoked` test suite, is considered to pass [iff](https://en.wikipedia.org/wiki/If_and_only_if):
-1. `certutil` outputs `certutil: certificate is valid` for all certificates within the candidate chain.
+1. Every certificate within the candidate chain is recorded as `valid` by the chain verification step.
 2. The leaf certificate of the candidate chain is considered to be revoked by every CRL endpoint and OCSP responder.
 3. The intermediate certificates within the candidate chain _may_ either be `revoked` or `good` with regard to their CRL endpoints and OCSP responders.
 4. The root certificate _must_ be considered `good` by all OCSP responders and CRL endpoints.

@@ -5,10 +5,9 @@
 package expiration
 
 import (
+	"bytes"
 	"crypto/x509"
-
-	"github.com/mozilla/CCADB-Tools/capi/lib/expiration/certutil"
-	"github.com/pkg/errors"
+	"time"
 )
 
 type Status string
@@ -20,15 +19,6 @@ const (
 	UnexpectedResponse Status = "unexpectedResponse"
 )
 
-func toStatus(nssResponse string) (Status, bool) {
-	status, ok := map[string]Status{
-		certutil.VALID:         Valid,
-		certutil.EXPIRED:       Expired,
-		certutil.ISSUER_UNKOWN: IssuerUnknown,
-	}[nssResponse]
-	return status, ok
-}
-
 type ExpirationStatus struct {
 	Raw    string `json:"-"`
 	Error  string
@@ -36,38 +26,55 @@ type ExpirationStatus struct {
 }
 
 func VerifyChain(chain []*x509.Certificate) ([]ExpirationStatus, error) {
-	statuses := make([]ExpirationStatus, len(chain))
-	c, err := certutil.NewCertutil()
-	if err != nil {
-		return statuses, errors.Wrap(err, "failed to initialize a new NSS certificate database")
-	}
-	defer c.Delete()
-	for _, cert := range chain {
-		out, err := c.Install(cert)
-		o := string(out)
-		if err != nil {
-			return statuses, errors.Wrapf(err, "failed to install certificate, %v", o)
-		}
-	}
-	for i, cert := range chain {
-		statuses[i] = queryExpiration(cert, c)
-	}
-	return statuses, nil
+	return verifyChainAt(chain, time.Now()), nil
 }
 
-func queryExpiration(certificate *x509.Certificate, c certutil.Certutil) (exps ExpirationStatus) {
-	// @TODO try to figure certutil's error codes. It uses non zero codes when the answer is
-	// anything other than just "valid", so it's not a reliable way to know whether or not
-	// the tool was fundamentally used wrong or if the cert is just expired or what.
-	resp, _ := c.Verify(certificate)
-	response := string(resp)
-	exps.Raw = response
-	switch status, ok := toStatus(response); ok {
-	case true:
-		exps.Status = status
-	case false:
-		exps.Error = response
-		exps.Status = UnexpectedResponse
+func verifyChainAt(chain []*x509.Certificate, now time.Time) []ExpirationStatus {
+	roots := x509.NewCertPool()
+	intermediates := x509.NewCertPool()
+	for _, cert := range chain {
+		if isSelfIssued(cert) {
+			roots.AddCert(cert)
+		} else {
+			intermediates.AddCert(cert)
+		}
 	}
-	return
+	statuses := make([]ExpirationStatus, len(chain))
+	for i, cert := range chain {
+		statuses[i] = queryExpiration(cert, roots, intermediates, now)
+	}
+	return statuses
+}
+
+func queryExpiration(cert *x509.Certificate, roots, intermediates *x509.CertPool, now time.Time) ExpirationStatus {
+	if now.After(cert.NotAfter) {
+		return ExpirationStatus{Status: Expired}
+	}
+	if isSelfIssued(cert) {
+		// Verify the self-signature, but tolerate algorithms Go marks as
+		// insecure (e.g. SHA1WithRSA) so legacy roots aren't reported as
+		// IssuerUnknown.
+		err := cert.CheckSignatureFrom(cert)
+		if _, ok := err.(x509.InsecureAlgorithmError); err == nil || ok {
+			return ExpirationStatus{Status: Valid}
+		}
+		return ExpirationStatus{Raw: err.Error(), Status: IssuerUnknown}
+	}
+	// Pin verification time inside the cert's own validity window so an
+	// expired ancestor surfaces as IssuerUnknown rather than an expiration
+	// error attributed to the cert under test.
+	opts := x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		CurrentTime:   cert.NotBefore.Add(time.Second),
+	}
+	if _, err := cert.Verify(opts); err != nil {
+		return ExpirationStatus{Raw: err.Error(), Status: IssuerUnknown}
+	}
+	return ExpirationStatus{Status: Valid}
+}
+
+func isSelfIssued(cert *x509.Certificate) bool {
+	return bytes.Equal(cert.RawSubject, cert.RawIssuer)
 }

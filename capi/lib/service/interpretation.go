@@ -124,7 +124,7 @@ func assertNotRevoked(cert model.CertificateResult, t CertType) (opinion model.O
 			interpretation := ""
 			switch response.Status {
 			case ocsp.CryptoVerifcationError:
-				interpretation = fmt.Sprintf("OCSP responder %s could not verify the provided chain at the %s. This is usually accompanied by a verification error thrown by certutil.", response.Responder, t)
+				interpretation = fmt.Sprintf("OCSP responder %s could not verify the provided chain at the %s. This is usually accompanied by a chain verification error.", response.Responder, t)
 			case ocsp.BadResponse:
 				interpretation = fmt.Sprintf("OCSP responder %s gave a bad response for the %s.", response.Responder, t)
 			}
@@ -207,7 +207,7 @@ func assertExpired(cert model.CertificateResult, t CertType) (opinion model.Opin
 	if cert.Expiration.Error != "" {
 		opinion.Errors = append(opinion.Errors, model.Concern{
 			Raw: cert.Expiration.Error,
-			Interpretation: fmt.Sprintf("certutil encountered a fatal error when attempting to verify the %s certificate, %s",
+			Interpretation: fmt.Sprintf("a fatal error was encountered when attempting to verify the %s certificate, %s",
 				t, cert.Fingerprint),
 			Advise: "This is likely an error in CAPI",
 		})
@@ -226,7 +226,7 @@ func assertMayBeExpired(cert model.CertificateResult, t CertType) (opinion model
 	if cert.Expiration.Error != "" {
 		opinion.Errors = append(opinion.Errors, model.Concern{
 			Raw: cert.Expiration.Error,
-			Interpretation: fmt.Sprintf("certutil encountered a fatal error when attempting to verify the %s certificate, %s",
+			Interpretation: fmt.Sprintf("a fatal error was encountered when attempting to verify the %s certificate, %s",
 				t, cert.Fingerprint),
 			Advise: "This is likely an error in CAPI",
 		})
@@ -246,7 +246,7 @@ func assertRevoked(cert model.CertificateResult, t CertType) (opinion model.Opin
 			interpretation := ""
 			switch response.Status {
 			case ocsp.CryptoVerifcationError:
-				interpretation = fmt.Sprintf("OCSP responder %s could not verify the provided chain at the %s. This is usually accompanied by a verification error thrown by certutil.", response.Responder, t)
+				interpretation = fmt.Sprintf("OCSP responder %s could not verify the provided chain at the %s. This is usually accompanied by a chain verification error.", response.Responder, t)
 			case ocsp.BadResponse:
 				interpretation = fmt.Sprintf("OCSP responder %s gave a bad response for the %s.", response.Responder, t)
 			}
@@ -295,7 +295,7 @@ func assertMayBeRevoked(cert model.CertificateResult, t CertType) (opinion model
 			interpretation := ""
 			switch response.Status {
 			case ocsp.CryptoVerifcationError:
-				interpretation = fmt.Sprintf("OCSP responder %s could not verify the provided chain at the %s. This is usually accompanied by a verification error thrown by certutil.", response.Responder, t)
+				interpretation = fmt.Sprintf("OCSP responder %s could not verify the provided chain at the %s. This is usually accompanied by a chain verification error.", response.Responder, t)
 			case ocsp.BadResponse:
 				interpretation = fmt.Sprintf("OCSP responder %s gave a bad response for the %s.", response.Responder, t)
 			}
