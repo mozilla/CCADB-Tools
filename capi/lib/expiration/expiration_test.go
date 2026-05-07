@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/mozilla/CCADB-Tools/capi/lib/certificateUtils"
 )
@@ -301,15 +302,15 @@ HDpUXrjK6eHN8gazy8G6pndXHFwHp4auiZbJbYAk/q1peOTRagD2JojcLkm+i3cD
 -----END CERTIFICATE-----
 ` + FakeAmazonRoot
 
+// pinned is inside the validity window of every fixture in this file.
+var pinned = time.Date(2019, 6, 1, 0, 0, 0, 0, time.UTC)
+
 func TestValidChain(t *testing.T) {
 	chain, err := certificateUtils.ParseChain([]byte(AmazonRootCA1Valid))
 	if err != nil {
 		t.Fatal(err)
 	}
-	statuses, err := VerifyChain(chain)
-	if err != nil {
-		t.Fatal(err)
-	}
+	statuses := verifyChainAt(chain, pinned)
 	if len(statuses) != len(chain) {
 		t.Fatalf("wanted %d expiration statues, got %d\n", len(chain), len(statuses))
 	}
@@ -328,10 +329,7 @@ func TestValidMissingRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	statuses, err := VerifyChain(chain[:2])
-	if err != nil {
-		t.Fatal(err)
-	}
+	statuses := verifyChainAt(chain[:2], pinned)
 	for _, status := range statuses {
 		if status.Status != IssuerUnknown {
 			t.Fail()
@@ -345,10 +343,7 @@ func TestValidMissingIntermediate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	statuses, err := VerifyChain([]*x509.Certificate{chain[0], chain[2]})
-	if err != nil {
-		t.Fatal(err)
-	}
+	statuses := verifyChainAt([]*x509.Certificate{chain[0], chain[2]}, pinned)
 	leaf := statuses[0]
 	root := statuses[1]
 	if leaf.Status != IssuerUnknown {
@@ -366,10 +361,7 @@ func TestExpiredChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	statuses, err := VerifyChain(chain)
-	if err != nil {
-		t.Fatal(err)
-	}
+	statuses := verifyChainAt(chain, pinned)
 	if len(statuses) != len(chain) {
 		t.Fatalf("wanted %d expiration statues, got %d\n", len(chain), len(statuses))
 	}
@@ -395,10 +387,7 @@ func TestExpiredMissingRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	statuses, err := VerifyChain(chain[:2])
-	if err != nil {
-		t.Fatal(err)
-	}
+	statuses := verifyChainAt(chain[:2], pinned)
 	leaf := statuses[0]
 	intermediate := statuses[1]
 	// certutil only gives one error at time, with expiration having the priority.
@@ -417,10 +406,7 @@ func TestExpiredMissingIntermediate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	statuses, err := VerifyChain([]*x509.Certificate{chain[0], chain[2]})
-	if err != nil {
-		t.Fatal(err)
-	}
+	statuses := verifyChainAt([]*x509.Certificate{chain[0], chain[2]}, pinned)
 	leaf := statuses[0]
 	root := statuses[1]
 	// certutil only gives one error at time, with expiration having the priority.
@@ -439,7 +425,7 @@ func TestBadIssuer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, _ := VerifyChain(chain)
+	result := verifyChainAt(chain, pinned)
 	leaf := result[0]
 	intermediate := result[1]
 	root := result[2]
@@ -459,7 +445,7 @@ func TestInvalidSignature(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, _ := VerifyChain(chain)
+	result := verifyChainAt(chain, pinned)
 	leaf := result[0]
 	intermediate := result[1]
 	root := result[2]
