@@ -5,11 +5,21 @@ Tools or services used in conjunction with or used by the [CCADB](https://www.cc
 
 **Status:** In use
 
-**Description:** APIs to enable Certificate Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. 
+**Description:** APIs to enable Certification Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. 
 
 **Usage:** See README in https://github.com/mozilla/CCADB-Tools/tree/master/API_AddUpdateIntermediateCert
     
-**Used By:** This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
+**Used By:** This service is only available to CAs whose root certificates are included within the root stores of CCADB Root Store Operators.
+
+## API_AllCertificateRecords
+
+**Status:** In use
+
+**Description:** A read-only endpoint that exposes Root and Intermediate Certificate records from the CCADB as paginated JSON.
+
+**Usage:** See README in https://github.com/mozilla/CCADB-Tools/tree/master/API_AllCertificateRecords
+    
+**Used By:** This service is available to anyone. We recommend calling the API no more than once per day. Each API request contributes toward Salesforce API usage limits, so minimizing the number of calls helps conserve available capacity and reduces the risk of reaching platform limits.
 
 ## EVChecker
 
@@ -29,7 +39,7 @@ Tools or services used in conjunction with or used by the [CCADB](https://www.cc
 
 **Usage:** See README in https://github.com/mozilla/CCADB-Tools/tree/master/cacheck
 
-**Used By:** Mozilla CA Program Managers, other root store members of the CCADB, and CAs.
+**Used By:** Mozilla CA Program Managers, other Root Store Operators of the CCADB, and CAs.
 
 ## cacompliance
 
@@ -39,7 +49,7 @@ Tools or services used in conjunction with or used by the [CCADB](https://www.cc
 
 **Usage:** 
 
-**Used By:** Would be used by Mozilla CA Program Managers and other root store members of the CCADB.
+**Used By:** Would be used by Mozilla CA Program Managers and other Root Store Operators of the CCADB.
 
 ## capi
 
@@ -102,7 +112,7 @@ curl -d '{"crl": "http://crl.ws.symantec.com/pca1-g3.crl","serial": "fc788d52d44
 
 **Usage:** See README in https://github.com/mozilla/CCADB-Tools/tree/master/evReady
 
-**Used By:** Used by CAs and root store operators.
+**Used By:** Used by CAs and Root Store Operators.
 
 ## oneCRLDiffCCADB
 
