@@ -6,6 +6,14 @@ API requests have limitations, and they may be throttled if the limit is exceede
 * 500 error means the request timed out, most likely due to throttling
 * 429 error means too many requests made per minute, or a user made the same API call request more than once within a minute
 
+If the callout fails or returns an error response, not every error should be retried. Errors fall into the following two categories:
+
+* Permanent errors will not succeed on retry because the underlying condition does not change between attempts. "Certificate not found in CCADB" is one example. Do not retry these. Instead, correct the request or satisfy the missing precondition before submitting it again.
+* Transient errors, such as throttling or HTTP 5xx responses, may succeed if retried later. Retry these using exponential backoff, with a maximum number of retry attempts.
+
+This works alongside the existing guidance to wait a few seconds between requests.
+
+
 The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. 
 
 1. **GetCertificateIdAPI** [HOST_URL]/services/apexrest/get/recordid
@@ -491,3 +499,6 @@ Failed Response Body:
     ],
     "CCADBUniqueId": ""
 }
+```
+
+```
