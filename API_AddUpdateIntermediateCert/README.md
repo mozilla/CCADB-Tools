@@ -163,7 +163,7 @@ Response Body:
 
 ## CCADB AddUpdateIntermediateCertAPI Processing Requirements
 
-AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB, or update an existing CCADB record. To update an existing intermediate certificate record, the JSON request must have the certificate's PEM and the CCADB Unique ID. To add an intermediate certificate record, the JSON request must provide the PEM of the certificate to be added along with PEM of the certificate that signed it (i.e. it's parent certificate). If any attributes fail to meet the criteria (see below for field level checks), a list of errors/warnings is compiled and sent to the user as part of JSON Response. 
+AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB, or update an existing CCADB record. To update an existing intermediate certificate record, the JSON request must have the certificate's PEM and the CCADB Unique ID. To add an intermediate certificate record, the JSON request must provide the PEM of the certificate to be added along with PEM of the certificate that signed it (i.e. its parent certificate). If any attributes fail to meet the criteria (see below for field level checks), a list of errors/warnings is compiled and sent to the user as part of JSON Response. 
 
 ### Processing Highlights
 
@@ -189,7 +189,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
 ### JSON Request Definition
 ```
  Class CertificateInformation {
-     String CCADBUniqueId;                   # CCADB Unique ID is required when callout is made for update; CCADB Unique ID is returned upon successful add request
+     String CCADBUniqueId;                   # CCADB Unique ID is required when a callout is made for an update; CCADB Unique ID is returned upon success of an add request
      String CAOwner;                         # required field; add/update actions allowed only on CAs own hierarchy
      String SubordinateCAOwner;             
      String IntermediateCertificateName;     # the value should be Subject CN of the cert for add/update callouts; it is also being used for tracking API calls and reporting; not used for any validations
@@ -441,14 +441,14 @@ Request Body:
     "PublicComments": ""
 }
 
-Success Response Body (If the upload request was successful you will receive a HTTP Status Code of `200` with JSON in the body containing the unique id of the CCADB record that was created): 
+Success Response Body (If the upload request was successful, you will receive an HTTP Status Code of `200` with JSON in the body containing the unique id of the CCADB record that was created): 
 {
     "ProcessingStatus": "Success",
     "Errors/Warnings": [],
     "CCADBUniqueId": "A012930"
 }
 
-Failed Response Body (If the upload request failed you will receive a HTTP Status Code of `400` with JSON in the body containing information about the failure. If the upload failed because the a record for the PEM already exists, the CCADB Unique ID of the existing record will also be returned.):
+Failed Response Body (If the upload request failed, you will receive an HTTP Status Code of `400` with JSON in the body containing information about the failure. If the upload failed because a record for the PEM already exists, the CCADB Unique ID of the existing record will also be returned.):
 {
     "ProcessingStatus": "Fail",
     "Errors/Warnings": ["This Intermediate Certificate already exists in CCADB."],
