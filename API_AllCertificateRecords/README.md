@@ -24,6 +24,8 @@ Use this public / unauthenticated endpoint. No tokens are needed.
 
 > [!NOTE]
 > For testing in the sandbox environment use **`CCADB_SITE_DOMAIN`**: `ccadb--sbxccadb.sandbox.my.site.com`
+>
+> Please be mindful that the data in the sandbox environment lags behind production and may not be accurate.
 
 
 ## 2. Request Schema
