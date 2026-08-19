@@ -2,14 +2,22 @@
 
 CCADB APIs have been developed to enable Certificate Authorities (CAs) to automate retrieving and updating intermediate certificate data in the CCADB. This service is only available to CAs whose root certificates are included within the root stores of CCADB root store members.
 
-API requests have limitations, and they may be throttled if the limit is exceeded. In the CCADB database, each API request is scheduled as an asynchronous process. Salesforce has a limit of 100 asynchronous processes at any given time. If this limit is exceeded, an error is returned. We recommend adding a delay (e.g., 5 seconds or more) between each API request to avoid hitting this limit. The Salesforce per-request transaction limit is 2 minutes. If a callout is not completed within this timeframe, a timeout error is returned.
+API requests have limitations, and they may be throttled if the limit is exceeded. In the CCADB database, each API request is scheduled as an asynchronous process. Salesforce has a limit of 100 asynchronous processes at any given time. If this limit is exceeded, an error is returned. We recommend adding a delay (e.g., 5 seconds or more) between each API request to avoid hitting this limit.
 * 500 error means the request timed out, most likely due to throttling
 * 429 error means too many requests made per minute, or a user made the same API call request more than once within a minute
+
+If the callout fails or returns an error response, not every error should be retried. Errors fall into the following two categories:
+
+* Permanent errors will not succeed on retry because the underlying condition does not change between attempts. "Certificate not found in CCADB" is one example. Do not retry these. Instead, correct the request or satisfy the missing precondition before submitting it again.
+* Transient errors, such as throttling or HTTP 5xx responses, may succeed if retried later. Retry these using exponential backoff, with a maximum number of retry attempts.
+
+This works alongside the existing guidance to wait a few seconds between requests.
+
 
 The REST API accepts JSON payloads and it is integrated via Salesforce Connected App. 
 
 1. **GetCertificateIdAPI** [HOST_URL]/services/apexrest/get/recordid
-	Returns the root or intermediate certificate record Id (Salesforce Id) in the CCADB.
+	Returns the root or intermediate certificate CCADB Unique Id in the CCADB.
 	
 2. **AddUpdateIntermediateCertAPI** [HOST_URL]/services/apexrest/create/intermediatecert
 	Add or update an intermediate certificate record in the CCADB.
@@ -93,7 +101,7 @@ Upon receipt of the API details (HOST_URL, CONSUMER_KEY, CONSUMER_SECRET, etc.) 
 
 ## CCADB GetCertificateIdAPI Processing Requirements
 
-GetCertificateIdAPI returns a root or intermediate certificate record Id (Salesforce Id) in the CCADB. The JSON Request must provide a record type (Root Certificate/Intermediate Certificate) along with the PEM or the SHA-256 Fingerprint of the certificate. If the criteria is found, an 18 digit Salesforce record Id is returned with 'Success' status. 
+GetCertificateIdAPI returns a root or intermediate certificate's unique Id (CCADB Unique ID, an External ID string starting with letter 'A'). The JSON Request must provide a record type (Root Certificate/Intermediate Certificate) along with the PEM or the SHA-256 Fingerprint of the certificate. If the criteria are met, the system will return a unique id of the record with a 'Success' status.
 
 ### Processing Highlights
 
@@ -101,7 +109,7 @@ If the PEM of the certificate is provided, the PEM is parsed to extract the SHA-
  
 When both the certificate's PEM and SHA-256 Fingerprint are provided, and if the SHA-256 Fingerprint does not match the one that was provided, a failed status is returned.
 
-If more than one certificate of the specified type (e.g. Intermediate Certificate) is found in the CCADB with the same SHA-256 Fingerprint, the record id of the first record found is returned.
+If more than one certificate of the specified type (e.g. Intermediate Certificate) is found in the CCADB with the same SHA-256 Fingerprint, the unique id of the first record found is returned.
 
 ### JSON Request/Response Definition
 ```
@@ -116,7 +124,7 @@ Response Body:
  {
     String ProcessingStatus;   # Fail, Success, SuccessWithWarnings
     List <Errors/Warnings> Errors/Warnings;
-    String RecordId; 
+    String CCADBUniqueId; 
  } 
 ```
 
@@ -133,7 +141,7 @@ Response Body:
 {
     "ProcessingStatus": "Success",
     "Errors/Warnings": [],
-    "RecordId": "0010r00000UqC4AAAV"
+    "CCADBUniqueId": "A012930"
 }
 
 
@@ -148,23 +156,23 @@ Response Body:
  {
     "ProcessingStatus": "Fail",
      "Errors/Warnings": ["Certificate not found in CCADB."],
-     "RecordId": ""
+     "CCADBUniqueId": ""
  } 
 
 ```
 
 ## CCADB AddUpdateIntermediateCertAPI Processing Requirements
 
-AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB, or update an existing CCADB record. To update an existing intermediate certificate record, the JSON request must have the certificate's PEM and the 18 digit Salesforce Certificate Record ID. To add an intermediate certificate record, the JSON request must provide the PEM of the certificate to be added along with PEM of the certificate that signed it (i.e. it's parent certificate). If any attributes fail to meet the criteria (see below for field level checks), a list of errors/warnings is compiled and sent to the user as part of JSON Response. 
+AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB, or update an existing CCADB record. To update an existing intermediate certificate record, the JSON request must have the certificate's PEM and the CCADB Unique ID. To add an intermediate certificate record, the JSON request must provide the PEM of the certificate to be added along with PEM of the certificate that signed it (i.e. its parent certificate). If any attributes fail to meet the criteria (see below for field level checks), a list of errors/warnings is compiled and sent to the user as part of JSON Response. 
 
 ### Processing Highlights
 
 -   CAs can only add or update certificiates in their CA's hierarchy.
--   If the Salesforce Record Id is populated (with 18 digit id) then it is considered to be an 'update' request or else it is assumed to be an 'add' request.
+-   If the CCADB Unique ID is populated then it is considered to be an 'update' request or else it is assumed to be an 'add' request.
 -   IntermediateCertPEM and ParentCertPEM are parsed by an extraction tool provided by TLS Observatory.
 -   CAOwner PEM in the request must be the PEM of the certificate that signed the certificate to be added (i.e. the parent certificate), and the parent certificate must already have a corresponding record in the CCADB. 
 -   For an 'add' request the CA Owner + SHA-256 Fingerprint must be unique, otherwise an error is returned regarding duplicate records.
--   For an 'update' request, the SHA-256 Fingerprint is extracted from IntermediateCertPEM and checked against the Salesforce record (SalesforceRecordId passed in the request), if the SHA-256 Fingerprint does not match the value in the record, then the record is not updated and an error message is returned.
+-   For an 'update' request, the SHA-256 Fingerprint is extracted from IntermediateCertPEM and checked against the CCADB Unique ID  (CCADBUniqueId passed in the request), if the SHA-256 Fingerprint does not match the value in the record, then the record is not updated and an error message is returned.
 -   For an 'update' request, fields with 'null' values are ignored. If the fields have blank '' value, then the corresponding Salesforce fields are set to blank. This rule applies to all field types such as text, date, picklist, url and lookup.
 -   This API does not allow CAs to update IntermediateCertPEM and ParentCertPEM fields.
 -   All attributes are validated within this controller class and a list of errors/warnings are returned as part of the response for CAs to correct the data.
@@ -176,12 +184,12 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
 ### Mandatory Fields
 
 -   Add New Cert: CAOwner, IntermediateCertificateName, IntermediateCertPEM, ParentCertPEM
--   Update Existing Cert Record: SalesforceRecordId, CAOwner, IntermediateCertificateName, IntermediateCertPEM
+-   Update Existing Cert Record: CCADBUniqueId, CAOwner, IntermediateCertificateName, IntermediateCertPEM
  
 ### JSON Request Definition
 ```
  Class CertificateInformation {
-     String SalesforceRecordId;              # 18 digit Salesforce record id is required when callout is made for update; Salesforce id is returned upon successful add request
+     String CCADBUniqueId;                   # CCADB Unique ID is required when a callout is made for an update; CCADB Unique ID is returned upon success of an add request
      String CAOwner;                         # required field; add/update actions allowed only on CAs own hierarchy
      String SubordinateCAOwner;             
      String IntermediateCertificateName;     # the value should be Subject CN of the cert for add/update callouts; it is also being used for tracking API calls and reporting; not used for any validations
@@ -320,7 +328,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
  {
     String ProcessingStatus;              # Fail, Success, SuccessWithWarnings
     List <Errors/Warnings> Errors/Warnings;
-    String SalesforceRecordId; 
+    String CCADBUniqueId; 
  } 
 ```
 
@@ -329,7 +337,7 @@ AddUpdateIntermediateCertAPI may be used to either add a new record to the CCADB
 Request Body:
 {
     "CertificateInformation": {
-        "SalesforceRecordId": "",
+        "CCADBUniqueId": "",
         "CAOwner": "Digicert",
         "SubordinateCAOwner": "Digicert",
         "IntermediateCertificateName": "Test Intermediate Cert",
@@ -433,18 +441,18 @@ Request Body:
     "PublicComments": ""
 }
 
-Success Response Body (If the upload request was successful you will receive a HTTP Status Code of `200` with JSON in the body containing the unique salesforced ID of the CCADB record that was created): 
+Success Response Body (If the upload request was successful, you will receive an HTTP Status Code of `200` with JSON in the body containing the unique id of the CCADB record that was created): 
 {
     "ProcessingStatus": "Success",
     "Errors/Warnings": [],
-    "SalesforceRecordId": "0010r00000damffAAA"
+    "CCADBUniqueId": "A012930"
 }
 
-Failed Response Body (If the upload request failed you will receive a HTTP Status Code of `400` with JSON in the body containing information about the failure. If the upload failed because the a record for the PEM already exists, the salesforce record ID of the existing record will also be returned.):
+Failed Response Body (If the upload request failed, you will receive an HTTP Status Code of `400` with JSON in the body containing information about the failure. If the upload failed because a record for the PEM already exists, the CCADB Unique ID of the existing record will also be returned.):
 {
     "ProcessingStatus": "Fail",
     "Errors/Warnings": ["This Intermediate Certificate already exists in CCADB."],
-    "SalesforceRecordId": "0010r00000damffAAA"
+    "CCADBUniqueId": "A012930"
 }
 
 ```
@@ -454,7 +462,7 @@ Failed Response Body (If the upload request failed you will receive a HTTP Statu
 ```
 {
     "CertificateInformation": {
-        "SalesforceRecordId": "0010r00000damffAAA",
+        "CCADBUniqueId": "A012930",
         "CAOwner": "Digicert",
         "SubordinateCAOwner": "Digicert",
         "IntermediateCertificateName": "Test Intermediate Cert",
@@ -479,7 +487,7 @@ Success Response Body:
 {
     "ProcessingStatus": "Success",
     "Errors/Warnings": [],
-    "SalesforceRecordId": "1300870009327"
+    "CCADBUniqueId": "A012930"
 }
 
 Failed Response Body:
@@ -487,10 +495,7 @@ Failed Response Body:
 {
     "ProcessingStatus": "Fail",
     "Errors/Warnings": [
-        "The provided Salesforce Record ID and SHA-256 of the provided Intermediate Certificate does not match."
+        "The provided CCADB Unique ID and SHA-256 of the provided Intermediate Certificate does not match."
     ],
-    "SalesforceRecordId": ""
+    "CCADBUniqueId": ""
 }
-```
-
-```
