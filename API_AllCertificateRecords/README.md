@@ -36,12 +36,12 @@ The `AllCertificateRecordsAPI v1` endpoint expects a JSON request body with the 
 
 ```json
 {
-  "filters": {
-    "notBeforeYear": 2024,
-    "notBeforeDecade": null,
+  "Filters": {
+    "NotBeforeYear": 2024,
+    "NotBeforeDecade": null,
     "PageNumber": 1
   },
-  "fieldSets": [
+  "FieldSets": [
     "AdditionalCertificateData",
     "Capabilities",
     "AuditorInformation",
@@ -52,21 +52,21 @@ The `AllCertificateRecordsAPI v1` endpoint expects a JSON request body with the 
 
 ### JSON Key Breakdown
 
-#### `filters` (Object, Conditionally Mandatory)
+#### `Filters` (Object, Conditionally Mandatory)
 
 The filter parameters are optional, if omitted, default values are applied.
 
 | Property | Type | Default | Validation Rules | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `notBeforeYear` | Integer | `null` | `1990` to `2100` | Filters certificates by the calendar year of their `Valid From` date. Takes precedence over `notBeforeDecade`. Mandatory if `notBeforeDecade` is not supplied. |
-| `notBeforeDecade` | Integer | `null` | Multiple of 10 (e.g. `2020`), between `1990` and `2100` | Filters certificates by a 10-year range of their `Valid From` date. Ignored if `notBeforeYear` is supplied. |
+| `NotBeforeYear` | Integer | `null` | `1990` to `2100` | Filters certificates by the calendar year of their `Valid From` date. Takes precedence over `NotBeforeDecade`. Mandatory if `NotBeforeDecade` is not supplied. |
+| `NotBeforeDecade` | Integer | `null` | Multiple of 10 (e.g. `2020`), between `1990` and `2100` | Filters certificates by a 10-year range of their `Valid From` date. Ignored if `NotBeforeYear` is supplied. |
 | `PageNumber` | Integer | `1` | `≥ 1` | The page number to retrieve. |
 
 
 
 ## 3. Dynamic Field Sets
 
-The API defaults to sending only core data so it stays fast. To get extra details, you must explicitly request them using the "fieldSets" array.
+The API defaults to sending only core data so it stays fast. To get extra details, you must explicitly request them using the "FieldSets" array.
 
 ### Always Included (Core Data)
 
@@ -123,11 +123,11 @@ An optional list of field set names can be appended to the core payload. Field s
 curl --location 'https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterecords' \
   --header 'Content-Type: application/json' \
   --data '{
-    "filters": {
-      "notBeforeYear": 2024,
+    "Filters": {
+      "NotBeforeYear": 2024,
       "PageNumber": 4
     },
-    "fieldSets": [
+    "FieldSets": [
       "Capabilities"
     ]
   }'
@@ -139,12 +139,12 @@ curl --location 'https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificate
 curl --location 'https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterecords' \
   --header 'Content-Type: application/json' \
   --data '{
-    "filters": {
-      "notBeforeYear": 2024,
-      "notBeforeDecade": null,
+    "Filters": {
+      "NotBeforeYear": 2024,
+      "NotBeforeDecade": null,
       "PageNumber": 1
     },
-    "fieldSets": [
+    "FieldSets": [
       "AdditionalCertificateData",
       "TrustInformation",
       "PertainingToCertificatesIssued",
@@ -186,17 +186,17 @@ The `Meta.Pagination` object contains the following fields:
 ## 6. Filtering the Dataset
 
 > [!NOTE]
-> The `filters` block is required to support efficient pagination. Queries that include Long Text Area fields are limited to approximately 100 records per page.
+> The `Filters` block is required to support efficient pagination. Queries that include Long Text Area fields are limited to approximately 100 records per page.
 
-Any request sent without active partitioning filters will return the first page of full export. You should provide `filters` with `PageNumber` to retrieve subsequent pages. Also, you must provide either `notBeforeYear` or `notBeforeDecade` to properly segment the dataset.
+Any request sent without active partitioning filters will return the first page of full export. You should provide `Filters` with `PageNumber` to retrieve subsequent pages. Also, you must provide either `NotBeforeYear` or `NotBeforeDecade` to properly segment the dataset.
 
-You can restrict the search using `notBeforeYear` or `notBeforeDecade`:
+You can restrict the search using `NotBeforeYear` or `NotBeforeDecade`:
 
-- **`notBeforeYear`**: Matches certificates where the `ValidFrom` year matches exactly and must be between `1990` and `2100`.
-- **`notBeforeDecade`**: Matches certificates where the `ValidFrom` year falls within the 10-year decade (e.g., `2020` covers `2020` through `2029`).
+- **`NotBeforeYear`**: Matches certificates where the `ValidFrom` year matches exactly and must be between `1990` and `2100`.
+- **`NotBeforeDecade`**: Matches certificates where the `ValidFrom` year falls within the 10-year decade (e.g., `2020` covers `2020` through `2029`).
 
 > [!NOTE]
-> If you provide both `notBeforeYear` and `notBeforeDecade`, **`notBeforeYear` takes precedence** and the decade filter is ignored.
+> If you provide both `NotBeforeYear` and `NotBeforeDecade`, **`NotBeforeYear` takes precedence** and the decade filter is ignored.
 
 ### Example: Filter by Year (2024)
 
@@ -206,8 +206,8 @@ You can restrict the search using `notBeforeYear` or `notBeforeDecade`:
 curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterecords" \
   -H "Content-Type: application/json; charset=utf-8" \
   -d '{
-    "filters": {
-      "notBeforeYear": 2024
+    "Filters": {
+      "NotBeforeYear": 2024
     }
   }'
 ```
@@ -222,8 +222,8 @@ curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterec
 curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterecords" \
   -H "Content-Type: application/json; charset=utf-8" \
   -d '{
-    "filters": {
-      "notBeforeDecade": 2020
+    "Filters": {
+      "NotBeforeDecade": 2020
     }
   }'
 ```
@@ -244,8 +244,8 @@ Let's walk through paginating a dataset containing **350 records** filtered by t
 curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterecords" \
   -H "Content-Type: application/json; charset=utf-8" \
   -d '{
-    "filters": {
-      "notBeforeDecade": 2020,
+    "Filters": {
+      "NotBeforeDecade": 2020,
       "PageNumber": 1
     }
   }'
@@ -280,8 +280,8 @@ Change `PageNumber` in the payload to `2`:
 curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterecords" \
   -H "Content-Type: application/json; charset=utf-8" \
   -d '{
-    "filters": {
-      "notBeforeDecade": 2020,
+    "Filters": {
+      "NotBeforeDecade": 2020,
       "PageNumber": 2
     }
   }'
@@ -316,8 +316,8 @@ Change `PageNumber` in the payload to `4`:
 curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterecords" \
   -H "Content-Type: application/json; charset=utf-8" \
   -d '{
-    "filters": {
-      "notBeforeDecade": 2020,
+    "Filters": {
+      "NotBeforeDecade": 2020,
       "PageNumber": 4
     }
   }'
@@ -356,7 +356,7 @@ Here are the specific scenarios to test:
 
 ```json
 {
-  "filters": {
+  "Filters": {
     // missing closing bracket
 ```
 
@@ -365,7 +365,7 @@ Here are the specific scenarios to test:
 ```bash
 curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterecords" \
   -H "Content-Type: application/json; charset=utf-8" \
-  -d '{"filters": {"PageNumber": 1'
+  -d '{"Filters": {"PageNumber": 1'
 ```
 
 - **Response (HTTP 400)**:
@@ -403,12 +403,12 @@ curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterec
 
 ```json
 {
-  "filters": {
-    // "notBeforeYear": 2020, // one of this filter is required
-    "notBeforeDecade": 2020, // notBeforeDecade out of range
+  "Filters": {
+    // "NotBeforeYear": 2020, // one of this filter is required
+    "NotBeforeDecade": 2020, // NotBeforeDecade out of range
     "PageNumber": 0 // change the page numbers in every request
   },
-  "fieldSets": []
+  "FieldSets": []
 }
 ```
 
@@ -440,19 +440,19 @@ curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterec
 
 
 
-### Error Scenario C: notBeforeYear Out of Range
+### Error Scenario C: NotBeforeYear Out of Range
 
 - **Trigger**: Input year is outside the supported calendar range (`1990` - `2100`).
 - **Test Payload**:
 
 ```json
 {
-  "filters": {
-    // "notBeforeYear": 2020, // one of this filter is required
-    "notBeforeDecade": 2226, // notBeforeDecade out of range
+  "Filters": {
+    // "NotBeforeYear": 2020, // one of this filter is required
+    "NotBeforeDecade": 2226, // NotBeforeDecade out of range
     "PageNumber": 1 // change the page numbers in every request
   },
-  "fieldSets": []
+  "FieldSets": []
 }
 ```
 
@@ -484,19 +484,19 @@ curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterec
 
 
 
-### Error Scenario D: notBeforeDecade is Not a Decade Start
+### Error Scenario D: NotBeforeDecade is Not a Decade Start
 
 - **Trigger**: Input decade is not a multiple of 10 or is out of range.
 - **Test Payload**:
 
 ```json
 {
-  "filters": {
-    // "notBeforeYear": 2020, // one of this filter is required
-    "notBeforeDecade": 2026, // Providing invalid notBeforeDecade
+  "Filters": {
+    // "NotBeforeYear": 2020, // one of this filter is required
+    "NotBeforeDecade": 2026, // Providing invalid NotBeforeDecade
     "PageNumber": 1 // change the page numbers in every request
   },
-  "fieldSets": []
+  "FieldSets": []
 }
 ```
 
@@ -535,12 +535,12 @@ curl -X POST "https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificaterec
 
 ```json
 {
-  "filters": {
-    // "notBeforeYear": 2020, // one of this filter is required
-    "notBeforeDecade": 2020,
+  "Filters": {
+    // "NotBeforeYear": 2020, // one of this filter is required
+    "NotBeforeDecade": 2020,
     "PageNumber": 9999 // Page Number out of bound
   },
-  "fieldSets": [
+  "FieldSets": [
     "AdditionalCertificateData",
     "AuditorInformation",
     "AuditInformation",
