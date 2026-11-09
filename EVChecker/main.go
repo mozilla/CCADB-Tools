@@ -231,7 +231,7 @@ func extractFingerprint(r io.RuneReader) (string, error) {
 	if comma != ',' {
 		return "", errors.New(fmt.Sprintf(`Expected the character "," while decoding the end of a hex array, got "%s"`, string(comma)))
 	}
-	return str.String(), nil
+	return strings.ToUpper(str.String()), nil
 }
 
 func extractStringField(r io.RuneReader) (string, error) {
