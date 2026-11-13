@@ -164,7 +164,7 @@ curl --location 'https://{CCADB_SITE_DOMAIN}/services/apexrest/v1/allcertificate
 
 ## 5. Pagination — How It Works
 
-The API uses **cursor pagination**. Each response returns a `NextPageNumber` that can be used to request the next page of results. The default page size is 100 records.
+The API uses **pagination**. Each response returns a `NextPageNumber` that can be used to request the next page of results. The default page size is 100 records.
 
 ### Pagination Metadata
 
